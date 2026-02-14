@@ -32,8 +32,8 @@ const statusColors = {
 }
 
 const DryingMonitor = ({ reports, onSelectReport }) => {
-    // Filter by status only, as dryingStarted is no longer mandatory/used
-    const dryingReports = reports.filter(r => r.status === 'Trocknung');
+    // Filter by status 'Trocknung' OR if there are active devices
+    const dryingReports = reports.filter(r => r.status === 'Trocknung' || (r.equipment && r.equipment.length > 0));
 
     // Helper to get start date (from first device or report date)
     const getStartDate = (report) => {
@@ -317,26 +317,27 @@ export default function Dashboard({ reports, onSelectReport }) {
                     </button>
                 </div>
 
-                <div className="table-container">
+                <div className="table-container" style={{ maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}>
                     <table className="data-table">
                         <thead>
                             <tr>
-                                <th style={{ width: '100px' }}>Projekt</th>
-                                <th style={{ width: '130px' }}>Status</th>
-                                <th style={{ minWidth: '140px' }}>Ort des Schadens</th>
-                                <th style={{ minWidth: '120px' }}>Kunde von</th>
-                                <th style={{ minWidth: '180px' }}>Adresse</th>
-                                <th style={{ minWidth: '140px' }}>Schaden</th>
-                                <th style={{ width: '80px', textAlign: 'center' }}>
+                                <th style={{ width: '100px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Nr.</th>
+                                <th style={{ width: '100px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Datum</th>
+                                <th style={{ minWidth: '150px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Schadenort</th>
+                                <th style={{ minWidth: '180px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Adresse</th>
+                                <th style={{ minWidth: '140px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Auftraggeber</th>
+                                <th style={{ minWidth: '110px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Bewirtschafter/in</th>
+                                <th style={{ minWidth: '140px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Schaden</th>
+                                <th style={{ width: '130px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Status</th>
+                                <th style={{ minWidth: '120px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Kunde von</th>
+                                <th style={{ width: '80px', textAlign: 'center', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                                         <Camera size={14} />
                                         Bilder
                                     </div>
                                 </th>
-                                <th style={{ width: '80px', textAlign: 'center' }}>Geräte</th>
-                                <th style={{ minWidth: '110px' }}>Zuständig</th>
-                                <th style={{ width: '100px' }}>Datum</th>
-                                <th style={{ width: '40px' }}></th>
+                                <th style={{ width: '80px', textAlign: 'center', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Geräte</th>
+                                <th style={{ width: '40px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)' }}></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -345,12 +346,30 @@ export default function Dashboard({ reports, onSelectReport }) {
                                 return (
                                     <tr key={report.id} onClick={() => onSelectReport(report)}>
                                         <td style={{ fontWeight: 600, fontSize: '0.9rem' }}>{report.projectTitle || report.id}</td>
+                                        <td style={{ fontSize: '0.875rem', whiteSpace: 'nowrap' }}>{formatDate(report.date)}</td>
+                                        <td style={{ fontWeight: 500 }}>{report.locationDetails || '-'}</td>
+                                        <td>
+                                            {report.street ? `${report.street}, ${report.zip} ${report.city}` : (report.address ? report.address.split(',')[0] : '')}
+                                        </td>
+                                        <td style={{ fontWeight: 500 }}>{report.client}</td>
+                                        <td>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
+                                                <span>{report.assignedTo}</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                <span style={{ fontWeight: 500 }}>{report.damageCategory || 'Wasserschaden'}</span>
+                                                {report.type && (
+                                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{report.type}</span>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td>
                                             <span className={`status-badge ${statusColors[report.status] || 'bg-gray-100'}`} style={{ color: '#1F2937' }}>
                                                 {report.status}
                                             </span>
                                         </td>
-                                        <td style={{ fontWeight: 500 }}>{report.client}</td>
                                         <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
                                                 <span>{report.clientSource || '-'}</span>
@@ -377,10 +396,6 @@ export default function Dashboard({ reports, onSelectReport }) {
                                                 )}
                                             </div>
                                         </td>
-                                        <td>
-                                            {report.street ? `${report.street}, ${report.zip} ${report.city}` : (report.address ? report.address.split(',')[0] : '')}
-                                        </td>
-                                        <td>{report.type}</td>
                                         <td style={{ textAlign: 'center' }}>
                                             {report.imageCount && report.imageCount > 0 ? (
                                                 <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>{report.imageCount}</span>
@@ -397,13 +412,6 @@ export default function Dashboard({ reports, onSelectReport }) {
                                                 <span style={{ color: 'var(--border)' }}>-</span>
                                             )}
                                         </td>
-                                        <td>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                                                <span>{report.assignedTo}</span>
-                                            </div>
-                                        </td>
-
-                                        <td style={{ fontSize: '0.875rem', whiteSpace: 'nowrap' }}>{formatDate(report.date)}</td>
                                         <td>
                                             <ArrowRight size={16} className="text-muted" />
                                         </td>

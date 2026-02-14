@@ -60,6 +60,8 @@ function App() {
     setUserRole(newRole);
     if (newRole === 'user') {
       setIsTechnicianMode(true);
+    } else {
+      setIsTechnicianMode(false);
     }
     showToast(`Rolle gewechselt zu: ${newRole.toUpperCase()}`, 'success');
   };
@@ -200,8 +202,8 @@ function App() {
             {view === 'dashboard' && (
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
 
-                {/* Admin Only: Device Manager */}
-                {userRole === 'admin' && (
+                {/* Admin Only: Device Manager - Hidden in Technician Mode */}
+                {userRole === 'admin' && !isTechnicianMode && (
                   <button
                     className="btn btn-outline"
                     onClick={() => setView('devices')}

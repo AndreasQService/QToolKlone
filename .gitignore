@@ -25,3 +25,6 @@ dist-ssr
 
 # Local Backups
 backup_*.zip
+
+# Environment Variables
+.env

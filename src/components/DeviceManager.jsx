@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash, Edit, X, Search, Monitor, Fan, Wind, Thermometer, Wrench, Download, Loader2 } from 'lucide-react';
+import { Plus, Trash, Edit, X, Search, Monitor, Fan, Wind, Thermometer, Wrench, Download, Loader2, LogOut } from 'lucide-react';
 import generatedDevices from '../data/imported_devices.json';
 import { supabase } from '../supabaseClient';
 
@@ -14,7 +14,7 @@ const DEVICE_TYPES = [
     'Bautrockner',
     'Turbinen',
     'Wasserabscheider',
-    'Sonstiges'
+    'Messgeräte'
 ];
 
 // Simple icons mapping
@@ -26,7 +26,8 @@ const DEVICE_ICONS = {
     'Ventilator': <Fan size={20} />,
     'Infrarotplatte': <Thermometer size={20} />,
     'Estrich-Dämmschichttrocknung': <Wrench size={20} />,
-    'Sonstiges': <Wrench size={20} />,
+    'Messgeräte': <Thermometer size={20} />,
+    'Sonstiges': <Wrench size={20} />, // Keep legacy mapping just in case
     'Bautrockner': <Monitor size={20} />,
     'Turbinen': <Wind size={20} />,
     'Wasserabscheider': <Wrench size={20} />
@@ -120,6 +121,24 @@ export default function DeviceManager({ onBack }) {
             } catch (e) {
                 setError("Fehler beim Löschen: " + e.message);
                 setIsLoading(false); // Only set false here because fetchDevices handles it otherwise
+            }
+        }
+    };
+
+    const handleReleaseDevice = async (id, projectName) => {
+        if (window.confirm(`Möchten Sie das Gerät wirklich aus dem Projekt "${projectName}" freigeben?\n\nHinweis: Dies setzt nur den Status zurück. Bitte prüfen Sie den Bericht separat, falls nötig.`)) {
+            setIsLoading(true);
+            try {
+                const { error } = await supabase
+                    .from('devices')
+                    .update({ current_project: null })
+                    .eq('id', id);
+
+                if (error) throw error;
+                await fetchDevices();
+            } catch (e) {
+                setError("Fehler beim Freigeben: " + e.message);
+                setIsLoading(false);
             }
         }
     };
@@ -268,6 +287,16 @@ export default function DeviceManager({ onBack }) {
                                             )}
                                         </td>
                                         <td style={{ textAlign: 'right' }}>
+                                            {device.current_project && (
+                                                <button
+                                                    className="btn btn-ghost"
+                                                    style={{ color: '#F59E0B', padding: '0.5rem' }}
+                                                    onClick={() => handleReleaseDevice(device.id, device.current_project)}
+                                                    title={`Gerät aus "${device.current_project}" abmelden (Status zurücksetzen)`}
+                                                >
+                                                    <LogOut size={18} />
+                                                </button>
+                                            )}
                                             <button
                                                 className="btn btn-ghost"
                                                 style={{ color: 'var(--primary)', padding: '0.5rem' }}

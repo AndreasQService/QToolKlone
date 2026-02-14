@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, Save, Eraser, Pen, Undo, Trash2, FileText } from 'lucide-react';
+import { X, Save, Eraser, Pen, Undo, Trash2, FileText, Loader, Check } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -19,9 +19,12 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
         device: ''
     });
     const [saveAsPdf, setSaveAsPdf] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isSuccess, setIsSuccess] = useState(false);
 
     // Initialize measurements based on rooms or initialData
     useEffect(() => {
+        if (isSuccess) return; // Prevent reset during success message
         if (isOpen && rooms && rooms.length > 0) {
             // Priority: Load from initialData if available for this room
             // current room is rooms[0]
@@ -78,7 +81,7 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
                 setTimeout(initCanvas, 100);
             }
         }
-    }, [isOpen, rooms, initialData]);
+    }, [isOpen, rooms, initialData, isSuccess]);
 
     const initCanvas = () => {
         const canvas = canvasRef.current;
@@ -178,8 +181,9 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
     };
 
     const handleSave = async () => {
-        if (!containerRef.current) return;
+        if (!containerRef.current || isSaving) return;
 
+        setIsSaving(true);
         try {
             // Capture the entire modal content (sketch + table)
             const canvas = await html2canvas(containerRef.current, {
@@ -204,7 +208,7 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
                 const pdfBlob = pdf.output('blob');
                 const file = new File([pdfBlob], `Messprotokoll_${projectTitle || 'Neu'}_${rooms[0]?.name || ''}.pdf`, { type: 'application/pdf' });
 
-                onSave({
+                await onSave({
                     file,
                     measurements,
                     globalSettings,
@@ -212,22 +216,33 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
                 });
             } else {
                 // Standard Image Save
-                canvas.toBlob((blob) => {
-                    const file = new File([blob], `Messprotokoll_${projectTitle || 'Neu'}_${Date.now()}.png`, { type: 'image/png' });
+                await new Promise((resolve) => {
+                    canvas.toBlob(async (blob) => {
+                        const file = new File([blob], `Messprotokoll_${projectTitle || 'Neu'}_${Date.now()}.png`, { type: 'image/png' });
 
-                    onSave({
-                        file,
-                        measurements,
-                        globalSettings,
-                        canvasImage: canvasDataUrl
-                    });
-                }, 'image/png');
+                        await onSave({
+                            file,
+                            measurements,
+                            globalSettings,
+                            canvasImage: canvasDataUrl
+                        });
+                        resolve();
+                    }, 'image/png');
+                });
             }
-            onClose();
+
+            // Show success state briefly
+            setIsSuccess(true);
+            setTimeout(() => {
+                setIsSuccess(false);
+                setIsSaving(false);
+                onClose();
+            }, 1000);
 
         } catch (err) {
             console.error("Error saving sketch:", err);
             alert("Fehler beim Speichern der Skizze.");
+            setIsSaving(false);
         }
     };
 
@@ -277,9 +292,24 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
                             Als PDF speichern
                         </label>
                         <button onClick={onClose} className="btn btn-outline">Abbrechen</button>
-                        <button onClick={handleSave} className="btn btn-primary" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                            {saveAsPdf ? <FileText size={18} /> : <Save size={18} />}
-                            Speichern
+                        <button
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className={`btn ${isSuccess ? 'btn-success' : 'btn-primary'}`}
+                            style={{
+                                display: 'flex', gap: '0.5rem', alignItems: 'center',
+                                backgroundColor: isSuccess ? '#10B981' : undefined,
+                                borderColor: isSuccess ? '#10B981' : undefined
+                            }}
+                        >
+                            {isSaving ? (
+                                <Loader size={18} className="animate-spin" />
+                            ) : isSuccess ? (
+                                <Check size={18} />
+                            ) : (
+                                saveAsPdf ? <FileText size={18} /> : <Save size={18} />
+                            )}
+                            {isSaving ? 'Speichert...' : isSuccess ? 'Gespeichert!' : 'Speichern'}
                         </button>
                     </div>
                 </div>
