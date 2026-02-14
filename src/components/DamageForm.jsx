@@ -2434,16 +2434,22 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
 
                                                                     <button
                                                                         type="button"
-                                                                        className={item.endDate ? "btn btn-ghost" : "btn btn-outline"}
+                                                                        // Force visibility with explicit styles
                                                                         style={{
-                                                                            fontSize: '0.75rem',
-                                                                            padding: '0.25rem 0.5rem',
-                                                                            color: item.endDate ? '#10B981' : 'var(--warning)',
-                                                                            borderColor: item.endDate ? 'transparent' : 'var(--warning)',
-                                                                            backgroundColor: item.endDate ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                                                                            fontSize: '0.8rem',
+                                                                            padding: '0.4rem 0.8rem',
+                                                                            fontWeight: 600,
+                                                                            color: item.endDate ? '#10B981' : '#F59E0B', // Green or Amber
+                                                                            backgroundColor: item.endDate ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                                                            border: item.endDate ? '1px solid #10B981' : '1px solid #F59E0B',
+                                                                            borderRadius: '4px',
                                                                             display: 'flex',
                                                                             alignItems: 'center',
-                                                                            gap: '0.25rem'
+                                                                            gap: '0.4rem',
+                                                                            cursor: 'pointer',
+                                                                            transition: 'all 0.2s',
+                                                                            textTransform: 'uppercase',
+                                                                            letterSpacing: '0.5px'
                                                                         }}
                                                                         onClick={() => {
                                                                             // Correctly find index in current state
