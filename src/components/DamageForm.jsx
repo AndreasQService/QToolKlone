@@ -300,11 +300,11 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
         }
     };
 
-    useEffect(() => {
-        if (showEmailImportModal) {
-            refreshAudioDevices();
-        }
-    }, [showEmailImportModal]);
+    // useEffect(() => {
+    //     if (showEmailImportModal) {
+    //         refreshAudioDevices();
+    //     }
+    // }, [showEmailImportModal]);
 
     // UI State for Technician Mode "Add Room" toggle
     const [isAddRoomExpanded, setIsAddRoomExpanded] = useState(false);
@@ -1729,16 +1729,26 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
     }
 
     const handleEmailImport = (data) => {
-        setFormData(prev => ({
-            ...prev,
-            projectTitle: data.projectTitle || prev.projectTitle,
-            client: data.client || prev.client,
-            description: data.description ? (prev.description ? prev.description + '\n\n' + data.description : data.description) : prev.description,
-            street: data.street || prev.street,
-            zip: data.zip || prev.zip,
-            city: data.city || prev.city,
-            contacts: data.contacts && data.contacts.length > 0 ? [...prev.contacts, ...data.contacts] : prev.contacts
-        }));
+        console.log("handleEmailImport called with:", data);
+        if (!data) return;
+
+        setFormData(prev => {
+            const newContacts = [
+                ...(prev.contacts || []),
+                ...(data.contacts || [])
+            ];
+
+            return {
+                ...prev,
+                projectTitle: data.projectTitle || prev.projectTitle,
+                client: data.client || prev.client,
+                description: data.description ? (prev.description ? prev.description + '\n\n' + data.description : data.description) : prev.description,
+                street: data.street || prev.street,
+                zip: data.zip || prev.zip,
+                city: data.city || prev.city,
+                contacts: newContacts
+            };
+        });
         setShowEmailImportModal(false);
     };
 
@@ -1752,6 +1762,17 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
     if (mode === 'technician' || mode === 'desktop') {
         return (
             <div className="card" style={{ maxWidth: mode === 'desktop' ? '1200px' : '600px', margin: '0 auto', padding: '1rem' }}>
+                {showEmailImportModal && (
+                    <EmailImportModal
+                        onClose={() => setShowEmailImportModal(false)}
+                        onImport={handleEmailImport}
+                        audioDevices={audioDevices}
+                        selectedDeviceId={selectedDeviceId}
+                        onSelectDeviceId={setSelectedDeviceId}
+                        onRefreshDevices={refreshAudioDevices}
+                        deviceError={deviceError}
+                    />
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '2px solid var(--primary)' }}>
                     <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
                         {formData.projectTitle || 'Projekt'}
@@ -6826,9 +6847,11 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
 
 
                         </div>
+
                     </div>
                 )
             }
+
         </>
     )
 }

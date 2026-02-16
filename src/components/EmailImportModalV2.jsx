@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import OpenAI from "openai";
 import { X, ArrowRight, Mail, Settings, Check, RotateCw } from 'lucide-react';
 import { swissPLZ } from '../data/swiss_plz';
@@ -451,10 +452,13 @@ const EmailImportModalV2 = ({ onClose, onImport, audioDevices, selectedDeviceId,
         }
     };
 
-    return (
+    // Verify document.body exists (it always should in browser, but good for safety)
+    if (typeof document === 'undefined') return null;
+
+    return createPortal(
         <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10000,
+            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 99999,
             display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>
             <div style={{
@@ -584,27 +588,31 @@ const EmailImportModalV2 = ({ onClose, onImport, audioDevices, selectedDeviceId,
                 />
 
                 <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                    <button onClick={onClose} className="btn btn-outline" disabled={loading}>
+                    <button onClick={onClose} className="btn btn-outline">
                         Abbrechen
                     </button>
                     <button
                         onClick={handleAnalyze}
                         className="btn btn-primary"
-                        disabled={!text.trim() || loading}
+                        disabled={loading}
                         style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '160px', justifyContent: 'center' }}
                     >
                         {loading ? (
-                            <>Analysiere...</>
+                            <>
+                                <RotateCw className="spin" size={18} />
+                                <span>Analysieren...</span>
+                            </>
                         ) : (
                             <>
                                 <ArrowRight size={18} />
-                                {useAI && apiKey ? 'KI STARTEN (V3)' : 'REGEX STARTEN (V3)'}
+                                {useAI && apiKey ? 'KI Analysieren' : 'Regex Analysieren'}
                             </>
                         )}
                     </button>
                 </div>
             </div>
-        </div >
+        </div >,
+        document.body
     );
 };
 
