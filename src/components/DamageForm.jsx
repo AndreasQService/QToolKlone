@@ -5653,18 +5653,14 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                                         className="btn btn-outline"
                                                         onClick={async () => {
                                                             try {
-                                                                const result = await generateMeasurementExcel(formData);
-                                                                if (result) {
-                                                                    const file = new File([result.blob], result.fileName, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-                                                                    await handleImageUpload([file], { assignedTo: 'Messprotokolle' });
-                                                                }
+                                                                await generateMeasurementExcel(formData);
                                                             } catch (error) {
                                                                 console.error("Excel Export failed:", error);
                                                                 alert("Fehler beim Erstellen des Excel-Protokolls.");
                                                             }
                                                         }}
                                                         style={{ fontSize: '0.85rem', padding: '0.5rem 1rem', gap: '0.4rem', borderColor: '#10B981', color: '#10B981', display: 'flex', alignItems: 'center' }}
-                                                        title="Excel Export aller Messräume (wird in Liste gespeichert)"
+                                                        title="Excel Export aller Messräume (Download)"
                                                     >
                                                         <Table size={16} />
                                                         Excel Export
@@ -5673,109 +5669,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                             </div>
 
                                             {/* Divider */}
-                                            <div style={{ borderTop: '1px solid var(--border)', margin: '0 -1.5rem 1.5rem -1.5rem' }}></div>
 
-                                            {/* Section 2: Messprotokolle (Excel) */}
-                                            <div>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
-                                                    <div>
-                                                        <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                            <Table size={18} className="text-emerald-500" />
-                                                            Messprotokolle
-                                                        </h4>
-                                                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
-                                                            Excel-Exporte der Messdaten
-                                                        </p>
-                                                    </div>
-
-                                                    {/* Button removed as per user request */}
-                                                </div>
-
-                                                {/* Calculated / Generated Files List */}
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
-                                                    {formData.images
-                                                        .filter(img => img.assignedTo === 'Messprotokolle')
-                                                        .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-                                                        .map((item, idx) => (
-                                                            <div
-                                                                key={idx}
-                                                                onClick={() => {
-                                                                    if (item.file) {
-                                                                        const url = URL.createObjectURL(item.file);
-                                                                        const a = document.createElement('a');
-                                                                        a.href = url;
-                                                                        a.download = item.name;
-                                                                        a.click();
-                                                                    } else if (item.preview) {
-                                                                        window.open(item.preview, '_blank');
-                                                                    }
-                                                                }}
-                                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'}
-                                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'}
-                                                                style={{
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '0.75rem',
-                                                                    padding: '0.75rem',
-                                                                    backgroundColor: 'rgba(255,255,255,0.02)',
-                                                                    border: '1px solid var(--border)',
-                                                                    borderRadius: 'var(--radius)',
-                                                                    cursor: 'pointer',
-                                                                    transition: 'background-color 0.2s ease'
-                                                                }}
-                                                                title="Klicken zum Öffnen"
-                                                            >
-                                                                <div style={{ padding: '0.25rem', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                                    {/* Excel Icon */}
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28">
-                                                                        <path fill="#10B981" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
-                                                                        <path fill="#047857" d="M14 2v6h6" />
-                                                                        <path fill="#FFF" d="M10 10h4v2h-4zm0 4h4v2h-4z" />
-                                                                    </svg>
-                                                                </div>
-                                                                <div style={{ flex: 1 }}>
-                                                                    <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{item.name}</div>
-                                                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                                                        {item.date ? new Date(item.date).toLocaleDateString('de-CH') : 'Kein Datum'}
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Delete Button */}
-                                                                <button
-                                                                    type="button"
-                                                                    className="btn btn-ghost"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        if (window.confirm(`Möchten Sie das Protokoll "${item.name}" wirklich löschen?`)) {
-                                                                            setFormData(prev => ({
-                                                                                ...prev,
-                                                                                images: prev.images.filter(img => img !== item)
-                                                                            }));
-                                                                        }
-                                                                    }}
-                                                                    style={{
-                                                                        color: '#EF4444',
-                                                                        padding: '0.5rem',
-                                                                        borderRadius: '50%',
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'center',
-                                                                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                                                        marginLeft: 'auto'
-                                                                    }}
-                                                                    title="Löschen"
-                                                                >
-                                                                    <Trash size={18} />
-                                                                </button>
-                                                            </div>
-                                                        ))}
-                                                    {formData.images.filter(img => img.assignedTo === 'Messprotokolle').length === 0 && (
-                                                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>
-                                                            Keine Messprotokolle vorhanden.
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
 
 
                                             {/* Divider */}
@@ -6572,14 +6466,8 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
 
                         // 1. Always upload the file to the active room (if any) or 'Messprotokolle' context
                         if (activeRoomForMeasurement) {
-                            // 1. Upload the generated PDF as a file to the active room
-                            // We construct a new File object to ensure it has a proper name/type if needed
-                            const fileToUpload = new File([file], file.name, { type: file.type });
-
-                            handleImageUpload([fileToUpload], {
-                                roomId: activeRoomForMeasurement.id,
-                                assignedTo: 'Messprotokolle'
-                            });
+                            // SKIP uploading snapshot files to 'Messprotokolle' list to avoid clutter.
+                            // The data is saved in measurementData below.
 
                             // 2. Update the room's internal measurement data state
                             setFormData(prev => ({
@@ -6595,9 +6483,9 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                             }));
                         } else {
                             // Fallback if no room active (should not happen for room-based measurements)
-                            handleImageUpload([file], {
-                                assignedTo: 'Messprotokolle'
-                            });
+                            // handleImageUpload([file], {
+                            //    assignedTo: 'Messprotokolle'
+                            // });
                         }
 
                         setIsNewMeasurement(false); // Close modal state
