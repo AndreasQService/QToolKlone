@@ -1816,75 +1816,86 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                     </div>
                 </div>
 
-                {/* Container for Location & Exterior Photo (Side-by-Side) */}
+                {/* Address Text Details */}
+                <div style={{ marginBottom: '1.5rem', backgroundColor: 'var(--surface)', padding: '1rem', borderRadius: '8px', color: 'var(--text-main)' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
+                        <MapPin size={18} /> Schadenort (Adresse)
+                    </h3>
+                    <div style={{ fontSize: '1rem', lineHeight: '1.4' }}>
+                        {formData.locationDetails && (
+                            <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                                {formData.locationDetails}
+                            </div>
+                        )}
+
+                        {(formData.street && formData.street.trim()) ? (
+                            <>
+                                {formData.street}<br />
+                                {formData.zip} {formData.city}
+                            </>
+                        ) : (
+                            formData.address || 'Keine Adresse'
+                        )}
+                    </div>
+                </div>
+
+                {/* Container for Map & Exterior Photo (Side-by-Side) */}
                 <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'stretch', marginBottom: '1.5rem' }}>
-                    {/* 1. Address (Schadenort) */}
+                    {/* Map Card */}
                     <div style={{ flex: '1 1 350px', backgroundColor: 'var(--surface)', padding: '1rem', borderRadius: '8px', color: 'var(--text-main)' }}>
                         <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
-                            <MapPin size={18} /> Schadenort
+                            <MapPin size={18} /> Standort Karte
                         </h3>
-                        <div style={{ fontSize: '1rem', lineHeight: '1.4' }}>
-                            {formData.locationDetails && (
-                                <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
-                                    {formData.locationDetails}
-                                </div>
-                            )}
 
-                            {(formData.street && formData.street.trim()) ? (
-                                <>
-                                    {formData.street}<br />
-                                    {formData.zip} {formData.city}
-                                </>
-                            ) : (
-                                formData.address || 'Keine Adresse'
-                            )}
+                        {(formData.street || formData.address) ? (
+                            <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                                <iframe
+                                    width="100%"
+                                    height="300"
+                                    style={{ border: 0, display: 'block' }}
+                                    loading="lazy"
+                                    allowFullScreen
+                                    src={`https://maps.google.com/maps?q=${encodeURIComponent(formData.street ? `${formData.street}, ${formData.zip} ${formData.city}` : formData.address)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                                    title="Standort Karte"
+                                ></iframe>
 
-                            {(formData.street || formData.address) ? (
-                                <div style={{ position: 'relative', marginTop: '1rem', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)' }}>
-                                    <iframe
-                                        width="100%"
-                                        height="300"
-                                        style={{ border: 0, display: 'block' }}
-                                        loading="lazy"
-                                        allowFullScreen
-                                        src={`https://maps.google.com/maps?q=${encodeURIComponent(formData.street ? `${formData.street}, ${formData.zip} ${formData.city}` : formData.address)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
-                                        title="Standort Karte"
-                                    ></iframe>
-
-                                    {!formData.exteriorPhoto && (
-                                        <label
-                                            style={{
-                                                position: 'absolute',
-                                                bottom: '10px',
-                                                right: '10px',
-                                                backgroundColor: 'var(--primary)',
-                                                color: 'white',
-                                                padding: '0.5rem 1rem',
-                                                borderRadius: '20px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.5rem',
-                                                cursor: 'pointer',
-                                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                                                fontSize: '0.85rem',
-                                                fontWeight: 600,
-                                                zIndex: 10
-                                            }}
-                                            title="Aussenaufnahme hinzufügen"
-                                        >
-                                            <Camera size={16} />
-                                            <span>Foto hinzufügen</span>
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={handleExteriorPhotoUpload}
-                                                style={{ display: 'none' }}
-                                            />
-                                        </label>
-                                    )}
-                                </div>
-                            ) : null}
-                        </div>
+                                {!formData.exteriorPhoto && (
+                                    <label
+                                        style={{
+                                            position: 'absolute',
+                                            bottom: '10px',
+                                            right: '10px',
+                                            backgroundColor: 'var(--primary)',
+                                            color: 'white',
+                                            padding: '0.5rem 1rem',
+                                            borderRadius: '20px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            cursor: 'pointer',
+                                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                            fontSize: '0.85rem',
+                                            fontWeight: 600,
+                                            zIndex: 10
+                                        }}
+                                        title="Aussenaufnahme hinzufügen"
+                                    >
+                                        <Camera size={16} />
+                                        <span>Foto hinzufügen</span>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleExteriorPhotoUpload}
+                                            style={{ display: 'none' }}
+                                        />
+                                    </label>
+                                )}
+                            </div>
+                        ) : (
+                            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px', border: '1px dashed var(--border)', borderRadius: '8px' }}>
+                                Keine Koordinaten verfügbar
+                            </div>
+                        )}
                     </div>
 
                     {/* 1b. Exterior Photo (Aussenaufnahme) - Show only if exists */}
