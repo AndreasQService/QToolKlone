@@ -1792,6 +1792,21 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                         ) : (
                             formData.address || 'Keine Adresse'
                         )}
+
+                        {(formData.street || formData.address) && (
+                            <div style={{ marginTop: '1rem' }}>
+                                <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(formData.street ? `${formData.street}, ${formData.zip} ${formData.city}` : formData.address)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn btn-outline"
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', padding: '0.5rem 1rem', textDecoration: 'none', color: 'var(--primary)', borderColor: 'var(--primary)' }}
+                                >
+                                    <Map size={16} />
+                                    Auf Karte öffnen
+                                </a>
+                            </div>
+                        )}
                     </div>
                 </div>
 
