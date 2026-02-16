@@ -210,6 +210,8 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
         return () => clearTimeout(timer);
     }, [formData, onSave]);
 
+
+
     // --- Device Selection Logic ---
     const [availableDevices, setAvailableDevices] = useState([]);
     const [selectedDevice, setSelectedDevice] = useState(null); // The object from DB
@@ -297,6 +299,12 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
             setDeviceError(err.toString()); // Capture error for UI
         }
     };
+
+    useEffect(() => {
+        if (showEmailImportModal) {
+            refreshAudioDevices();
+        }
+    }, [showEmailImportModal]);
 
     // UI State for Technician Mode "Add Room" toggle
     const [isAddRoomExpanded, setIsAddRoomExpanded] = useState(false);
@@ -6742,6 +6750,11 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                             <EmailImportModal
                                 onClose={() => setShowEmailImportModal(false)}
                                 onImport={handleEmailImport}
+                                audioDevices={audioDevices}
+                                selectedDeviceId={selectedDeviceId}
+                                onSelectDeviceId={setSelectedDeviceId}
+                                onRefreshDevices={refreshAudioDevices}
+                                deviceError={deviceError}
                             />
                         )}
 
