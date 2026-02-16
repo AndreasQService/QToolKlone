@@ -81,7 +81,8 @@ export default function DeviceManager({ onBack, onNavigateToReport }) {
                         number: currentDevice.number,
                         type: currentDevice.type,
                         model: currentDevice.model,
-                        status: currentDevice.status
+                        status: currentDevice.status,
+                        energy_consumption: currentDevice.energy_consumption || null
                     })
                     .eq('id', currentDevice.id);
                 if (error) throw error;
@@ -93,7 +94,8 @@ export default function DeviceManager({ onBack, onNavigateToReport }) {
                         number: currentDevice.number,
                         type: currentDevice.type,
                         model: currentDevice.model,
-                        status: currentDevice.status || 'Aktiv'
+                        status: currentDevice.status || 'Aktiv',
+                        energy_consumption: currentDevice.energy_consumption || null
                     }]);
                 if (error) throw error;
             }
@@ -220,7 +222,7 @@ export default function DeviceManager({ onBack, onNavigateToReport }) {
                     <button
                         className="btn btn-primary"
                         onClick={() => {
-                            setCurrentDevice({ number: '', type: 'Kondenstrockner', model: '', status: 'Aktiv' });
+                            setCurrentDevice({ number: '', type: 'Kondenstrockner', model: '', status: 'Aktiv', energy_consumption: '' });
                             setIsEditing(true);
                         }}
                         disabled={isLoading}
@@ -248,7 +250,8 @@ export default function DeviceManager({ onBack, onNavigateToReport }) {
                                 <tr>
                                     <th style={{ textAlign: 'left' }}>Nr.</th>
                                     <th style={{ textAlign: 'left' }}>Typ</th>
-                                    <th style={{ textAlign: 'left' }}>Modell / Bezeichnung</th>
+                                    <th style={{ textAlign: 'left' }}>Modell</th>
+                                    <th style={{ textAlign: 'right' }}>kW</th>
                                     <th style={{ textAlign: 'center' }}>Status</th>
                                     <th style={{ textAlign: 'left' }}>Einsatzort</th>
                                     <th style={{ textAlign: 'right' }}>Aktionen</th>
@@ -265,16 +268,23 @@ export default function DeviceManager({ onBack, onNavigateToReport }) {
                                             </div>
                                         </td>
                                         <td>{device.model || '-'}</td>
+                                        <td style={{ textAlign: 'right', fontWeight: 500, color: 'var(--text-muted)' }}>{device.energy_consumption ? `${device.energy_consumption} kW` : '-'}</td>
                                         <td style={{ textAlign: 'center' }}>
                                             <span style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
                                                 padding: '0.25rem 0.75rem',
-                                                borderRadius: '9999px',
-                                                backgroundColor: device.current_project ? '#FECACA' : '#DCFCE7',
-                                                color: device.current_project ? '#991B1B' : '#166534',
-                                                fontSize: '0.8rem',
-                                                fontWeight: 600
+                                                borderRadius: '6px',
+                                                backgroundColor: device.current_project ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                                                color: device.current_project ? '#FCA5A5' : '#86EFAC',
+                                                border: device.current_project ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)',
+                                                fontSize: '0.75rem',
+                                                fontWeight: 500,
+                                                whiteSpace: 'nowrap',
+                                                minWidth: '80px'
                                             }}>
-                                                {device.current_project ? 'Im Einsatz' : 'Frei (Lager)'}
+                                                {device.current_project ? 'Im Einsatz' : 'Lager'}
                                             </span>
                                         </td>
                                         <td style={{ fontSize: '0.9rem' }}>
@@ -409,6 +419,32 @@ export default function DeviceManager({ onBack, onNavigateToReport }) {
                                 onChange={(e) => setCurrentDevice(prev => ({ ...prev, model: e.target.value }))}
                                 placeholder="z.B. Trotec TTK 100"
                             />
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">Energiebedarf (kW)</label>
+                            <select
+                                className="form-input"
+                                value={currentDevice.energy_consumption || ''}
+                                onChange={(e) => setCurrentDevice(prev => ({ ...prev, energy_consumption: e.target.value }))}
+                            >
+                                <option value="">Wählen...</option>
+                                <option value="0.1">0.1 kW</option>
+                                <option value="0.2">0.2 kW</option>
+                                <option value="0.3">0.3 kW</option>
+                                <option value="0.4">0.4 kW</option>
+                                <option value="0.5">0.5 kW</option>
+                                <option value="0.6">0.6 kW</option>
+                                <option value="0.7">0.7 kW</option>
+                                <option value="0.8">0.8 kW</option>
+                                <option value="0.9">0.9 kW</option>
+                                <option value="1.0">1.0 kW</option>
+                                <option value="1.2">1.2 kW</option>
+                                <option value="1.5">1.5 kW</option>
+                                <option value="2.0">2.0 kW</option>
+                                <option value="2.5">2.5 kW</option>
+                                <option value="3.0">3.0 kW</option>
+                            </select>
                         </div>
 
 

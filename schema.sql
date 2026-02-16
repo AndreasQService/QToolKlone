@@ -39,3 +39,27 @@ create policy "Public Access to Images" on storage.objects
 
 create policy "Allow Uploads for Anon" on storage.objects
   for insert with check ( bucket_id = 'damage-images' );
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- DEVICES TABLE (Added later)
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+create table if not exists devices (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  number text,
+  type text,
+  model text,
+  status text default 'Aktiv',
+  current_project text, -- just storing project name for now
+  energy_consumption numeric
+);
+
+alter table devices enable row level security;
+
+create policy "Enable all access for anon" on devices
+  for all using (true) with check (true);
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Update existing table (if run manually)
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- alter table devices add column if not exists energy_consumption numeric;

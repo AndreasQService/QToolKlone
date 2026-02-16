@@ -657,7 +657,8 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
         apartment: '',
         room: '',
         startDate: new Date().toISOString().split('T')[0],
-        counterStart: ''
+        counterStart: '',
+        energyConsumption: ''
     })
 
     const handleAddDevice = async () => {
@@ -680,6 +681,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
             hours: '',
             counterStart: newDevice.counterStart,
             counterEnd: '',
+            energyConsumption: newDevice.energyConsumption,
             // Link to Supabase ID if available
             dbId: selectedDevice ? selectedDevice.id : null
         };
@@ -4375,6 +4377,38 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                                                             {consumption ? `${consumption} kWh` : '-'}
                                                                         </div>
                                                                     </div>
+
+                                                                    {/* Energiebedarf Wahlfeld */}
+                                                                    <div style={{ gridColumn: 'span 2' }}>
+                                                                        <label style={{ display: 'block', color: 'var(--text-muted)', marginBottom: '2px' }}>Energiebedarf (kW)</label>
+                                                                        <select
+                                                                            className="form-input"
+                                                                            style={{ padding: '4px 8px', fontSize: '0.85rem' }}
+                                                                            value={item.energyConsumption || ''}
+                                                                            onChange={(e) => {
+                                                                                const newEquipment = [...formData.equipment];
+                                                                                newEquipment[originalIndex].energyConsumption = e.target.value;
+                                                                                setFormData(prev => ({ ...prev, equipment: newEquipment }));
+                                                                            }}
+                                                                        >
+                                                                            <option value="">Wählen...</option>
+                                                                            <option value="0.1">0.1 kW</option>
+                                                                            <option value="0.2">0.2 kW</option>
+                                                                            <option value="0.3">0.3 kW</option>
+                                                                            <option value="0.4">0.4 kW</option>
+                                                                            <option value="0.5">0.5 kW</option>
+                                                                            <option value="0.6">0.6 kW</option>
+                                                                            <option value="0.7">0.7 kW</option>
+                                                                            <option value="0.8">0.8 kW</option>
+                                                                            <option value="0.9">0.9 kW</option>
+                                                                            <option value="1.0">1.0 kW</option>
+                                                                            <option value="1.2">1.2 kW</option>
+                                                                            <option value="1.5">1.5 kW</option>
+                                                                            <option value="2.0">2.0 kW</option>
+                                                                            <option value="2.5">2.5 kW</option>
+                                                                            <option value="3.0">3.0 kW</option>
+                                                                        </select>
+                                                                    </div>
                                                                 </div>
                                                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
 
@@ -4519,7 +4553,11 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                                     const dev = availableDevices.find(d => d.number.toString() === val);
                                                     if (dev) {
                                                         setSelectedDevice(dev);
-                                                        setNewDevice(prev => ({ ...prev, deviceNumber: val }));
+                                                        setNewDevice(prev => ({
+                                                            ...prev,
+                                                            deviceNumber: val,
+                                                            energyConsumption: dev.energy_consumption || ''
+                                                        }));
                                                     } else {
                                                         setSelectedDevice(null);
                                                         setNewDevice(prev => ({ ...prev, deviceNumber: val }));
@@ -4581,7 +4619,9 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                         </div>
                                     </div>
 
-                                    {/* Optional Second Row for Counters/Apartment */}
+
+
+                                    {/* Optional Second Row for Counters/Apartment & Energy */}
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', marginBottom: '0.5rem' }}>
                                         <div>
                                             <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>Wohnung (Optional)</label>
@@ -4602,6 +4642,31 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                                 value={newDevice.counterStart || ''}
                                                 onChange={(e) => setNewDevice(prev => ({ ...prev, counterStart: e.target.value }))}
                                             />
+                                        </div>
+                                        <div>
+                                            <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>Energiebedarf</label>
+                                            <select
+                                                className="form-input"
+                                                value={newDevice.energyConsumption || ''}
+                                                onChange={(e) => setNewDevice(prev => ({ ...prev, energyConsumption: e.target.value }))}
+                                            >
+                                                <option value="">Wählen...</option>
+                                                <option value="0.1">0.1 kW</option>
+                                                <option value="0.2">0.2 kW</option>
+                                                <option value="0.3">0.3 kW</option>
+                                                <option value="0.4">0.4 kW</option>
+                                                <option value="0.5">0.5 kW</option>
+                                                <option value="0.6">0.6 kW</option>
+                                                <option value="0.7">0.7 kW</option>
+                                                <option value="0.8">0.8 kW</option>
+                                                <option value="0.9">0.9 kW</option>
+                                                <option value="1.0">1.0 kW</option>
+                                                <option value="1.2">1.2 kW</option>
+                                                <option value="1.5">1.5 kW</option>
+                                                <option value="2.0">2.0 kW</option>
+                                                <option value="2.5">2.5 kW</option>
+                                                <option value="3.0">3.0 kW</option>
+                                            </select>
                                         </div>
                                     </div>
                                     <button
