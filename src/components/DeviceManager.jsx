@@ -33,7 +33,7 @@ const DEVICE_ICONS = {
     'Wasserabscheider': <Wrench size={20} />
 };
 
-export default function DeviceManager({ onBack, onNavigateToReport }) {
+export default function DeviceManager({ onBack, onNavigateToReport, reports = [] }) {
     const [devices, setDevices] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isEditing, setIsEditing] = useState(false);
@@ -254,6 +254,8 @@ export default function DeviceManager({ onBack, onNavigateToReport }) {
                                     <th style={{ textAlign: 'right' }}>kW</th>
                                     <th style={{ textAlign: 'center' }}>Status</th>
                                     <th style={{ textAlign: 'left' }}>Einsatzort</th>
+                                    <th style={{ textAlign: 'left' }}>Auftraggeber</th>
+                                    <th style={{ textAlign: 'left' }}>Bewirtschafter</th>
                                     <th style={{ textAlign: 'right' }}>Aktionen</th>
                                 </tr>
                             </thead>
@@ -315,6 +317,18 @@ export default function DeviceManager({ onBack, onNavigateToReport }) {
                                             ) : (
                                                 <span style={{ color: 'var(--text-muted)' }}>-</span>
                                             )}
+                                        </td>
+                                        <td>
+                                            {(() => {
+                                                const report = device.current_project ? reports.find(r => r.id === device.current_project || r.projectTitle === device.current_project) : null;
+                                                return <span style={{ fontSize: '0.9rem' }}>{report?.client || '-'}</span>
+                                            })()}
+                                        </td>
+                                        <td>
+                                            {(() => {
+                                                const report = device.current_project ? reports.find(r => r.id === device.current_project || r.projectTitle === device.current_project) : null;
+                                                return <span style={{ fontSize: '0.9rem' }}>{report?.assignedTo || '-'}</span>
+                                            })()}
                                         </td>
                                         <td style={{ textAlign: 'right' }}>
                                             {device.current_project && (

@@ -341,7 +341,7 @@ function App() {
 
       <main className="container" style={{ marginTop: '2rem' }}>
         {view === 'dashboard' && <Dashboard reports={reports} onSelectReport={handleSelectReport} onDeleteReport={handleDeleteReport} mode={isTechnicianMode ? 'technician' : 'desktop'} />}
-        {view === 'devices' && <DeviceManager onBack={() => setView('dashboard')} onNavigateToReport={handleNavigateToReport} />}
+        {view === 'devices' && <DeviceManager reports={reports} onBack={() => setView('dashboard')} onNavigateToReport={handleNavigateToReport} />}
         {(view === 'new-report' || view === 'details') && (
           <DamageForm
             key={selectedReport ? selectedReport.id : 'new'}
