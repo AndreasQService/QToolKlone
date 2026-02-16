@@ -1840,7 +1840,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                             )}
 
                             {(formData.street || formData.address) && (
-                                <div style={{ marginTop: '1rem', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                                <div style={{ position: 'relative', marginTop: '1rem', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)' }}>
                                     <iframe
                                         width="100%"
                                         height="300"
@@ -1850,77 +1850,78 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                         src={`https://maps.google.com/maps?q=${encodeURIComponent(formData.street ? `${formData.street}, ${formData.zip} ${formData.city}` : formData.address)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
                                         title="Standort Karte"
                                     ></iframe>
+
+                                    {!formData.exteriorPhoto && (
+                                        <label
+                                            style={{
+                                                position: 'absolute',
+                                                bottom: '10px',
+                                                right: '10px',
+                                                backgroundColor: 'var(--primary)',
+                                                color: 'white',
+                                                padding: '0.5rem 1rem',
+                                                borderRadius: '20px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                cursor: 'pointer',
+                                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                                fontSize: '0.85rem',
+                                                fontWeight: 600,
+                                                zIndex: 10
+                                            }}
+                                            title="Aussenaufnahme hinzufügen"
+                                        >
+                                            <Camera size={16} />
+                                            <span>Foto hinzufügen</span>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleExteriorPhotoUpload}
+                                                style={{ display: 'none' }}
+                                            />
+                                        </label>
+                                    )}
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* 1b. Exterior Photo (Aussenaufnahme) */}
-                    {(formData.exteriorPhoto || (formData.status !== 'Trocknung' && formData.status !== 'Leckortung')) && (
+                    {/* 1b. Exterior Photo (Aussenaufnahme) - Show only if exists */}
+                    {formData.exteriorPhoto && (
                         <div style={{ flex: '1 1 350px', backgroundColor: 'var(--surface)', padding: '1rem', borderRadius: '8px', color: 'var(--text-main)' }}>
                             <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
                                 <Camera size={18} /> Aussenaufnahme
                             </h3>
 
-                            {formData.exteriorPhoto ? (
-                                <div style={{ position: 'relative', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
-                                    <img
-                                        src={formData.exteriorPhoto}
-                                        alt="Aussenaufnahme"
-                                        style={{ width: '100%', maxHeight: '300px', objectFit: 'cover', display: 'block' }}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={removeExteriorPhoto}
-                                        style={{
-                                            position: 'absolute',
-                                            top: '10px',
-                                            right: '10px',
-                                            backgroundColor: 'rgba(0,0,0,0.6)',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '50%',
-                                            width: '32px',
-                                            height: '32px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        <X size={20} />
-                                    </button>
-                                </div>
-                            ) : (
-                                <label
+                            <div style={{ position: 'relative', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                                <img
+                                    src={formData.exteriorPhoto}
+                                    alt="Aussenaufnahme"
+                                    style={{ width: '100%', maxHeight: '300px', objectFit: 'cover', display: 'block' }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={removeExteriorPhoto}
                                     style={{
+                                        position: 'absolute',
+                                        top: '10px',
+                                        right: '10px',
+                                        backgroundColor: 'rgba(0,0,0,0.6)',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '50%',
+                                        width: '32px',
+                                        height: '32px',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        gap: '0.5rem',
-                                        padding: '1rem',
-                                        border: '2px dashed var(--border)',
-                                        borderRadius: 'var(--radius)',
-                                        cursor: 'pointer',
-                                        color: 'var(--text-muted)',
-                                        transition: 'all 0.2s',
-                                        backgroundColor: 'rgba(255,255,255,0.02)',
-                                        minHeight: '150px'
+                                        cursor: 'pointer'
                                     }}
-                                    className="hover:bg-gray-50 dark:hover:bg-gray-800"
                                 >
-                                    <div style={{ textAlign: 'center' }}>
-                                        <Camera size={24} style={{ margin: '0 auto 0.5rem', display: 'block' }} />
-                                        <span>Foto hinzufügen</span>
-                                    </div>
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleExteriorPhotoUpload}
-                                        style={{ display: 'none' }}
-                                    />
-                                </label>
-                            )}
+                                    <X size={20} />
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
