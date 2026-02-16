@@ -212,19 +212,28 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
     // --- Device Selection Logic ---
     const [availableDevices, setAvailableDevices] = useState([]);
     const [selectedDevice, setSelectedDevice] = useState(null); // The object from DB
+    const [deviceFetchError, setDeviceFetchError] = useState(null);
 
     // Fetch available devices on mount (and when status changes)
     useEffect(() => {
-        if (!supabase) return;
+        if (!supabase) {
+            setDeviceFetchError("Supabase connection missing");
+            return;
+        }
         const fetchAvail = async () => {
             const { data, error } = await supabase
                 .from('devices')
                 .select('*')
-                .in('status', ['Aktiv', 'Verfügbar'])
+                // .in('status', ['Aktiv', 'Verfügbar']) // Removed strict status check to debug visibility
                 .is('current_report_id', null)
                 .order('number', { ascending: true });
 
-            if (data) setAvailableDevices(data);
+            if (error) {
+                console.error("Error fetching devices:", error);
+                setDeviceFetchError(error.message);
+            } else {
+                setAvailableDevices(data || []);
+            }
         };
         fetchAvail();
     }, []);
@@ -1748,9 +1757,9 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
 
 
 
-    if (mode === 'technician') {
+    if (mode === 'technician' || mode === 'desktop') {
         return (
-            <div className="card" style={{ maxWidth: '600px', margin: '0 auto', padding: '1rem' }}>
+            <div className="card" style={{ maxWidth: mode === 'desktop' ? '1200px' : '600px', margin: '0 auto', padding: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '2px solid var(--primary)' }}>
                     <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
                         {formData.projectTitle || 'Projekt'}
@@ -2079,111 +2088,297 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                     {(
                         <div style={{ marginBottom: '1rem' }}>
                             {mode !== 'technician' && (
-                                <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-                                    Räume / Fotos
-                                </h3>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                    <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>
+                                        Räume / Fotos
+                                    </h3>
+                                    <button
+                                        type="button"
+                                        onClick={handleGeneratePDF}
+                                        disabled={isGeneratingPDF}
+                                        className="btn btn-outline"
+                                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', gap: '0.5rem', alignItems: 'center', backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+                                    >
+                                        <FileText size={16} />
+                                        Schadensbericht
+                                    </button>
+                                </div>
                             )}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                <button
-                                    type="button"
-                                    className={`btn ${showAddRoomForm ? 'btn-ghost' : 'btn-primary'}`}
-                                    onClick={() => setShowAddRoomForm(!showAddRoomForm)}
-                                    style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', color: showAddRoomForm ? '#EF4444' : undefined, borderColor: showAddRoomForm ? '#EF4444' : undefined }}
-                                >
-                                    {showAddRoomForm ? <X size={16} /> : <Plus size={16} />}
-                                    {showAddRoomForm ? " Abbrechen" : " Raum hinzufügen"}
-                                </button>
 
-                                {showAddRoomForm && (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                            <select
-                                                className="form-input"
-                                                value={newRoom.apartment && ![...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].includes(newRoom.apartment) ? 'Sonstiges' : newRoom.apartment}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    if (val === 'Sonstiges') {
-                                                        setNewRoom(prev => ({ ...prev, apartment: '' }));
-                                                    } else {
-                                                        setNewRoom(prev => ({ ...prev, apartment: val }));
-                                                    }
-                                                }}
-                                                style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                            >
-                                                <option value="">Wohnung wählen... (Pflicht)</option>
-                                                {[...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].map(apt => (
-                                                    <option key={apt} value={apt}>{apt}</option>
-                                                ))}
-                                                <option value="Sonstiges">Neue Wohnung eingeben...</option>
-                                            </select>
+                            {mode === 'technician' && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <button
+                                        type="button"
+                                        className={`btn ${showAddRoomForm ? 'btn-ghost' : 'btn-primary'}`}
+                                        onClick={() => setShowAddRoomForm(!showAddRoomForm)}
+                                        style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', color: showAddRoomForm ? '#EF4444' : undefined, borderColor: showAddRoomForm ? '#EF4444' : undefined }}
+                                    >
+                                        {showAddRoomForm ? <X size={16} /> : <Plus size={16} />}
+                                        {showAddRoomForm ? " Abbrechen" : " Raum hinzufügen"}
+                                    </button>
 
-                                            {/* Custom Apartment Input */}
-                                            {(!newRoom.apartment || (newRoom.apartment && ![...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].includes(newRoom.apartment))) && (
-                                                <input
-                                                    type="text"
-                                                    placeholder="Wohnung eingeben"
-                                                    value={newRoom.apartment}
-                                                    onChange={(e) => setNewRoom(prev => ({ ...prev, apartment: e.target.value }))}
+                                    {showAddRoomForm && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                                <select
                                                     className="form-input"
+                                                    value={newRoom.apartment && ![...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].includes(newRoom.apartment) ? 'Sonstiges' : newRoom.apartment}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        if (val === 'Sonstiges') {
+                                                            setNewRoom(prev => ({ ...prev, apartment: '' }));
+                                                        } else {
+                                                            setNewRoom(prev => ({ ...prev, apartment: val }));
+                                                        }
+                                                    }}
                                                     style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                                />
-                                            )}
-                                        </div>
+                                                >
+                                                    <option value="">Wohnung wählen... (Pflicht)</option>
+                                                    {[...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].map(apt => (
+                                                        <option key={apt} value={apt}>{apt}</option>
+                                                    ))}
+                                                    <option value="Sonstiges">Neue Wohnung eingeben...</option>
+                                                </select>
 
-                                        <input
-                                            type="text"
-                                            placeholder="Stockwerk"
-                                            value={newRoom.stockwerk}
-                                            onChange={(e) => setNewRoom(prev => ({ ...prev, stockwerk: e.target.value }))}
-                                            className="form-input"
-                                            style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                        />
+                                                {/* Custom Apartment Input */}
+                                                {(!newRoom.apartment || (newRoom.apartment && ![...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].includes(newRoom.apartment))) && (
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Wohnung eingeben"
+                                                        value={newRoom.apartment}
+                                                        onChange={(e) => setNewRoom(prev => ({ ...prev, apartment: e.target.value }))}
+                                                        className="form-input"
+                                                        style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                                    />
+                                                )}
+                                            </div>
 
-                                        <select
-                                            value={newRoom.name}
-                                            onChange={(e) => setNewRoom(prev => ({ ...prev, name: e.target.value }))}
-                                            className="form-input"
-                                            style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                        >
-                                            <option value="">Raum wählen...</option>
-                                            {ROOM_OPTIONS.map(opt => (
-                                                <option key={opt} value={opt}>{opt}</option>
-                                            ))}
-                                            <option value="Sonstiges">Sonstiges / Eigener Name</option>
-                                        </select>
-
-                                        {/* Custom Room Input if 'Sonstiges' or not in list */}
-                                        {((newRoom.name === 'Sonstiges') || (newRoom.name === 'Sonstiges / Eigener Name') || (newRoom.name && !ROOM_OPTIONS.includes(newRoom.name))) && (
                                             <input
                                                 type="text"
-                                                placeholder="Raum-Name eingeben"
-                                                value={newRoom.name === 'Sonstiges' || newRoom.name === 'Sonstiges / Eigener Name' ? '' : newRoom.name}
+                                                placeholder="Stockwerk"
+                                                value={newRoom.stockwerk}
+                                                onChange={(e) => setNewRoom(prev => ({ ...prev, stockwerk: e.target.value }))}
+                                                className="form-input"
+                                                style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                            />
+
+                                            <select
+                                                value={newRoom.name}
                                                 onChange={(e) => setNewRoom(prev => ({ ...prev, name: e.target.value }))}
                                                 className="form-input"
                                                 style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                                autoFocus
-                                            />
-                                        )}
+                                            >
+                                                <option value="">Raum wählen...</option>
+                                                {ROOM_OPTIONS.map(opt => (
+                                                    <option key={opt} value={opt}>{opt}</option>
+                                                ))}
+                                                <option value="Sonstiges">Sonstiges / Eigener Name</option>
+                                            </select>
 
-                                        <button
-                                            type="button"
-                                            className="btn btn-primary"
-                                            onClick={() => {
-                                                handleAddRoom();
-                                                setShowAddRoomForm(false); // Auto-close after add
-                                            }}
-                                            disabled={!newRoom.name || newRoom.name === 'Sonstiges' || !newRoom.apartment}
-                                            style={{ marginTop: '0.5rem' }}
-                                        >
-                                            <Check size={16} /> Speichern
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                                            {/* Custom Room Input if 'Sonstiges' or not in list */}
+                                            {((newRoom.name === 'Sonstiges') || (newRoom.name === 'Sonstiges / Eigener Name') || (newRoom.name && !ROOM_OPTIONS.includes(newRoom.name))) && (
+                                                <input
+                                                    type="text"
+                                                    placeholder="Raum-Name eingeben"
+                                                    value={newRoom.name === 'Sonstiges' || newRoom.name === 'Sonstiges / Eigener Name' ? '' : newRoom.name}
+                                                    onChange={(e) => setNewRoom(prev => ({ ...prev, name: e.target.value }))}
+                                                    className="form-input"
+                                                    style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                                    autoFocus
+                                                />
+                                            )}
+
+                                            <button
+                                                type="button"
+                                                className="btn btn-primary"
+                                                onClick={() => {
+                                                    handleAddRoom();
+                                                    setShowAddRoomForm(false); // Auto-close after add
+                                                }}
+                                                disabled={!newRoom.name || newRoom.name === 'Sonstiges' || !newRoom.apartment}
+                                                style={{ marginTop: '0.5rem' }}
+                                            >
+                                                <Check size={16} /> Speichern
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {mode === 'technician' && (
                                 <h3 style={{ fontSize: '1rem', fontWeight: 600, marginTop: '2rem', marginBottom: '0.5rem' }}>
                                     Räume / Fotos
                                 </h3>
+                            )}
+                        </div>
+                    )}
+
+
+                    {/* Schadenursache - Cause & Photos (Desktop Only) */}
+                    {mode === 'desktop' && (
+                        <div className="card" style={{ marginBottom: '2rem', border: '1px solid var(--border)', padding: '1.5rem', backgroundColor: 'var(--surface)' }}>
+                            <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem', color: 'var(--text-main)' }}>Schadenursache</h3>
+
+                            {/* Cause / Description */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginBottom: '2rem' }}>
+                                <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Schadenursache</span>
+                                    <textarea
+                                        className="form-input"
+                                        rows={3}
+                                        value={formData.cause || ''}
+                                        onChange={e => setFormData({ ...formData, cause: e.target.value })}
+                                        placeholder="Beschreibung der Ursache..."
+                                    />
+                                </label>
+                            </div>
+
+                            {/* Photos (Schadenfotos) */}
+                            <div>
+                                <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-main)' }}>Fotos zur Ursache</h4>
+
+                                {/* Upload Zone */}
+                                <div
+                                    style={{
+                                        border: '2px dashed var(--border)',
+                                        borderRadius: 'var(--radius)',
+                                        padding: '2rem 1rem',
+                                        textAlign: 'center',
+                                        cursor: 'pointer',
+                                        backgroundColor: 'rgba(255,255,255,0.02)',
+                                        transition: 'all 0.2s',
+                                        marginBottom: '1rem',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'var(--text-muted)'
+                                    }}
+                                    onClick={() => document.getElementById('file-upload-Schadenfotos-desktop').click()}
+                                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)'; e.currentTarget.style.color = 'var(--primary)'; }}
+                                    onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                                    onDrop={(e) => handleCategoryDrop(e, 'Schadenfotos')}
+                                >
+                                    <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                                    <span style={{ fontSize: '0.85rem' }}>Schadenfoto hochladen / Drop</span>
+                                    <input id="file-upload-Schadenfotos-desktop" type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={(e) => handleCategorySelect(e, 'Schadenfotos')} />
+                                </div>
+
+                                {/* List */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {formData.images.filter(img => img.assignedTo === 'Schadenfotos').map((item, idx) => (
+                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                                            <div style={{ width: '80px', height: '80px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
+                                                <img src={item.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
+                                            </div>
+                                            <div style={{ flex: 1, fontWeight: 500, color: 'var(--text-main)' }}>{item.name}</div>
+                                            <button type="button" className="btn btn-ghost" onClick={() => setFormData(prev => ({ ...prev, images: prev.images.filter(i => i !== item) }))} style={{ color: '#EF4444', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}><Trash size={18} /></button>
+                                        </div>
+                                    ))}
+                                    {formData.images.filter(img => img.assignedTo === 'Schadenfotos').length === 0 && (
+                                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Keine Schadenfotos vorhanden.</div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {mode === 'desktop' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
+                            <button
+                                type="button"
+                                className={`btn ${showAddRoomForm ? 'btn-ghost' : 'btn-primary'}`}
+                                onClick={() => setShowAddRoomForm(!showAddRoomForm)}
+                                style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', color: showAddRoomForm ? '#EF4444' : undefined, borderColor: showAddRoomForm ? '#EF4444' : undefined }}
+                            >
+                                {showAddRoomForm ? <X size={16} /> : <Plus size={16} />}
+                                {showAddRoomForm ? " Abbrechen" : " Raum hinzufügen"}
+                            </button>
+
+                            {showAddRoomForm && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                        <select
+                                            className="form-input"
+                                            value={newRoom.apartment && ![...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].includes(newRoom.apartment) ? 'Sonstiges' : newRoom.apartment}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (val === 'Sonstiges') {
+                                                    setNewRoom(prev => ({ ...prev, apartment: '' }));
+                                                } else {
+                                                    setNewRoom(prev => ({ ...prev, apartment: val }));
+                                                }
+                                            }}
+                                            style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                        >
+                                            <option value="">Wohnung wählen... (Pflicht)</option>
+                                            {[...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].map(apt => (
+                                                <option key={apt} value={apt}>{apt}</option>
+                                            ))}
+                                            <option value="Sonstiges">Neue Wohnung eingeben...</option>
+                                        </select>
+
+                                        {/* Custom Apartment Input */}
+                                        {(!newRoom.apartment || (newRoom.apartment && ![...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].includes(newRoom.apartment))) && (
+                                            <input
+                                                type="text"
+                                                placeholder="Wohnung eingeben"
+                                                value={newRoom.apartment}
+                                                onChange={(e) => setNewRoom(prev => ({ ...prev, apartment: e.target.value }))}
+                                                className="form-input"
+                                                style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                            />
+                                        )}
+                                    </div>
+
+                                    <input
+                                        type="text"
+                                        placeholder="Stockwerk"
+                                        value={newRoom.stockwerk}
+                                        onChange={(e) => setNewRoom(prev => ({ ...prev, stockwerk: e.target.value }))}
+                                        className="form-input"
+                                        style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                    />
+
+                                    <select
+                                        value={newRoom.name}
+                                        onChange={(e) => setNewRoom(prev => ({ ...prev, name: e.target.value }))}
+                                        className="form-input"
+                                        style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                    >
+                                        <option value="">Raum wählen...</option>
+                                        {ROOM_OPTIONS.map(opt => (
+                                            <option key={opt} value={opt}>{opt}</option>
+                                        ))}
+                                        <option value="Sonstiges">Sonstiges / Eigener Name</option>
+                                    </select>
+
+                                    {/* Custom Room Input if 'Sonstiges' or not in list */}
+                                    {((newRoom.name === 'Sonstiges') || (newRoom.name === 'Sonstiges / Eigener Name') || (newRoom.name && !ROOM_OPTIONS.includes(newRoom.name))) && (
+                                        <input
+                                            type="text"
+                                            placeholder="Raum-Name eingeben"
+                                            value={newRoom.name === 'Sonstiges' || newRoom.name === 'Sonstiges / Eigener Name' ? '' : newRoom.name}
+                                            onChange={(e) => setNewRoom(prev => ({ ...prev, name: e.target.value }))}
+                                            className="form-input"
+                                            style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                            autoFocus
+                                        />
+                                    )}
+
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={() => {
+                                            handleAddRoom();
+                                            setShowAddRoomForm(false); // Auto-close after add
+                                        }}
+                                        disabled={!newRoom.name || newRoom.name === 'Sonstiges' || !newRoom.apartment}
+                                        style={{ marginTop: '0.5rem' }}
+                                    >
+                                        <Check size={16} /> Speichern
+                                    </button>
+                                </div>
                             )}
                         </div>
                     )}
@@ -2198,66 +2393,40 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                             {room.apartment && <span style={{ fontSize: '0.9rem', color: '#94A3B8', fontWeight: 500 }}>{room.apartment}</span>}
                                         </div>
                                         <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                            {room.measurementData ? (
-                                                <>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    disabled={!room.measurementData}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (room.measurementData) {
                                                             setActiveRoomForMeasurement(room);
                                                             setIsNewMeasurement(false);
                                                             setIsMeasurementReadOnly(true);
                                                             setShowMeasurementModal(true);
-                                                        }}
-                                                        style={{
-                                                            padding: '0.4rem 0.6rem',
-                                                            borderRadius: '6px',
-                                                            border: '1px solid var(--border)',
-                                                            backgroundColor: 'rgba(255,255,255,0.05)',
-                                                            color: 'var(--text-muted)',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '0.25rem',
-                                                            fontSize: '0.75rem',
-                                                            cursor: 'pointer'
-                                                        }}
-                                                    >
-                                                        <FileText size={14} />
-                                                        Messung ansehen
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setActiveRoomForMeasurement(room);
-                                                            setIsNewMeasurement(true);
-                                                            setIsMeasurementReadOnly(false);
-                                                            setShowMeasurementModal(true);
-                                                        }}
-                                                        style={{
-                                                            padding: '0.4rem 0.6rem',
-                                                            borderRadius: '6px',
-                                                            border: '1px solid #10B981',
-                                                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                                            color: '#10B981',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '0.25rem',
-                                                            fontSize: '0.75rem',
-                                                            cursor: 'pointer'
-                                                        }}
-                                                    >
-                                                        <Plus size={14} />
-                                                        Messung beginnen
-                                                    </button>
-                                                </>
-                                            ) : (
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        padding: '0.4rem 0.6rem',
+                                                        borderRadius: '6px',
+                                                        border: '1px solid var(--border)',
+                                                        backgroundColor: 'rgba(255,255,255,0.05)',
+                                                        color: 'var(--text-muted)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.25rem',
+                                                        fontSize: '0.75rem',
+                                                        cursor: room.measurementData ? 'pointer' : 'not-allowed',
+                                                        opacity: room.measurementData ? 1 : 0.5
+                                                    }}
+                                                >
+                                                    <FileText size={14} />
+                                                    Messung ansehen
+                                                </button>
                                                 <button
                                                     type="button"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-
                                                         setActiveRoomForMeasurement(room);
                                                         setIsNewMeasurement(true);
                                                         setIsMeasurementReadOnly(false);
@@ -2279,7 +2448,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                                     <Plus size={14} />
                                                     Messung beginnen
                                                 </button>
-                                            )}
+                                            </>
                                             {mode !== 'technician' && (
                                                 <button
                                                     type="button"
@@ -2572,9 +2741,201 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                     }
                 </div >
 
+
+                {mode === 'desktop' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem', marginBottom: '3rem' }}>
+
+                        {/* Button for PDF Creation (Desktop Only) - Placed above Arbeitsrapporte */}
+                        {/* 1. Arbeitsrapporte (Duplicate for Desktop) */}
+                        <div style={{ marginTop: '2rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', margin: 0 }}>
+                                    Arbeitsrapporte
+                                </h2>
+                            </div>
+                            <div className="card" style={{ border: '1px solid var(--border)', padding: '1.5rem' }}>
+                                <div
+                                    style={{
+                                        border: '2px dashed var(--border)',
+                                        borderRadius: 'var(--radius)',
+                                        padding: '2rem 1rem',
+                                        textAlign: 'center',
+                                        cursor: 'pointer',
+                                        backgroundColor: 'rgba(255,255,255,0.02)',
+                                        transition: 'all 0.2s',
+                                        marginBottom: '1rem',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'var(--text-muted)'
+                                    }}
+                                    onClick={() => document.getElementById('file-upload-Arbeitsrappporte-desktop').click()}
+                                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)'; e.currentTarget.style.color = 'var(--primary)'; }}
+                                    onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                                    onDrop={(e) => handleCategoryDrop(e, 'Arbeitsrappporte')}
+                                >
+                                    <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                                    <span style={{ fontSize: '0.85rem' }}>Arbeitsrapport hochladen / Drop</span>
+                                    <input id="file-upload-Arbeitsrappporte-desktop" type="file" multiple accept="image/*,application/pdf" style={{ display: 'none' }} onChange={(e) => handleCategorySelect(e, 'Arbeitsrappporte')} />
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {formData.images.filter(img => img.assignedTo === 'Arbeitsrappporte').map((item, idx) => (
+                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                                            {(item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf')) ? (
+                                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }} onClick={() => { if (item.file) { const pdfUrl = URL.createObjectURL(item.file); window.open(pdfUrl, '_blank'); } else if (item.preview) { window.open(item.preview, '_blank'); } else { alert("PDF Vorschau nicht verfügbar."); } }}>
+                                                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}><FileText size={24} color="var(--text-main)" /></div>
+                                                    <div style={{ fontSize: '1rem', color: 'var(--text-main)', fontWeight: 500, textDecoration: 'underline' }}>{item.name}</div>
+                                                </div>
+                                            ) : (
+                                                <div style={{ width: '80px', height: '80px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
+                                                    <img src={item.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
+                                                </div>
+                                            )}
+                                            {!((item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf'))) && <div style={{ flex: 1, fontWeight: 500, color: 'var(--text-main)' }}>{item.name}</div>}
+                                            <button type="button" className="btn btn-ghost" onClick={() => setFormData(prev => ({ ...prev, images: prev.images.filter(i => i !== item) }))} style={{ color: '#EF4444', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}><Trash size={18} /></button>
+                                        </div>
+                                    ))}
+                                    {formData.images.filter(img => img.assignedTo === 'Arbeitsrappporte').length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Keine Arbeitsrapporte vorhanden.</div>}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 2. Sonstiges (Duplicate of Reports, mapped to 'Sonstiges') */}
+                        <div style={{ marginTop: '2rem' }}>
+                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                                Sonstiges
+                            </h2>
+                            <div className="card" style={{ border: '1px solid var(--border)', padding: '1.5rem' }}>
+                                <div
+                                    style={{
+                                        border: '2px dashed var(--border)',
+                                        borderRadius: 'var(--radius)',
+                                        padding: '2rem 1rem',
+                                        textAlign: 'center',
+                                        cursor: 'pointer',
+                                        backgroundColor: 'rgba(255,255,255,0.02)',
+                                        transition: 'all 0.2s',
+                                        marginBottom: '1rem',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'var(--text-muted)'
+                                    }}
+                                    onClick={() => document.getElementById('file-upload-Sonstiges-desktop').click()}
+                                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)'; e.currentTarget.style.color = 'var(--primary)'; }}
+                                    onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                                    onDrop={(e) => handleCategoryDrop(e, 'Sonstiges')}
+                                >
+                                    <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                                    <span style={{ fontSize: '0.85rem' }}>Sonstiges Dokument hochladen / Drop</span>
+                                    <input id="file-upload-Sonstiges-desktop" type="file" multiple accept="image/*,application/pdf" style={{ display: 'none' }} onChange={(e) => handleCategorySelect(e, 'Sonstiges')} />
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {formData.images.filter(img => img.assignedTo === 'Sonstiges').map((item, idx) => (
+                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                                            {(item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf')) ? (
+                                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }} onClick={() => { if (item.file) { const pdfUrl = URL.createObjectURL(item.file); window.open(pdfUrl, '_blank'); } else if (item.preview) { window.open(item.preview, '_blank'); } }}>
+                                                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}><FileText size={24} color="var(--text-main)" /></div>
+                                                    <div style={{ fontSize: '1rem', color: 'var(--text-main)', fontWeight: 500, textDecoration: 'underline' }}>{item.name}</div>
+                                                </div>
+                                            ) : (
+                                                <div style={{ width: '80px', height: '80px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
+                                                    <img src={item.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
+                                                </div>
+                                            )}
+                                            {!((item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf'))) && <div style={{ flex: 1, fontWeight: 500, color: 'var(--text-main)' }}>{item.name}</div>}
+                                            <button type="button" className="btn btn-ghost" onClick={() => setFormData(prev => ({ ...prev, images: prev.images.filter(i => i !== item) }))} style={{ color: '#EF4444', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}><Trash size={18} /></button>
+                                        </div>
+                                    ))}
+                                    {formData.images.filter(img => img.assignedTo === 'Sonstiges').length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Keine sonstigen Dokumente.</div>}
+                                </div>
+                            </div>
+                        </div>
+
+
+
+                        {/* 4. Messprotokolle (Duplicate for Desktop) - Reusing logic by referencing existing or duplicating UI */}
+                        <div className="card" style={{ border: '1px solid var(--border)' }}>
+                            <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+                                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)', margin: 0 }}>
+                                    <FileText size={20} />
+                                    Messprotokolle
+                                </h3>
+                            </div>
+                            <div style={{ marginBottom: '2rem' }}>
+                                <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--primary)' }}>Messen</h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {formData.rooms.map(room => {
+                                        const hasMeasurement = !!room.measurementData;
+                                        const date = hasMeasurement ? (room.measurementData.globalSettings?.date ? new Date(room.measurementData.globalSettings.date).toLocaleDateString('de-CH') : 'Kein Datum') : '-';
+                                        return (
+                                            <div key={room.id} style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', gap: '0.5rem' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: '200px', flex: '1 1 auto' }}>
+                                                    <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{room.name}</div>
+                                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{hasMeasurement ? `Letzte Messung: ${date}` : 'Keine Messdaten'}</div>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                                    {hasMeasurement ? (
+                                                        <>
+                                                            <button type="button" className="btn btn-outline" onClick={() => { setActiveRoomForMeasurement(room); setIsNewMeasurement(false); setShowMeasurementModal(true); }}>Ansehen</button>
+                                                            <button type="button" className="btn btn-outline" onClick={() => { setActiveRoomForMeasurement(room); setIsNewMeasurement(true); setShowMeasurementModal(true); }}>Neu</button>
+                                                        </>
+                                                    ) : (
+                                                        <button type="button" className="btn btn-outline" onClick={() => { setActiveRoomForMeasurement(room); setIsNewMeasurement(false); setShowMeasurementModal(true); }}>Messung starten</button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', marginBottom: '2rem' }}>
+                                <button
+                                    type="button"
+                                    className="btn btn-outline"
+                                    onClick={async () => {
+                                        try {
+                                            const result = await generateMeasurementExcel(formData);
+                                            if (result) {
+                                                const file = new File([result.blob], result.fileName, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                                                await handleImageUpload([file], { assignedTo: 'Messprotokolle' });
+                                            }
+                                        } catch (error) {
+                                            console.error("Excel Export failed:", error);
+                                            alert("Fehler beim Erstellen des Excel-Protokolls.");
+                                        }
+                                    }}
+                                    style={{ fontSize: '0.85rem', padding: '0.5rem 1rem', gap: '0.4rem', borderColor: '#10B981', color: '#10B981', display: 'flex', alignItems: 'center' }}
+                                    title="Excel Export aller Messräume (wird in Liste gespeichert)"
+                                >
+                                    <Table size={16} />
+                                    Excel Export
+                                </button>
+                            </div>
+
+                            {/* Measurement Excel List */}
+                            <div>
+                                <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--primary)' }}>Messprotokolle (Excel)</h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
+                                    {formData.images.filter(img => img.assignedTo === 'Messprotokolle').map((item, idx) => (
+                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                                            <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{item.name}</div>
+                                            <button type="button" className="btn btn-ghost" onClick={() => setFormData(prev => ({ ...prev, images: prev.images.filter(img => img !== item) }))} style={{ color: '#EF4444', marginLeft: 'auto' }}><Trash size={18} /></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                )
+                }
                 {/* 4. Drying Equipment (Only in Trocknung, hidden in Schadenaufnahme/Leckortung) */}
                 {
-                    (formData.status === 'Trocknung' || (mode === 'desktop' && formData.equipment.length > 0 && !['Schadenaufnahme', 'Leckortung'].includes(formData.status))) && (
+                    (mode === 'desktop' || formData.status === 'Trocknung') && (
                         <div style={{ marginBottom: '2rem', borderTop: '1px solid var(--border)', paddingTop: '1.5rem', ...(mode === 'desktop' ? { display: 'flex', flexDirection: 'column' } : {}) }}>
                             <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: 'white' }}>Trocknungsgeräte</h3>
 
@@ -2583,7 +2944,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
 
 
                             {/* Add Device Form */}
-                            <div style={{ backgroundColor: '#1E293B', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid var(--border)', ...(mode === 'desktop' ? { order: 2, marginTop: '2rem' } : {}) }}>
+                            <div style={{ backgroundColor: '#1E293B', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid var(--border)', ...(mode === 'desktop' ? { order: 3, marginTop: '2rem' } : {}) }}>
                                 <button
                                     type="button"
                                     className={`btn ${showAddDeviceForm ? 'btn-ghost' : 'btn-primary'}`}
@@ -2597,12 +2958,52 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                 {showAddDeviceForm && (
                                     <>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                            {/* Inventory Selection (Matches Technician Mode) */}
+                                            {deviceFetchError ? (
+                                                <div style={{ color: '#EF4444', fontSize: '0.9rem', marginBottom: '0.5rem', padding: '0.5rem', border: '1px solid #EF4444', borderRadius: '4px' }}>
+                                                    Ladefehler: {deviceFetchError}
+                                                </div>
+                                            ) : (
+                                                <select
+                                                    className="form-input"
+                                                    value={selectedDevice ? selectedDevice.id : ''}
+                                                    onChange={(e) => {
+                                                        const devId = e.target.value;
+                                                        if (!devId) {
+                                                            setSelectedDevice(null);
+                                                            setNewDevice(prev => ({ ...prev, deviceNumber: '' }));
+                                                        } else {
+                                                            const dev = availableDevices.find(d => d.id.toString() === devId);
+                                                            if (dev) {
+                                                                setSelectedDevice(dev);
+                                                                setNewDevice(prev => ({ ...prev, deviceNumber: dev.number }));
+                                                            }
+                                                        }
+                                                    }}
+                                                    style={{ marginBottom: '0.5rem' }} // Removed explicit colors to rely on class
+                                                >
+                                                    <option value="">-- Gerät aus Lager wählen --</option>
+                                                    {Array.isArray(availableDevices) && availableDevices.length > 0 ? (
+                                                        availableDevices.map(device => (
+                                                            <option key={device.id} value={device.id}>
+                                                                #{device.number} - {device.type} {device.model ? `(${device.model})` : ''}
+                                                            </option>
+                                                        ))
+                                                    ) : (
+                                                        <option disabled>Keine verfügbaren Geräte gefunden</option>
+                                                    )}
+                                                </select>
+                                            )}
+
                                             <input
                                                 type="text"
-                                                placeholder="Geräte-Nr."
+                                                placeholder="Geräte-Nr. (oder oben wählen)"
                                                 className="form-input"
                                                 value={newDevice.deviceNumber}
-                                                onChange={(e) => setNewDevice(prev => ({ ...prev, deviceNumber: e.target.value }))}
+                                                onChange={(e) => {
+                                                    setNewDevice(prev => ({ ...prev, deviceNumber: e.target.value }));
+                                                    setSelectedDevice(null); // Clear selection on manual edit
+                                                }}
                                             />
 
                                             {/* Apartment Selection (Required) */}
@@ -2743,6 +3144,70 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                     </>
                                 )}
                             </div>
+
+                            {/* Energy Report Button (Inserted between form and list) */}
+                            {mode === 'desktop' && (
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem', position: 'relative', zIndex: 10, ...(mode === 'desktop' ? { order: 2 } : {}) }}>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            try {
+                                                generateEnergyReport();
+                                            } catch (err) {
+                                                alert("Fehler: " + err.message);
+                                            }
+                                        }}
+                                        style={{
+                                            backgroundColor: 'transparent',
+                                            border: '1px solid #10B981',
+                                            color: '#10B981',
+                                            padding: '8px 16px',
+                                            borderRadius: '6px',
+                                            fontSize: '14px',
+                                            fontWeight: '600',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px'
+                                        }}
+                                        title="Energieprotokoll erstellen"
+                                    >
+                                        <FileText size={18} />
+                                        <span>Energieprotokoll (PDF)</span>
+                                    </button>
+
+                                    {/* Moved PDF Button HERE */}
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            // console.log("Setting showReportModal to true"); // Debug log only
+                                            setShowReportModal(true);
+                                        }}
+                                        style={{
+                                            backgroundColor: 'transparent',
+                                            border: '1px solid #EF4444',
+                                            color: '#EF4444',
+                                            padding: '8px 16px',
+                                            borderRadius: '6px',
+                                            fontSize: '14px',
+                                            fontWeight: '600',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            marginLeft: '1rem' // Space between buttons
+                                        }}
+                                        title="Schadensbericht erstellen (PDF)"
+                                    >
+                                        <FileText size={16} />
+                                        PDF Erstellen
+                                    </button>
+                                </div>
+                            )}
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', ...(mode === 'desktop' ? { order: 1 } : {}) }}>
                                 {formData.equipment
@@ -3368,6 +3833,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                 {isGeneratingPDF ? 'Erstelle...' : 'Bericht (PDF) & Speichern'}
                             </button>
                         )}
+
                         <button className="btn btn-outline" onClick={onCancel} style={{ padding: '0.5rem' }}>
                             <X size={20} />
                         </button>
@@ -4043,32 +4509,31 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                         {/* Device Selection */}
                                         <div style={{ gridColumn: 'span 2' }}>
                                             <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>Gerät wählen</label>
-                                            <select
+                                            <input
+                                                list="device-options-tech"
                                                 className="form-input"
-                                                value={selectedDevice ? selectedDevice.id : ''}
+                                                placeholder="Geräte-Nr. (oder wählen)"
+                                                value={newDevice.deviceNumber || ''}
                                                 onChange={(e) => {
-                                                    const devId = e.target.value;
-                                                    if (!devId) {
+                                                    const val = e.target.value;
+                                                    const dev = availableDevices.find(d => d.number.toString() === val);
+                                                    if (dev) {
+                                                        setSelectedDevice(dev);
+                                                        setNewDevice(prev => ({ ...prev, deviceNumber: val }));
+                                                    } else {
                                                         setSelectedDevice(null);
-                                                        setNewDevice(prev => ({ ...prev, deviceNumber: '' }));
-                                                        return;
+                                                        setNewDevice(prev => ({ ...prev, deviceNumber: val }));
                                                     }
-                                                    const dev = availableDevices.find(d => d.id.toString() === devId);
-                                                    setSelectedDevice(dev);
-                                                    setNewDevice(prev => ({
-                                                        ...prev,
-                                                        deviceNumber: dev.number // Auto-fill number
-                                                    }));
                                                 }}
-                                            >
-                                                <option value="">-- Gerät wählen --</option>
+                                                onFocus={(e) => e.target.select()} // Auto-select text on focus
+                                            />
+                                            <datalist id="device-options-tech">
                                                 {availableDevices.map(device => (
-                                                    <option key={device.id} value={device.id}>
-                                                        #{device.number} - {device.type} {device.model ? `(${device.model})` : ''}
+                                                    <option key={device.id} value={device.number}>
+                                                        {device.type} {device.model ? `(${device.model})` : ''}
                                                     </option>
                                                 ))}
-                                            </select>
-                                            {/* Fallback / Manual Entry Toggle could go here if needed, but let's stick to list for now */}
+                                            </datalist>
                                         </div>
 
                                         {/* Room Selection */}
@@ -4435,12 +4900,24 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                         </div>
                     )}
 
-                    {/* Arbeitsrapporte Section - Only for Technician Mode */}
-                    {mode !== 'desktop' && (
+                    {/* Arbeitsrapporte Section - For Technician Mode AND Admin */}
+                    {(mode === 'technician') && (
                         <div style={{ marginTop: '2rem' }}>
-                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
-                                Arbeitsrapporte
-                            </h2>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', margin: 0 }}>
+                                    Arbeitsrapporte
+                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={handleGeneratePDF}
+                                    disabled={isGeneratingPDF}
+                                    className="btn btn-outline"
+                                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', gap: '0.5rem', alignItems: 'center', backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+                                >
+                                    <FileText size={16} />
+                                    Schadensbericht
+                                </button>
+                            </div>
 
                             <div className="card" style={{ border: '1px solid var(--border)', padding: '1.5rem' }}>
                                 <div
@@ -4564,7 +5041,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
 
 
                                 {/* Dynamic Room Categories for Erste Begehung & Leckortung & Trocknung */}
-                                {(formData.status === 'Schadenaufnahme' || formData.status === 'Leckortung' || formData.status === 'Trocknung') && (<>
+                                {(mode === 'desktop' || formData.status === 'Schadenaufnahme' || formData.status === 'Leckortung' || formData.status === 'Trocknung') && (<>
                                     <div style={{ gridColumn: '1 / -1', marginBottom: '1rem' }}>
                                         {/* Room Management UI */}
                                         <div style={{ backgroundColor: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', marginBottom: '2rem' }}>
@@ -4996,47 +5473,92 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                         </div>
                                     </div>
 
+                                    {/* Schadensbericht Button below room list - DESKTOP ONLY */}
+                                    {mode !== 'technician' && (
+                                        <div style={{ marginTop: '1rem', marginBottom: '2rem', display: 'flex', justifyContent: 'flex-start' }}>
+                                            <button
+                                                type="button"
+                                                onClick={handleGeneratePDF}
+                                                disabled={isGeneratingPDF}
+                                                className="btn btn-primary"
+                                                style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}
+                                            >
+                                                <FileText size={18} />
+                                                Schadensbericht erstellen
+                                            </button>
+                                        </div>
+                                    )}
+
 
                                     {/* Messprotokolle Special Section (Goodnotes / Measurement) */}
-                                    <div className="card" style={{ border: '1px solid var(--border)' }}>
-                                        <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
-                                            <h3 style={{ fontSize: '1.25rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)', margin: 0 }}>
-                                                <FileText size={20} />
-                                                Messprotokolle
-                                            </h3>
-                                        </div>
+                                    {mode === 'technician' && (
+                                        <div className="card" style={{ border: '1px solid var(--border)' }}>
+                                            <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+                                                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)', margin: 0 }}>
+                                                    <FileText size={20} />
+                                                    Messprotokolle
+                                                </h3>
+                                            </div>
 
-                                        {/* Section 1: Messen */}
-                                        <div style={{ marginBottom: '2rem' }}>
-                                            <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--primary)' }}>Messen</h4>
-                                            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                                                Erfassen Sie hier die Messwerte für jeden Raum.
-                                            </p>
+                                            {/* Section 1: Messen */}
+                                            <div style={{ marginBottom: '2rem' }}>
+                                                <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--primary)' }}>Messen</h4>
+                                                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                                                    Erfassen Sie hier die Messwerte für jeden Raum.
+                                                </p>
 
-                                            {/* List of Room Measurements */}
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                                {formData.rooms.length > 0 ? (
-                                                    formData.rooms.map(room => {
-                                                        const hasMeasurement = !!room.measurementData;
-                                                        const date = hasMeasurement ? (room.measurementData.globalSettings?.date ? new Date(room.measurementData.globalSettings.date).toLocaleDateString('de-CH') : 'Kein Datum') : '-';
+                                                {/* List of Room Measurements */}
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                                    {formData.rooms.length > 0 ? (
+                                                        formData.rooms.map(room => {
+                                                            const hasMeasurement = !!room.measurementData;
+                                                            const date = hasMeasurement ? (room.measurementData.globalSettings?.date ? new Date(room.measurementData.globalSettings.date).toLocaleDateString('de-CH') : 'Kein Datum') : '-';
 
-                                                        return (
-                                                            <div key={room.id} style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', gap: '0.5rem' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: '200px', flex: '1 1 auto' }}>
-                                                                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: hasMeasurement ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                                        <Folder size={16} color={hasMeasurement ? '#10B981' : 'var(--text-muted)'} />
-                                                                    </div>
-                                                                    <div>
-                                                                        <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{room.name}</div>
-                                                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                                                            {hasMeasurement ? `Letzte Messung: ${date}` : 'Keine Messdaten'}
+                                                            return (
+                                                                <div key={room.id} style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', gap: '0.5rem' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: '200px', flex: '1 1 auto' }}>
+                                                                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: hasMeasurement ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                                            <Folder size={16} color={hasMeasurement ? '#10B981' : 'var(--text-muted)'} />
+                                                                        </div>
+                                                                        <div>
+                                                                            <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{room.name}</div>
+                                                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                                                                {hasMeasurement ? `Letzte Messung: ${date}` : 'Keine Messdaten'}
+                                                                            </div>
                                                                         </div>
                                                                     </div>
-                                                                </div>
 
-                                                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                                                    {hasMeasurement ? (
-                                                                        <>
+                                                                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                                                        {hasMeasurement ? (
+                                                                            <>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="btn btn-outline"
+                                                                                    onClick={() => {
+                                                                                        setActiveRoomForMeasurement(room);
+                                                                                        setIsNewMeasurement(false);
+                                                                                        setShowMeasurementModal(true);
+                                                                                    }}
+                                                                                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', color: 'var(--text-muted)', borderColor: 'var(--border)', gap: '0.25rem' }}
+                                                                                    title="Ansehen / Bearbeiten"
+                                                                                >
+                                                                                    <FileText size={14} /> Ansehen
+                                                                                </button>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="btn btn-outline"
+                                                                                    onClick={() => {
+                                                                                        setActiveRoomForMeasurement(room);
+                                                                                        setIsNewMeasurement(true);
+                                                                                        setShowMeasurementModal(true);
+                                                                                    }}
+                                                                                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', color: 'var(--success)', borderColor: 'var(--success)' }}
+                                                                                    title="Neue Messung basierend auf diesem Protokoll"
+                                                                                >
+                                                                                    <Plus size={14} style={{ marginRight: '0.25rem' }} /> Neu
+                                                                                </button>
+                                                                            </>
+                                                                        ) : (
                                                                             <button
                                                                                 type="button"
                                                                                 className="btn btn-outline"
@@ -5045,260 +5567,236 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                                                                     setIsNewMeasurement(false);
                                                                                     setShowMeasurementModal(true);
                                                                                 }}
-                                                                                style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', color: 'var(--text-muted)', borderColor: 'var(--border)', gap: '0.25rem' }}
-                                                                                title="Ansehen / Bearbeiten"
+                                                                                style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
                                                                             >
-                                                                                <FileText size={14} /> Ansehen
+                                                                                <Edit3 size={14} style={{ marginRight: '0.25rem' }} /> Messung starten
                                                                             </button>
-                                                                            <button
-                                                                                type="button"
-                                                                                className="btn btn-outline"
-                                                                                onClick={() => {
-                                                                                    setActiveRoomForMeasurement(room);
-                                                                                    setIsNewMeasurement(true);
-                                                                                    setShowMeasurementModal(true);
-                                                                                }}
-                                                                                style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', color: 'var(--success)', borderColor: 'var(--success)' }}
-                                                                                title="Neue Messung basierend auf diesem Protokoll"
-                                                                            >
-                                                                                <Plus size={14} style={{ marginRight: '0.25rem' }} /> Neu
-                                                                            </button>
-                                                                        </>
-                                                                    ) : (
-                                                                        <button
-                                                                            type="button"
-                                                                            className="btn btn-outline"
-                                                                            onClick={() => {
-                                                                                setActiveRoomForMeasurement(room);
-                                                                                setIsNewMeasurement(false);
-                                                                                setShowMeasurementModal(true);
-                                                                            }}
-                                                                            style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
-                                                                        >
-                                                                            <Edit3 size={14} style={{ marginRight: '0.25rem' }} /> Messung starten
-                                                                        </button>
-                                                                    )}
+                                                                        )}
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        );
-                                                    })
-                                                ) : (
-                                                    <div style={{ padding: '1rem', fontStyle: 'italic', color: 'var(--text-muted)', textAlign: 'center' }}>
-                                                        Noch keine Räume erstellt.
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-outline"
-                                                    onClick={async () => {
-                                                        try {
-                                                            const result = await generateMeasurementExcel(formData);
-                                                            if (result) {
-                                                                const file = new File([result.blob], result.fileName, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-                                                                await handleImageUpload([file], { assignedTo: 'Messprotokolle' });
+                                                            );
+                                                        })
+                                                    ) : (
+                                                        <div style={{ padding: '1rem', fontStyle: 'italic', color: 'var(--text-muted)', textAlign: 'center' }}>
+                                                            Noch keine Räume erstellt.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-outline"
+                                                        onClick={async () => {
+                                                            try {
+                                                                const result = await generateMeasurementExcel(formData);
+                                                                if (result) {
+                                                                    const file = new File([result.blob], result.fileName, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                                                                    await handleImageUpload([file], { assignedTo: 'Messprotokolle' });
+                                                                }
+                                                            } catch (error) {
+                                                                console.error("Excel Export failed:", error);
+                                                                alert("Fehler beim Erstellen des Excel-Protokolls.");
                                                             }
-                                                        } catch (error) {
-                                                            console.error("Excel Export failed:", error);
-                                                            alert("Fehler beim Erstellen des Excel-Protokolls.");
-                                                        }
-                                                    }}
-                                                    style={{ fontSize: '0.85rem', padding: '0.5rem 1rem', gap: '0.4rem', borderColor: '#10B981', color: '#10B981', display: 'flex', alignItems: 'center' }}
-                                                    title="Excel Export aller Messräume (wird in Liste gespeichert)"
-                                                >
-                                                    <Table size={16} />
-                                                    Excel Export
-                                                </button>
+                                                        }}
+                                                        style={{ fontSize: '0.85rem', padding: '0.5rem 1rem', gap: '0.4rem', borderColor: '#10B981', color: '#10B981', display: 'flex', alignItems: 'center' }}
+                                                        title="Excel Export aller Messräume (wird in Liste gespeichert)"
+                                                    >
+                                                        <Table size={16} />
+                                                        Excel Export
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        {/* Divider */}
-                                        <div style={{ borderTop: '1px solid var(--border)', margin: '0 -1.5rem 1.5rem -1.5rem' }}></div>
+                                            {/* Divider */}
+                                            <div style={{ borderTop: '1px solid var(--border)', margin: '0 -1.5rem 1.5rem -1.5rem' }}></div>
 
-                                        {/* Section 2: Messprotokolle (Excel) */}
-                                        <div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
-                                                <div>
-                                                    <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                        <Table size={18} className="text-emerald-500" />
-                                                        Messprotokolle
-                                                    </h4>
-                                                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
-                                                        Excel-Exporte der Messdaten
-                                                    </p>
+                                            {/* Section 2: Messprotokolle (Excel) */}
+                                            <div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+                                                    <div>
+                                                        <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                            <Table size={18} className="text-emerald-500" />
+                                                            Messprotokolle
+                                                        </h4>
+                                                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+                                                            Excel-Exporte der Messdaten
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Button removed as per user request */}
                                                 </div>
 
-                                                {/* Button removed as per user request */}
-                                            </div>
-
-                                            {/* Calculated / Generated Files List */}
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
-                                                {formData.images
-                                                    .filter(img => img.assignedTo === 'Messprotokolle')
-                                                    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-                                                    .map((item, idx) => (
-                                                        <div
-                                                            key={idx}
-                                                            onClick={() => {
-                                                                if (item.file) {
-                                                                    const url = URL.createObjectURL(item.file);
-                                                                    const a = document.createElement('a');
-                                                                    a.href = url;
-                                                                    a.download = item.name;
-                                                                    a.click();
-                                                                } else if (item.preview) {
-                                                                    window.open(item.preview, '_blank');
-                                                                }
-                                                            }}
-                                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'}
-                                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'}
-                                                            style={{
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '0.75rem',
-                                                                padding: '0.75rem',
-                                                                backgroundColor: 'rgba(255,255,255,0.02)',
-                                                                border: '1px solid var(--border)',
-                                                                borderRadius: 'var(--radius)',
-                                                                cursor: 'pointer',
-                                                                transition: 'background-color 0.2s ease'
-                                                            }}
-                                                            title="Klicken zum Öffnen"
-                                                        >
-                                                            <div style={{ padding: '0.25rem', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                                {/* Excel Icon */}
-                                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28">
-                                                                    <path fill="#10B981" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
-                                                                    <path fill="#047857" d="M14 2v6h6" />
-                                                                    <path fill="#FFF" d="M10 10h4v2h-4zm0 4h4v2h-4z" />
-                                                                </svg>
-                                                            </div>
-                                                            <div style={{ flex: 1 }}>
-                                                                <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{item.name}</div>
-                                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                                                    {item.date ? new Date(item.date).toLocaleDateString('de-CH') : 'Kein Datum'}
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Delete Button */}
-                                                            <button
-                                                                type="button"
-                                                                className="btn btn-ghost"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    if (window.confirm(`Möchten Sie das Protokoll "${item.name}" wirklich löschen?`)) {
-                                                                        setFormData(prev => ({
-                                                                            ...prev,
-                                                                            images: prev.images.filter(img => img !== item)
-                                                                        }));
+                                                {/* Calculated / Generated Files List */}
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
+                                                    {formData.images
+                                                        .filter(img => img.assignedTo === 'Messprotokolle')
+                                                        .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+                                                        .map((item, idx) => (
+                                                            <div
+                                                                key={idx}
+                                                                onClick={() => {
+                                                                    if (item.file) {
+                                                                        const url = URL.createObjectURL(item.file);
+                                                                        const a = document.createElement('a');
+                                                                        a.href = url;
+                                                                        a.download = item.name;
+                                                                        a.click();
+                                                                    } else if (item.preview) {
+                                                                        window.open(item.preview, '_blank');
                                                                     }
                                                                 }}
+                                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'}
+                                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'}
                                                                 style={{
-                                                                    color: '#EF4444',
-                                                                    padding: '0.5rem',
-                                                                    borderRadius: '50%',
                                                                     display: 'flex',
                                                                     alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                                                    marginLeft: 'auto'
+                                                                    gap: '0.75rem',
+                                                                    padding: '0.75rem',
+                                                                    backgroundColor: 'rgba(255,255,255,0.02)',
+                                                                    border: '1px solid var(--border)',
+                                                                    borderRadius: 'var(--radius)',
+                                                                    cursor: 'pointer',
+                                                                    transition: 'background-color 0.2s ease'
                                                                 }}
-                                                                title="Löschen"
+                                                                title="Klicken zum Öffnen"
                                                             >
-                                                                <Trash size={18} />
-                                                            </button>
+                                                                <div style={{ padding: '0.25rem', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                                    {/* Excel Icon */}
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28">
+                                                                        <path fill="#10B981" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
+                                                                        <path fill="#047857" d="M14 2v6h6" />
+                                                                        <path fill="#FFF" d="M10 10h4v2h-4zm0 4h4v2h-4z" />
+                                                                    </svg>
+                                                                </div>
+                                                                <div style={{ flex: 1 }}>
+                                                                    <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{item.name}</div>
+                                                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                                                        {item.date ? new Date(item.date).toLocaleDateString('de-CH') : 'Kein Datum'}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Delete Button */}
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-ghost"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (window.confirm(`Möchten Sie das Protokoll "${item.name}" wirklich löschen?`)) {
+                                                                            setFormData(prev => ({
+                                                                                ...prev,
+                                                                                images: prev.images.filter(img => img !== item)
+                                                                            }));
+                                                                        }
+                                                                    }}
+                                                                    style={{
+                                                                        color: '#EF4444',
+                                                                        padding: '0.5rem',
+                                                                        borderRadius: '50%',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                                                        marginLeft: 'auto'
+                                                                    }}
+                                                                    title="Löschen"
+                                                                >
+                                                                    <Trash size={18} />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    {formData.images.filter(img => img.assignedTo === 'Messprotokolle').length === 0 && (
+                                                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>
+                                                            Keine Messprotokolle vorhanden.
                                                         </div>
-                                                    ))}
-                                                {formData.images.filter(img => img.assignedTo === 'Messprotokolle').length === 0 && (
-                                                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>
-                                                        Keine Messprotokolle vorhanden.
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-
-                                        {/* Divider */}
-                                        <div style={{ borderTop: '1px solid var(--border)', margin: '0 -1.5rem 1.5rem -1.5rem' }}></div>
-
-                                        {/* Section 3: Schadensbericht (PDF) */}
-                                        <div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
-                                                <div>
-                                                    <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                        <FileText size={18} className="text-rose-500" style={{ color: '#EF4444' }} />
-                                                        Schadensbericht
-                                                    </h4>
-                                                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
-                                                        PDF-Exporte des Berichts
-                                                    </p>
+                                                    )}
                                                 </div>
                                             </div>
 
-                                            {/* Calculated / Generated Files List */}
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                                {formData.images
-                                                    .filter(img => img.assignedTo === 'Schadensbericht') // Now distinct!
-                                                    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-                                                    .map((item, idx) => (
-                                                        <div
-                                                            key={idx}
-                                                            onClick={() => {
-                                                                if (item.file) {
-                                                                    const url = URL.createObjectURL(item.file);
-                                                                    const a = document.createElement('a');
-                                                                    a.href = url;
-                                                                    a.download = item.name;
-                                                                    a.click();
-                                                                } else if (item.preview) {
-                                                                    window.open(item.preview, '_blank');
-                                                                }
-                                                            }}
-                                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'}
-                                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'}
-                                                            style={{
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '0.75rem',
-                                                                padding: '0.75rem',
-                                                                backgroundColor: 'rgba(255,255,255,0.02)',
-                                                                border: '1px solid var(--border)',
-                                                                borderRadius: 'var(--radius)',
-                                                                cursor: 'pointer',
-                                                                transition: 'background-color 0.2s ease'
-                                                            }}
-                                                            title="Klicken zum Öffnen"
-                                                        >
-                                                            <div style={{ padding: '0.25rem', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                                {/* PDF Icon */}
-                                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28">
-                                                                    <path fill="#EF4444" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
-                                                                    <path fill="rgba(255,255,255,0.5)" d="M14 2v6h6" />
-                                                                    <text x="50%" y="70%" dominantBaseline="middle" textAnchor="middle" fill="#fff" fontSize="6" fontWeight="bold">PDF</text>
-                                                                </svg>
-                                                            </div>
 
-                                                            <div style={{ flex: 1, overflow: 'hidden' }}>
-                                                                <div style={{ fontSize: '0.95rem', color: 'var(--text-main)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
-                                                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>{item.date ? new Date(item.date).toLocaleDateString('de-CH') : '-'}</div>
-                                                            </div>
+                                            {/* Divider */}
+                                            <div style={{ borderTop: '1px solid var(--border)', margin: '0 -1.5rem 1.5rem -1.5rem' }}></div>
 
-                                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                                <div style={{ color: 'var(--primary)', opacity: 0.8 }}>
-                                                                    <Download size={18} />
+                                            {/* Section 3: Schadensbericht (PDF) */}
+                                            <div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+                                                    <div>
+                                                        <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                            <FileText size={18} className="text-rose-500" style={{ color: '#EF4444' }} />
+                                                            Schadensbericht
+                                                        </h4>
+                                                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+                                                            PDF-Exporte des Berichts
+                                                        </p>
+                                                    </div>
+
+                                                </div>
+
+                                                {/* Calculated / Generated Files List */}
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                                    {formData.images
+                                                        .filter(img => img.assignedTo === 'Schadensbericht') // Now distinct!
+                                                        .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+                                                        .map((item, idx) => (
+                                                            <div
+                                                                key={idx}
+                                                                onClick={() => {
+                                                                    if (item.file) {
+                                                                        const url = URL.createObjectURL(item.file);
+                                                                        const a = document.createElement('a');
+                                                                        a.href = url;
+                                                                        a.download = item.name;
+                                                                        a.click();
+                                                                    } else if (item.preview) {
+                                                                        window.open(item.preview, '_blank');
+                                                                    }
+                                                                }}
+                                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'}
+                                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'}
+                                                                style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.75rem',
+                                                                    padding: '0.75rem',
+                                                                    backgroundColor: 'rgba(255,255,255,0.02)',
+                                                                    border: '1px solid var(--border)',
+                                                                    borderRadius: 'var(--radius)',
+                                                                    cursor: 'pointer',
+                                                                    transition: 'background-color 0.2s ease'
+                                                                }}
+                                                                title="Klicken zum Öffnen"
+                                                            >
+                                                                <div style={{ padding: '0.25rem', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                                    {/* PDF Icon */}
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28">
+                                                                        <path fill="#EF4444" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
+                                                                        <path fill="rgba(255,255,255,0.5)" d="M14 2v6h6" />
+                                                                        <text x="50%" y="70%" dominantBaseline="middle" textAnchor="middle" fill="#fff" fontSize="6" fontWeight="bold">PDF</text>
+                                                                    </svg>
+                                                                </div>
+
+                                                                <div style={{ flex: 1, overflow: 'hidden' }}>
+                                                                    <div style={{ fontSize: '0.95rem', color: 'var(--text-main)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
+                                                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>{item.date ? new Date(item.date).toLocaleDateString('de-CH') : '-'}</div>
+                                                                </div>
+
+                                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                                    <div style={{ color: 'var(--primary)', opacity: 0.8 }}>
+                                                                        <Download size={18} />
+                                                                    </div>
                                                                 </div>
                                                             </div>
+                                                        ))}
+                                                    {formData.images.filter(img => img.assignedTo === 'Schadensbericht').length === 0 && (
+                                                        <div style={{ padding: '1rem', fontStyle: 'italic', color: 'var(--text-muted)', textAlign: 'center', fontSize: '0.85rem' }}>
+                                                            Keine Schadensberichte vorhanden.
                                                         </div>
-                                                    ))}
-                                                {formData.images.filter(img => img.assignedTo === 'Schadensbericht').length === 0 && (
-                                                    <div style={{ padding: '1rem', fontStyle: 'italic', color: 'var(--text-muted)', textAlign: 'center', fontSize: '0.85rem' }}>
-                                                        Keine Schadensberichte vorhanden.
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div >
-                                    </div >
+                                                    )}
+                                                </div>
+                                            </div >
+                                        </div>
+                                    )}
+
+
 
                                     {
                                         ['Emails', 'Pläne', 'Sonstiges'].map(category => (
@@ -5455,8 +5953,9 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                         </div>
                     )}
                     {/* Summary Table (Moved to bottom) */}
+
                     {
-                        !['Schadenaufnahme', 'Leckortung'].includes(formData.status) &&
+                        (mode === 'desktop' || !['Schadenaufnahme', 'Leckortung'].includes(formData.status)) &&
                         formData.equipment.some(d => d.endDate && d.counterEnd) && (
                             <div style={{ marginTop: '3rem', borderTop: '2px solid var(--border)', paddingTop: '2rem' }}>
                                 <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem' }}>Zusammenfassung Trocknung</h2>
@@ -5610,7 +6109,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                             </button>
                         </div>
                     )}
-                </form>
+                </form >
 
                 {editingImage && (
                     <ImageEditor
@@ -6048,55 +6547,61 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
                         backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999
                     }}>
-                        <div className="card" style={{ width: '90%', maxWidth: '1000px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', padding: '0', overflow: 'hidden' }}>
-                            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Bericht erstellen</h3>
-                                <button onClick={() => setShowReportModal(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
-                                    <X size={24} />
-                                </button>
-                            </div>
-
-                            <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
-                                {/* 1. General Info */}
-                                <div className="form-group" style={{ marginBottom: '2rem' }}>
-                                    <label className="form-label" style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'block', fontSize: '1.1rem', color: '#0EA5E9' }}>
-                                        Schadenursache
-                                    </label>
-                                    <textarea
-                                        className="form-input"
-                                        rows={3}
-                                        value={formData.cause || ''}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, cause: e.target.value }))}
-                                        placeholder="Beschreiben Sie hier die Ursache des Schadens..."
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', fontSize: '1rem' }}
-                                    />
+                        <div style={{ background: 'white', padding: '30px', borderRadius: '8px', zIndex: 10000 }}>
+                            <h2 style={{ color: 'black' }}>DEBUG: MODAL IS RENDERING</h2>
+                            <button className="btn btn-primary" onClick={() => setShowReportModal(false)}>Close</button>
+                        </div>
+                        {false &&
+                            <div className="card" style={{ width: '90%', maxWidth: '1000px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', padding: '0', overflow: 'hidden' }}>
+                                <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Bericht erstellen</h3>
+                                    <button onClick={() => setShowReportModal(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
+                                        <X size={24} />
+                                    </button>
                                 </div>
 
+                                <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
+                                    {/* 1. General Info */}
+                                    <div className="form-group" style={{ marginBottom: '2rem' }}>
+                                        <label className="form-label" style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'block', fontSize: '1.1rem', color: '#0EA5E9' }}>
+                                            Schadenursache
+                                        </label>
+                                        <textarea
+                                            className="form-input"
+                                            rows={3}
+                                            value={formData.cause || ''}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, cause: e.target.value }))}
+                                            placeholder="Beschreiben Sie hier die Ursache des Schadens..."
+                                            style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', fontSize: '1rem' }}
+                                        />
+                                    </div>
 
-                            </div>
 
-                            <div style={{ padding: '1.5rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '1rem', backgroundColor: '#1E293B' }}>
-                                <button
-                                    className="btn btn-outline"
-                                    onClick={() => setShowReportModal(false)}
-                                    style={{ padding: '0.75rem 1.5rem' }}
-                                >
-                                    Abbrechen
-                                </button>
-                                <button
-                                    className="btn btn-primary"
-                                    onClick={async () => {
-                                        // Trigger PDF logic (Unified Vector Report)
-                                        await generatePDFExport(formData);
-                                        setShowReportModal(false);
-                                    }}
-                                    style={{ padding: '0.75rem 2rem', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                                >
-                                    <FileText size={20} />
-                                    PDF Erstellen
-                                </button>
+                                </div>
+
+                                <div style={{ padding: '1.5rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '1rem', backgroundColor: '#1E293B' }}>
+                                    <button
+                                        className="btn btn-outline"
+                                        onClick={() => setShowReportModal(false)}
+                                        style={{ padding: '0.75rem 1.5rem' }}
+                                    >
+                                        Abbrechen
+                                    </button>
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={async () => {
+                                            // Trigger PDF logic (Unified Vector Report)
+                                            await generatePDFExport(formData);
+                                            setShowReportModal(false);
+                                        }}
+                                        style={{ padding: '0.75rem 2rem', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                                    >
+                                        <FileText size={20} />
+                                        PDF Erstellen
+                                    </button>
+                                </div>
                             </div>
-                        </div>
+                        }
                     </div>
                 )
             }
@@ -6294,7 +6799,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
 
 
                         </div>
-                    </div >
+                    </div>
                 )
             }
         </>
