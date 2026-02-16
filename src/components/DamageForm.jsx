@@ -110,6 +110,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
         projectTitle: initialData.projectTitle || initialData.id || '', // Include projectTitle
         client: initialData.client || '',
         locationDetails: initialData.locationDetails || '', // New field for Schadenort (e.g. "Wohnung ...")
+        exteriorPhoto: initialData.exteriorPhoto || null, // New field for Exterior Photo
         clientSource: initialData.clientSource || '',
         propertyType: initialData.propertyType || '',
         damageCategory: initialData.damageCategory || 'Wasserschaden',
@@ -1547,6 +1548,27 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
         }));
     };
 
+    const handleExteriorPhotoUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setFormData(prev => ({
+                ...prev,
+                exteriorPhoto: reader.result
+            }));
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const removeExteriorPhoto = () => {
+        setFormData(prev => ({
+            ...prev,
+            exteriorPhoto: null
+        }));
+    };
+
     const handleEmailImport = (data) => {
         const importedContacts = data.contacts || [];
 
@@ -2568,7 +2590,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                         type="submit"
                         onClick={handleSubmit}
                         className="btn btn-primary"
-                        style={{ width: '100%', padding: '1rem', fontSize: '1.1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                        style={{ width: '100%', padding: '0.75rem', fontSize: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                     >
                         Speichern
                     </button>
@@ -3110,27 +3132,125 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                         </div>
                     </div>
 
-                    {/* Map Integration */}
+                    {/* Map Integration & Exterior Photo */}
                     {(formData.street || formData.city || formData.zip) && (
                         <div className="form-group" style={{ marginTop: '0rem', marginBottom: '1.5rem' }}>
-                            <div style={{
-                                width: '100%',
-                                height: '300px',
-                                borderRadius: 'var(--radius)',
-                                overflow: 'hidden',
-                                border: '1px solid var(--border)',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-                            }}>
-                                <iframe
-                                    width="100%"
-                                    height="100%"
-                                    frameBorder="0"
-                                    scrolling="no"
-                                    marginHeight="0"
-                                    marginWidth="0"
-                                    src={`https://maps.google.com/maps?q=${encodeURIComponent(`${formData.street}, ${formData.zip} ${formData.city}`)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
-                                    title="Standort"
-                                ></iframe>
+                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                                {/* Map Container */}
+                                <div style={{
+                                    flex: formData.exteriorPhoto ? '0 0 50%' : '1', // 50% if photo exists, else full width
+                                    height: '300px',
+                                    borderRadius: 'var(--radius)',
+                                    overflow: 'hidden',
+                                    border: '1px solid var(--border)',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                    position: 'relative',
+                                    transition: 'flex 0.3s ease'
+                                }}>
+                                    <iframe
+                                        width="100%"
+                                        height="100%"
+                                        frameBorder="0"
+                                        scrolling="no"
+                                        marginHeight="0"
+                                        marginWidth="0"
+                                        src={`https://maps.google.com/maps?q=${encodeURIComponent(`${formData.street}, ${formData.zip} ${formData.city}`)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                                        title="Standort"
+                                    ></iframe>
+
+                                    {/* Button to Add Photo (Overlay on Map if no photo yet?) - Or just below? 
+                                        Actually user said: "als option ein foto... hinzufügen"
+                                        Let's put a small button overlay on the map or next to it if clear.
+                                        Better: A button in the header of this section or absolute in the corner?
+                                        Let's put it as a button NEXT to the map if full width, or part of the layout.
+                                     */}
+                                    {!formData.exteriorPhoto && (
+                                        <label
+                                            style={{
+                                                position: 'absolute',
+                                                bottom: '10px',
+                                                right: '10px',
+                                                backgroundColor: 'var(--surface)',
+                                                border: '1px solid var(--border)',
+                                                padding: '0.5rem 0.75rem',
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                                fontSize: '0.85rem',
+                                                fontWeight: 600,
+                                                zIndex: 10
+                                            }}
+                                            title="Gebäude-Aussenfoto hinzufügen"
+                                        >
+                                            <Camera size={16} />
+                                            + Aussenfoto
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleExteriorPhotoUpload}
+                                                style={{ display: 'none' }}
+                                            />
+                                        </label>
+                                    )}
+                                </div>
+
+                                {/* Exterior Photo Container */}
+                                {formData.exteriorPhoto && (
+                                    <div style={{
+                                        flex: '1',
+                                        height: '300px',
+                                        borderRadius: 'var(--radius)',
+                                        overflow: 'hidden',
+                                        border: '1px solid var(--border)',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                        position: 'relative',
+                                        backgroundColor: '#000'
+                                    }}>
+                                        <img
+                                            src={formData.exteriorPhoto}
+                                            alt="Gebäude Aussenansicht"
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={removeExteriorPhoto}
+                                            style={{
+                                                position: 'absolute',
+                                                top: '10px',
+                                                right: '10px',
+                                                backgroundColor: 'rgba(0,0,0,0.5)',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '50%',
+                                                width: '32px',
+                                                height: '32px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                cursor: 'pointer'
+                                            }}
+                                            title="Foto entfernen"
+                                        >
+                                            <X size={18} />
+                                        </button>
+                                        <div style={{
+                                            position: 'absolute',
+                                            bottom: '0',
+                                            left: '0',
+                                            right: '0',
+                                            backgroundColor: 'rgba(0,0,0,0.6)',
+                                            color: 'white',
+                                            padding: '4px 8px',
+                                            fontSize: '0.75rem',
+                                            textAlign: 'center'
+                                        }}>
+                                            Gebäude Aussenansicht
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

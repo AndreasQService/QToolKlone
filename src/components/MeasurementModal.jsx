@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, Save, Eraser, Pen, Undo, Trash2, FileText, Loader, Check, Hand, ChevronUp, ChevronDown } from 'lucide-react';
+import { X, Save, Eraser, Pen, Undo, Trash2, FileText, Loader, Check, Hand, ChevronUp, ChevronDown, Plus } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -61,8 +61,8 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
             } else {
                 // Initialize new
                 const initial = [];
-                // 12 Measurement points fixed
-                for (let i = 1; i <= 12; i++) {
+                // 3 Measurement points (changed from 12)
+                for (let i = 1; i <= 3; i++) {
                     initial.push({
                         id: `p${i}`,
                         pointName: `Messpunkt ${i}`,
@@ -256,6 +256,24 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
         setMeasurements(newMeasurements);
     };
 
+    const addMeasurement = () => {
+        const newId = measurements.length > 0 ? Math.max(...measurements.map(m => parseInt(m.id.substring(1)) || 0)) + 1 : 1;
+        // Or simply maintain a logical counter if IDs need to be stable
+        const newPoint = {
+            id: `p${Date.now()}`, // Unique ID
+            pointName: `Messpunkt ${measurements.length + 1}`,
+            w_value: '',
+            b_value: '',
+            notes: ''
+        };
+        setMeasurements([...measurements, newPoint]);
+    };
+
+    const removeMeasurement = (index) => {
+        const newMeasurements = measurements.filter((_, i) => i !== index);
+        setMeasurements(newMeasurements);
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -435,6 +453,7 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
                                     <th style={{ padding: '0.5rem', textAlign: 'left', width: '20%', color: 'var(--text-muted)' }}>Wand</th>
                                     <th style={{ padding: '0.5rem', textAlign: 'left', width: '20%', color: 'var(--text-muted)' }}>Boden</th>
                                     <th style={{ padding: '0.5rem', textAlign: 'left', color: 'var(--text-muted)' }}>Bemerkung</th>
+                                    <th style={{ padding: '0.5rem', width: '40px' }}></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -479,10 +498,40 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
                                                 placeholder="..."
                                             />
                                         </td>
+                                        <td style={{ padding: '0.25rem', textAlign: 'center' }}>
+                                            <button
+                                                onClick={() => removeMeasurement(idx)}
+                                                style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px' }}
+                                                title="Messpunkt löschen"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
+
+                        <button
+                            onClick={addMeasurement}
+                            className="no-print"
+                            style={{
+                                marginTop: '0.5rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                padding: '0.5rem 1rem',
+                                background: 'transparent',
+                                border: '1px dashed var(--border)',
+                                borderRadius: '4px',
+                                color: 'var(--primary)',
+                                cursor: 'pointer',
+                                width: '100%',
+                                justifyContent: 'center'
+                            }}
+                        >
+                            <Plus size={16} /> weiteren Messpunkt hinzufügen
+                        </button>
                     </div>
                 </div>
 
