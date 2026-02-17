@@ -240,6 +240,22 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
         fetchAvail();
     }, []);
 
+    // Ensure at least 4 contacts exist (User request: always show 4 tiles)
+    // IMPORTANT: Only do this in desktop mode. Technician/mobile mode should be clean.
+    useEffect(() => {
+        if (mode === 'desktop' && formData.contacts && formData.contacts.length < 4) {
+            setFormData(prev => {
+                const current = prev.contacts || [];
+                if (current.length >= 4) return prev;
+                const needed = 4 - current.length;
+                const extras = Array(needed).fill(null).map(() => ({
+                    name: '', role: 'Mieter', apartment: '', floor: '', phone: ''
+                }));
+                return { ...prev, contacts: [...current, ...extras] };
+            });
+        }
+    }, [formData.contacts, mode]);
+
     const [newRoom, setNewRoom] = useState({
         name: '',
         apartment: '',
@@ -1975,7 +1991,12 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                 {/* 2. Contacts */}
                 <div style={{ marginBottom: '1.5rem' }}>
                     <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Kontakte</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div style={{
+                        display: mode === 'desktop' ? 'grid' : 'flex',
+                        gridTemplateColumns: mode === 'desktop' ? 'repeat(4, 1fr)' : undefined,
+                        flexDirection: mode === 'desktop' ? undefined : 'column',
+                        gap: '0.75rem'
+                    }}>
                         {formData.contacts.map((contact, idx) => (
                             <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', backgroundColor: 'var(--surface)', border: '1px solid var(--border)', padding: '0.75rem', borderRadius: '8px', position: 'relative' }}>
                                 {/* Row 1: Name & Role */}
@@ -1990,6 +2011,18 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                         setFormData({ ...formData, contacts: newContacts });
                                     }}
                                     style={{ fontWeight: 600 }}
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Etage / Stockwerk"
+                                    className="form-input"
+                                    value={contact.floor || ''}
+                                    onChange={(e) => {
+                                        const newContacts = [...formData.contacts];
+                                        newContacts[idx].floor = e.target.value;
+                                        setFormData({ ...formData, contacts: newContacts });
+                                    }}
+                                    style={{ fontSize: '0.9rem' }}
                                 />
                                 <select
                                     className="form-input"
@@ -2007,20 +2040,6 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                     <option value="Handwerker">Handwerker</option>
                                     <option value="Sonstiges">Sonstiges</option>
                                 </select>
-
-                                {/* Row 2: Apartment & Phone */}
-                                <input
-                                    type="text"
-                                    placeholder="Wohnung / Etage"
-                                    className="form-input"
-                                    value={contact.apartment}
-                                    onChange={(e) => {
-                                        const newContacts = [...formData.contacts];
-                                        newContacts[idx].apartment = e.target.value;
-                                        setFormData({ ...formData, contacts: newContacts });
-                                    }}
-                                    style={{ fontSize: '0.9rem' }}
-                                />
                                 <div style={{ display: 'flex', gap: '0.25rem' }}>
                                     <input
                                         type="text"
@@ -2039,6 +2058,18 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                             <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
                                         </a>
                                     )}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const newContacts = formData.contacts.filter((_, i) => i !== idx);
+                                            setFormData({ ...formData, contacts: newContacts });
+                                        }}
+                                        className="btn btn-outline"
+                                        style={{ padding: '0.4rem', color: '#EF4444' }}
+                                        title="Kontakt löschen"
+                                    >
+                                        <Trash size={16} />
+                                    </button>
                                 </div>
 
                                 {/* Delete Button (Absolute top-right or separate) */}
@@ -4355,86 +4386,208 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                     {/* Kontakte */}
                     <div className="form-group">
                         <label className="form-label">Kontakte (Name / Wohnung / Tel.Nr)</label>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {formData.contacts && formData.contacts.map((contact, index) => (
-                                <div key={index} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'center' }}>
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        placeholder="Name"
-                                        value={contact.name || ''}
-                                        onChange={(e) => {
-                                            const newContacts = [...formData.contacts];
-                                            newContacts[index] = { ...newContacts[index], name: e.target.value };
-                                            setFormData(prev => ({ ...prev, contacts: newContacts }));
-                                        }}
-                                    />
-                                    <select
-                                        className="form-input"
-                                        value={contact.role || 'Mieter'}
-                                        onChange={(e) => {
-                                            const newContacts = [...formData.contacts];
-                                            newContacts[index] = { ...newContacts[index], role: e.target.value };
-                                            setFormData(prev => ({ ...prev, contacts: newContacts }));
-                                        }}
-                                    >
-                                        <option value="Mieter">Mieter</option>
-                                        <option value="Eigentümer">Eigentümer</option>
-                                        <option value="Hauswart">Hauswart</option>
-                                        <option value="Verwaltung">Verwaltung</option>
-                                        <option value="Handwerker">Handwerker</option>
-                                        <option value="Sonstiges">Sonstiges</option>
-                                    </select>
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        placeholder="Wohnung"
-                                        value={contact.apartment || ''}
-                                        onChange={(e) => {
-                                            const newContacts = [...formData.contacts];
-                                            newContacts[index] = { ...newContacts[index], apartment: e.target.value };
-                                            setFormData(prev => ({ ...prev, contacts: newContacts }));
-                                        }}
-                                    />
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        placeholder="Tel.Nr"
-                                        value={contact.phone || ''}
-                                        onChange={(e) => {
-                                            const newContacts = [...formData.contacts];
-                                            newContacts[index] = { ...newContacts[index], phone: e.target.value };
-                                            setFormData(prev => ({ ...prev, contacts: newContacts }));
-                                        }}
-                                    />
-                                    <button
-                                        type="button"
-                                        className="btn btn-ghost"
-                                        style={{ padding: '0.5rem', color: 'var(--danger)' }}
-                                        onClick={() => {
-                                            const newContacts = formData.contacts.filter((_, i) => i !== index);
-                                            setFormData(prev => ({ ...prev, contacts: newContacts }));
-                                        }}
-                                        title="Kontakt entfernen"
-                                    >
-                                        <Trash size={16} />
-                                    </button>
-                                </div>
-                            ))}
-                            <button
-                                type="button"
-                                className="btn btn-outline"
-                                style={{ alignSelf: 'flex-start', marginTop: '0.25rem', fontSize: '0.875rem', padding: '0.35rem 0.75rem' }}
-                                onClick={() => {
-                                    setFormData(prev => ({
-                                        ...prev,
-                                        contacts: [...(prev.contacts || []), { name: '', apartment: '', phone: '' }]
-                                    }));
-                                }}
-                            >
-                                <Plus size={14} /> Kontakt hinzufügen
-                            </button>
-                        </div>
+                        {mode === 'desktop' ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                                {formData.contacts && formData.contacts.map((contact, index) => (
+                                    <div key={index} style={{
+                                        backgroundColor: 'rgba(255,255,255,0.03)',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: 'var(--radius)',
+                                        padding: '1rem',
+                                        display: 'flex', flexDirection: 'column', gap: '0.75rem',
+                                        position: 'relative'
+                                    }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '-0.25rem' }}>
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Kontakt {index + 1}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const newContacts = formData.contacts.filter((_, i) => i !== index);
+                                                    setFormData(prev => ({ ...prev, contacts: newContacts }));
+                                                }}
+                                                style={{
+                                                    background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                }}
+                                                title="Kontakt entfernen"
+                                            >
+                                                <X size={16} />
+                                            </button>
+                                        </div>
+
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="Name"
+                                            value={contact.name || ''}
+                                            onChange={(e) => {
+                                                const newContacts = [...formData.contacts];
+                                                newContacts[index] = { ...newContacts[index], name: e.target.value };
+                                                setFormData(prev => ({ ...prev, contacts: newContacts }));
+                                            }}
+                                        />
+
+                                        <select
+                                            className="form-input"
+                                            value={contact.role || 'Mieter'}
+                                            onChange={(e) => {
+                                                const newContacts = [...formData.contacts];
+                                                newContacts[index] = { ...newContacts[index], role: e.target.value };
+                                                setFormData(prev => ({ ...prev, contacts: newContacts }));
+                                            }}
+                                            style={{ width: '100%' }}
+                                        >
+                                            <option value="Mieter">Mieter</option>
+                                            <option value="Eigentümer">Eigentümer</option>
+                                            <option value="Hauswart">Hauswart</option>
+                                            <option value="Verwaltung">Verwaltung</option>
+                                            <option value="Handwerker">Handwerker</option>
+                                            <option value="Sonstiges">Sonstiges</option>
+                                        </select>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                placeholder="Wohnung"
+                                                value={contact.apartment || ''}
+                                                onChange={(e) => {
+                                                    const newContacts = [...formData.contacts];
+                                                    newContacts[index] = { ...newContacts[index], apartment: e.target.value };
+                                                    setFormData(prev => ({ ...prev, contacts: newContacts }));
+                                                }}
+                                            />
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                placeholder="Tel.Nr"
+                                                value={contact.phone || ''}
+                                                onChange={(e) => {
+                                                    const newContacts = [...formData.contacts];
+                                                    newContacts[index] = { ...newContacts[index], phone: e.target.value };
+                                                    setFormData(prev => ({ ...prev, contacts: newContacts }));
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {/* Add Button Tile - Always visible as the "Next" tile */}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            contacts: [...(prev.contacts || []), { name: '', apartment: '', phone: '' }]
+                                        }));
+                                    }}
+                                    style={{
+                                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                                        border: '1px dashed var(--border)', borderRadius: 'var(--radius)',
+                                        padding: '1rem', minHeight: '180px',
+                                        backgroundColor: 'rgba(255,255,255,0.01)',
+                                        color: 'var(--text-muted)', cursor: 'pointer', gap: '0.75rem',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.05)'; e.currentTarget.style.color = 'var(--primary)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.01)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                                >
+                                    <div style={{ padding: '0.75rem', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)' }}>
+                                        <Plus size={24} />
+                                    </div>
+                                    <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>Kontakt hinzufügen</span>
+                                </button>
+
+                                {/* Dynamic Placeholders to fill the row (3 columns) */}
+                                {Array.from({ length: (3 - ((formData.contacts?.length || 0) + 1) % 3) % 3 }).map((_, i) => (
+                                    <div key={`placeholder-${i}`} style={{
+                                        border: '1px dashed var(--border)', borderRadius: 'var(--radius)',
+                                        minHeight: '180px', opacity: 0.1, pointerEvents: 'none'
+                                    }}></div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                {formData.contacts && formData.contacts.map((contact, index) => (
+                                    <div key={index} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'center' }}>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="Name"
+                                            value={contact.name || ''}
+                                            onChange={(e) => {
+                                                const newContacts = [...formData.contacts];
+                                                newContacts[index] = { ...newContacts[index], name: e.target.value };
+                                                setFormData(prev => ({ ...prev, contacts: newContacts }));
+                                            }}
+                                        />
+                                        <select
+                                            className="form-input"
+                                            value={contact.role || 'Mieter'}
+                                            onChange={(e) => {
+                                                const newContacts = [...formData.contacts];
+                                                newContacts[index] = { ...newContacts[index], role: e.target.value };
+                                                setFormData(prev => ({ ...prev, contacts: newContacts }));
+                                            }}
+                                        >
+                                            <option value="Mieter">Mieter</option>
+                                            <option value="Eigentümer">Eigentümer</option>
+                                            <option value="Hauswart">Hauswart</option>
+                                            <option value="Verwaltung">Verwaltung</option>
+                                            <option value="Handwerker">Handwerker</option>
+                                            <option value="Sonstiges">Sonstiges</option>
+                                        </select>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="Wohnung"
+                                            value={contact.apartment || ''}
+                                            onChange={(e) => {
+                                                const newContacts = [...formData.contacts];
+                                                newContacts[index] = { ...newContacts[index], apartment: e.target.value };
+                                                setFormData(prev => ({ ...prev, contacts: newContacts }));
+                                            }}
+                                        />
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="Tel.Nr"
+                                            value={contact.phone || ''}
+                                            onChange={(e) => {
+                                                const newContacts = [...formData.contacts];
+                                                newContacts[index] = { ...newContacts[index], phone: e.target.value };
+                                                setFormData(prev => ({ ...prev, contacts: newContacts }));
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="btn btn-ghost"
+                                            style={{ padding: '0.5rem', color: 'var(--danger)' }}
+                                            onClick={() => {
+                                                const newContacts = formData.contacts.filter((_, i) => i !== index);
+                                                setFormData(prev => ({ ...prev, contacts: newContacts }));
+                                            }}
+                                            title="Kontakt entfernen"
+                                        >
+                                            <Trash size={16} />
+                                        </button>
+                                    </div>
+                                ))}
+                                <button
+                                    type="button"
+                                    className="btn btn-outline"
+                                    style={{ alignSelf: 'flex-start', marginTop: '0.25rem', fontSize: '0.875rem', padding: '0.35rem 0.75rem' }}
+                                    onClick={() => {
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            contacts: [...(prev.contacts || []), { name: '', apartment: '', phone: '' }]
+                                        }));
+                                    }}
+                                >
+                                    <Plus size={14} /> Kontakt hinzufügen
+                                </button>
+                            </div>
+                        )}
                     </div>
 
 
