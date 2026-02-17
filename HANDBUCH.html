@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QTool Handbuch</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px;
+            color: #333;
+            background-color: #fff;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #2980b9;
+            margin-top: 30px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        h3 {
+            color: #16a085;
+            margin-top: 20px;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 5px;
+        }
+        code {
+            background-color: #f8f9fa;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: Consolas, monospace;
+            border: 1px solid #e9ecef;
+        }
+        .note {
+            background-color: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        @media print {
+            body {
+                padding: 0;
+                max-width: 100%;
+            }
+            .no-print {
+                display: none;
+            }
+            a {
+                text-decoration: none;
+                color: #000;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print" style="margin-bottom: 20px; text-align: right;">
+        <button onclick="window.print()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Als PDF speichern / Drucken</button>
+    </div>
+
+    <h1>QTool - Benutzerhandbuch</h1>
+
+    <p>Willkommen beim offiziellen QTool Handbuch. Diese Anwendung wurde entwickelt, um Wasserschäden und Trocknungsprojekte effizient zu verwalten, Daten vor Ort aufzunehmen und professionelle Berichte zu generieren.</p>
+
+    <h2>Inhaltsverzeichnis</h2>
+    <ul>
+        <li><a href="#einleitung">1. Einleitung</a></li>
+        <li><a href="#erste-schritte">2. Erste Schritte</a></li>
+        <li><a href="#dashboard">3. Dashboard (Projektübersicht)</a></li>
+        <li><a href="#schadensaufnahme">4. Schadensaufnahme</a></li>
+        <li><a href="#geraeteverwaltung">5. Geräteverwaltung</a></li>
+        <li><a href="#berichte">6. Berichte & Export</a></li>
+        <li><a href="#modi">7. Techniker-Modus vs. Desktop-Modus</a></li>
+    </ul>
+
+    <h2 id="einleitung">1. Einleitung</h2>
+    <p>QTool unterstützt Sie im gesamten Prozess der Wasserschadensanierung:</p>
+    <ul>
+        <li><strong>Erfassung</strong>: Daten direkt beim Kunden aufnehmen (Laptop oder Tablet).</li>
+        <li><strong>Dokumentation</strong>: Fotos mit Sprachnotizen, Feuchtigkeitsmessungen.</li>
+        <li><strong>Verwaltung</strong>: Trocknungsgeräte disponieren und überwachen.</li>
+        <li><strong>Berichte</strong>: Automatische Erstellung von Messprotokollen und Schadensberichten.</li>
+    </ul>
+
+    <h2 id="erste-schritte">2. Erste Schritte</h2>
+    <p>Starten Sie die Anwendung über Ihren Browser. Die Oberfläche passt sich automatisch an Ihr Gerät an – egal ob Sie am Desktop-PC im Büro oder mit dem Tablet vor Ort arbeiten.</p>
+
+    <h2 id="dashboard">3. Dashboard (Projektübersicht)</h2>
+    <p>Hier haben Sie alle Projekte im Griff:</p>
+    <ul>
+        <li><strong>Neues Projekt</strong>: Starten Sie einen neuen Fall über "Neues Projekt".</li>
+        <li><strong>Status-Filter</strong>: Behalten Sie den Überblick durch Filterung nach Status (z.B. <em>Offerte</em>, <em>Trocknung</em>, <em>Abschluss</em>).</li>
+        <li><strong>Suche</strong>: Finden Sie Projekte schnell über Namen, Adressen oder Nummern.</li>
+    </ul>
+
+    <h2 id="schadensaufnahme">4. Schadensaufnahme</h2>
+    <p>In der Detailansicht eines Projekts erfassen Sie alle relevanten Daten.</p>
+
+    <h3>Projekt & Adresse</h3>
+    <p>Hier pflegen Sie die Stammdaten:</p>
+    <ul>
+        <li><strong>Auftraggeber & Verwaltung</strong>: Wer ist zuständig? Wer zahlt?</li>
+        <li><strong>Schadenort</strong>: Die genaue Adresse des Objekts.</li>
+        <li><strong>Karte</strong>: Integrierte Kartenansicht zur Orientierung.</li>
+    </ul>
+
+    <h3>Kontakte</h3>
+    <p>Verwalten Sie alle beteiligten Personen wie Mieter oder Hauswarte.</p>
+    <ul>
+        <li><strong>Hinzufügen</strong>: Einfaches Anlegen neuer Kontakte.</li>
+        <li><strong>Ansicht</strong>:
+            <ul>
+                <li>Desktop: Übersichtliches Raster (4 Spalten).</li>
+                <li>Techniker: Optimierte Tablet-Ansicht (2 Spalten).</li>
+            </ul>
+        </li>
+        <li><strong>Telefon-Funktionen</strong>:
+            <ul>
+                <li>Automatische Formatierung von Schweizer Nummern (z.B. <code>+41 79 ...</code>).</li>
+                <li>Direktwahl-Taste.</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3>Räume & Messungen</h3>
+    <p>Das Herzstück der Aufnahme:</p>
+    <ol>
+        <li><strong>Raum anlegen</strong>: Wählen Sie aus Vorlagen (Küche, Bad, Wohnzimmer) oder definieren Sie eigene Räume.</li>
+        <li><strong>Messung durchführen</strong>:
+            <ul>
+                <li>Erfassen Sie Feuchtigkeit in Wand und Boden.</li>
+                <li>Farbkodierung (Grün/Gelb/Rot) zeigt sofort Handlungsbedarf.</li>
+                <li>Unterstützung für verschiedene Messgeräte.</li>
+            </ul>
+        </li>
+    </ol>
+
+    <h3>Fotos & Notizen</h3>
+    <p>Eine gute Dokumentation ist entscheidend:</p>
+    <ul>
+        <li><strong>Fotos</strong>: Laden Sie Bilder direkt hoch.</li>
+        <li><strong>Beschreibung</strong>: Fügen Sie Texte hinzu.</li>
+        <li><strong>Diktierfunktion</strong>: Nutzen Sie das Mikrofon-Symbol 🎙️, um Beschreibungen einfach zu sprechen statt zu tippen.</li>
+    </ul>
+
+    <h2 id="geraeteverwaltung">5. Geräteverwaltung</h2>
+    <p>Weisen Sie Trocknungsgeräte (Lüfter, Adsorptionstrockner) den Projekten zu und behalten Sie den Standort Ihrer Ausrüstung im Blick.</p>
+
+    <h2 id="berichte">6. Berichte & Export</h2>
+    <p>Erstellen Sie fertige Dokumente mit einem Klick:</p>
+    <ul>
+        <li><strong>Schadensbericht (PDF)</strong>: Professionelle Zusammenfassung mit Bildern.</li>
+        <li><strong>Messprotokoll</strong>: Detaillierte Tabelle aller Messwerte.</li>
+    </ul>
+
+    <h2 id="modi">7. Techniker-Modus vs. Desktop-Modus</h2>
+    <div class="note">
+        <p><strong>Tipp:</strong> Nutzen Sie den Techniker-Modus auf Tablets für die Arbeit vor Ort!</p>
+    </div>
+    
+    <h3>Desktop-Modus (Büro)</h3>
+    <ul>
+        <li>Maximale Informationsdichte.</li>
+        <li>Breite Rasteransichten (z.B. 4 Kontakte nebeneinander).</li>
+        <li>Ideal für Verwaltung und Nachbearbeitung.</li>
+    </ul>
+
+    <h3>Techniker-Modus (Vor Ort)</h3>
+    <ul>
+        <li>Fokus auf Eingabe und Lesbarkeit.</li>
+        <li>Größere Elemente für Touch-Bedienung.</li>
+        <li>Optimiertes Layout (z.B. 2 Kontakte nebeneinander).</li>
+        <li>Reduzierte Ablenkung.</li>
+    </ul>
+
+    <hr style="margin-top: 40px; border: 0; border-top: 1px solid #eee;">
+    <p style="text-align: center; color: #888; font-size: 0.9em;">QTool Handbuch - Stand: Februar 2026</p>
+
+</body>
+</html>

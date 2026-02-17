@@ -1,20 +1,56 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, LayoutDashboard, Settings, User } from 'lucide-react'
+import { Plus, LayoutDashboard, Settings, User, Users, LogOut } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import Dashboard from './components/Dashboard'
 import DamageForm from './components/DamageForm'
 import DeviceManager from './components/DeviceManager'
+import UserManagementModal from './components/UserManagementModal'
+import LoginScreen from './components/LoginScreen'
 import i18n from './i18n'
 
 function App() {
   const [view, setView] = useState('dashboard') // 'dashboard', 'new-report', 'details'
   const [selectedReport, setSelectedReport] = useState(null)
 
+  // Authentication / User Management State
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null); // The logged in user
+  const [userRole, setUserRole] = useState('admin'); // 'admin' | 'technician' | 'user'
+  const [isTechnicianMode, setIsTechnicianMode] = useState(false); // Mode state
 
+  // Users List (Managed here to share with LoginScreen)
+  const [users, setUsers] = useState(() => {
+    const saved = localStorage.getItem('qtool_users_v2');
+    return saved ? JSON.parse(saved) : [
+      { id: 1, name: 'Admin User', role: 'admin', password: 'admin' },
+      { id: 2, name: 'Techniker 1', role: 'technician', password: '123' }
+    ];
+  });
+
+  // Persist users changes
+  useEffect(() => {
+    localStorage.setItem('qtool_users_v2', JSON.stringify(users));
+  }, [users]);
+
+  const handleLogin = (user) => {
+    setCurrentUser(user);
+    setUserRole(user.role);
+    // Automatically set mode based on role
+    setIsTechnicianMode(user.role === 'technician');
+    showToast(`Angemeldet als ${user.name}`, 'success');
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setUserRole('admin');
+    setIsTechnicianMode(false);
+    setView('dashboard');
+    setSelectedReport(null);
+  };
 
   // Initialize reports from LocalStorage
   const [reports, setReports] = useState(() => {
-    const saved = localStorage.getItem('qservice_reports_prod'); // Changed key to reset data
+    const saved = localStorage.getItem('qservice_reports_prod');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -22,7 +58,7 @@ function App() {
         console.error("Failed to parse reports from local storage", e);
       }
     }
-    return []; // Return empty array instead of mock data
+    return [];
   });
 
   // Fetch reports from Supabase on mount
@@ -38,7 +74,6 @@ function App() {
       if (error) {
         console.error('Error fetching reports from Supabase:', error);
       } else if (data) {
-        // Unwrap the JSONB content
         const loadedReports = data.map(row => row.report_data);
         if (loadedReports.length > 0) {
           setReports(loadedReports);
@@ -49,24 +84,6 @@ function App() {
 
     fetchReports();
   }, []);
-
-  /* ---------------------------------------------------------------------------
-   * User Role Management (Mock Implementation)
-   * --------------------------------------------------------------------------- */
-  const [userRole, setUserRole] = useState('admin'); // 'admin' | 'user'
-
-  const toggleUserRole = () => {
-    const newRole = userRole === 'admin' ? 'user' : 'admin';
-    setUserRole(newRole);
-    if (newRole === 'user') {
-      setIsTechnicianMode(true);
-    } else {
-      setIsTechnicianMode(false);
-    }
-    showToast(`Rolle gewechselt zu: ${newRole.toUpperCase()}`, 'success');
-  };
-
-  const [isTechnicianMode, setIsTechnicianMode] = useState(false); // New state for Technician View
 
   const handleSelectReport = (report) => {
     setSelectedReport(report)
@@ -79,15 +96,12 @@ function App() {
   }
 
   const handleSaveReport = useCallback(async (updatedReport, silent = false) => {
-    // Generate ID eagerly if missing (crucial for auto-saves of new reports)
     let finalReport = { ...updatedReport };
     if (!finalReport.id) {
       finalReport.id = finalReport.projectTitle || `TMP-${Date.now()}`;
     }
-    // Ensure created date
     if (!finalReport.date) finalReport.date = new Date().toISOString();
 
-    // Use functional update to access latest reports without adding it to dependency array
     setReports(currentReports => {
       let newReports;
       const exists = currentReports.find(r => r.id === finalReport.id);
@@ -98,13 +112,11 @@ function App() {
         newReports = [finalReport, ...currentReports];
       }
 
-      // Persist to LocalStorage (Sanitized)
       try {
         const sanitizedReports = newReports.map(r => ({
           ...r,
           images: r.images ? r.images.map(img => ({
             ...img,
-            // Don't save blob URLs to LS (they expire). Keep keys if they are real URLs or base64 (though base64 is heavy)
             preview: (img.preview && img.preview.startsWith('blob:')) ? null : img.preview
           })) : []
         }));
@@ -115,21 +127,15 @@ function App() {
       return newReports;
     });
 
-    // Update selection if not silent (UI feedback), OR if the ID was just generated (to keep UI in sync)
-    // IMPORTANT: This ensures that DamageForm gets the new ID via initialData on subsequent re-renders/key updates
     if (!silent || (!updatedReport.id && finalReport.id)) {
       setSelectedReport(prev => {
-        // Only update if ID matches or it's a new one, to avoid heavy re-renders if unrelated
         if (!prev || prev.id === finalReport.id || !updatedReport.id) return finalReport;
         return prev;
       });
-      // Ensure view is set correctly if not silent, IF silent ignore view change
       if (!silent) setView('details');
     }
 
-    // Persist to Supabase (Background)
     if (supabase) {
-      // ... Supabase logic (can run safely with captured updatedReport) ...
       const rowData = {
         id: finalReport.id,
         project_title: finalReport.projectTitle,
@@ -139,36 +145,24 @@ function App() {
         assigned_to: finalReport.assignedTo,
         date: finalReport.date,
         drying_started: finalReport.dryingStarted,
-        report_data: finalReport, // Use finalReport with ID
+        report_data: finalReport,
         updated_at: new Date().toISOString()
       };
 
       supabase.from('damage_reports').upsert(rowData).then(({ error }) => {
         if (error) {
-          const errMsg = error.message || JSON.stringify(error);
-          if (errMsg.toLowerCase().includes('abort') || errMsg.toLowerCase().includes('signal is aborted')) {
-            console.warn('Save aborted (likely harmless):', error);
-          } else {
-            console.error('Error saving to Supabase:', error);
-            showToast('Fehler beim Speichern: ' + errMsg, 'error');
-          }
-        } else {
-          console.log('Successfully saved to Supabase');
-          if (!silent) showToast('Erfolgreich gespeichert!', 'success');
+          // Error handling
+          console.error('Error saving to Supabase:', error);
         }
       });
     }
 
-    // Return the final report object so the caller can update their local state (e.g. ID)
     return finalReport;
   }, [supabase]);
 
   const handleNavigateToReport = (identifier) => {
     if (!identifier) return;
-
-    // Try to find by ID first, then by Project Title
     const report = reports.find(r => r.id === identifier || r.projectTitle === identifier);
-
     if (report) {
       handleSelectReport(report);
       showToast(`Auftrag "${report.projectTitle || report.id}" geöffnet`, 'success');
@@ -178,24 +172,15 @@ function App() {
   };
 
   const handleDeleteReport = async (reportId) => {
-    // 1. Optimistic UI Update
     const reportToDelete = reports.find(r => r.id === reportId);
     if (!reportToDelete) return;
 
     setReports(prev => {
       const newReports = prev.filter(r => r.id !== reportId);
-      // Sync to LocalStorage
       try {
-        const sanitizedReports = newReports.map(r => ({
-          ...r,
-          images: r.images ? r.images.map(img => ({
-            ...img,
-            preview: (img.preview && img.preview.startsWith('blob:')) ? null : img.preview
-          })) : []
-        }));
-        localStorage.setItem('qservice_reports_prod', JSON.stringify(sanitizedReports));
+        localStorage.setItem('qservice_reports_prod', JSON.stringify(newReports));
       } catch (e) {
-        console.error("LocalStorage Update Failed after Delete:", e);
+        console.error("LocalStorage Update Failed", e);
       }
       return newReports;
     });
@@ -205,69 +190,63 @@ function App() {
       setView('dashboard');
     }
 
-    // 2. Supabase Deletion
     if (supabase) {
-      const { error } = await supabase
-        .from('damage_reports')
-        .delete()
-        .eq('id', reportId);
-
-      if (error) {
-        console.error('Error deleting from Supabase:', error);
-        showToast('Fehler beim Löschen aus der Datenbank (Lokal gelöscht)', 'warning');
-        // Optionally revert state here if strict consistency is needed, 
-        // but for now we prioritize UI responsiveness and assume success/eventual consistency
-      } else {
-        showToast('Bericht erfolgreich gelöscht', 'success');
-      }
+      supabase.from('damage_reports').delete().eq('id', reportId);
     } else {
       showToast('Bericht lokal gelöscht', 'success');
     }
   };
 
-  // Toast Notification System
-  const [toast, setToast] = useState(null); // { message, type }
-
+  const [toast, setToast] = useState(null);
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
+  const ToastMarkup = toast && (
+    <div style={{
+      position: 'fixed',
+      top: '20px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      backgroundColor: toast.type === 'success' ? '#10B981' : '#EF4444',
+      color: 'white',
+      padding: '10px 20px',
+      borderRadius: '8px',
+      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+      zIndex: 9999,
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      fontWeight: '500',
+      animation: 'slideIn 0.3s ease-out'
+    }}>
+      {toast.type === 'success' ? (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      ) : (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+      )}
+      {toast.message}
+    </div>
+  );
+
+  // --- LOGIN SCREEN CHECK ---
+  if (!currentUser) {
+    return (
+      <div className="app">
+        {ToastMarkup}
+        <LoginScreen users={users} onLogin={handleLogin} />
+      </div>
+    );
+  }
+
   return (
     <div className="app">
-      {/* Toast Notification Component */}
-      {toast && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          backgroundColor: toast.type === 'success' ? '#10B981' : '#EF4444',
-          color: 'white',
-          padding: '10px 20px',
-          borderRadius: '8px',
-          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          fontWeight: '500',
-          animation: 'slideIn 0.3s ease-out'
-        }}>
-          {toast.type === 'success' ? (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-          ) : (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-          )}
-          {toast.message}
-        </div>
-      )}
+      {ToastMarkup}
 
       <header className="app-header">
         <div className="container header-content">
           <div className="logo-area">
-            {/* Placeholder for Logo - Replace with actual logo path */}
-            {/* Logo */}
             <div className="logo-img-container">
               <img src="/logo.png" alt="QService" style={{ height: '40px', width: 'auto' }} onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
               <div style={{ display: 'none', width: 40, height: 40, backgroundColor: 'var(--primary)', borderRadius: '50%', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>Q</div>
@@ -275,6 +254,22 @@ function App() {
             <span>Q-Service AG</span>
           </div>
           <nav>
+            {/* User Info & Logout (Always visible when logged in) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginRight: '1rem', paddingRight: '1rem', borderRight: '1px solid var(--border)' }}>
+              <div style={{ textAlign: 'right', fontSize: '0.8rem', lineHeight: 1.2 }}>
+                <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{currentUser.name}</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>{currentUser.role.toUpperCase()}</div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="btn btn-ghost"
+                title="Abmelden"
+                style={{ padding: '0.5rem', color: '#EF4444' }}
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
+
             {view !== 'dashboard' && (
               <button className="btn btn-outline" onClick={handleCancelEntry}>
                 <LayoutDashboard size={18} />
@@ -312,27 +307,18 @@ function App() {
                   </button>
                 )}
 
-                {/* User Role Switcher (Demo) */}
-                <div
-                  style={{
-                    marginLeft: '1rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.5rem',
-                    borderRadius: 'var(--radius)',
-                    backgroundColor: userRole === 'admin' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(56, 189, 248, 0.1)',
-                    border: `1px solid ${userRole === 'admin' ? 'var(--danger)' : 'var(--primary)'}`
-                  }}
-                  onClick={toggleUserRole}
-                  title={`Aktuelle Rolle: ${userRole}. Klicken zum Wechseln.`}
-                >
-                  <User size={18} color={userRole === 'admin' ? 'var(--danger)' : 'var(--primary)'} />
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: userRole === 'admin' ? 'var(--danger)' : 'var(--primary)' }}>
-                    {userRole === 'admin' ? 'ADMIN' : 'USER'}
-                  </span>
-                </div>
+                {/* User User Management Button - Restrict to Admin */}
+                {userRole === 'admin' && !isTechnicianMode && (
+                  <button
+                    className="btn btn-outline"
+                    onClick={() => setShowUserModal(true)}
+                    style={{ marginLeft: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                    title="Benutzer & Rechte"
+                  >
+                    <Users size={18} />
+                    <span className="hide-mobile">Benutzer</span>
+                  </button>
+                )}
               </div>
             )}
           </nav>
@@ -352,6 +338,9 @@ function App() {
           />
         )}
       </main>
+
+      {/* Render User Management Modal */}
+      {showUserModal && <UserManagementModal onClose={() => setShowUserModal(false)} users={users} setUsers={setUsers} />}
     </div>
   )
 }
