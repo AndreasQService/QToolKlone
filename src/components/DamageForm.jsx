@@ -2157,7 +2157,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                                 className="form-input"
 
 
-                                                value={newRoom.apartment && ![...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].includes(newRoom.apartment) ? 'Sonstiges' : newRoom.apartment}
+                                                value={newRoom.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().includes(newRoom.apartment) ? 'Sonstiges' : newRoom.apartment}
                                                 onChange={(e) => {
                                                     const val = e.target.value;
                                                     if (val === 'Sonstiges') {
@@ -2169,14 +2169,14 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                                 style={{ padding: '0.5rem', fontSize: '0.9rem' }}
                                             >
                                                 <option value="">Wohnung wählen... (Pflicht)</option>
-                                                {[...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].map(apt => (
+                                                {[...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().map(apt => (
                                                     <option key={apt} value={apt}>{apt}</option>
                                                 ))}
                                                 <option value="Sonstiges">Neue Wohnung eingeben...</option>
                                             </select>
 
                                             {/* Custom Apartment Input */}
-                                            {(!newRoom.apartment || (newRoom.apartment && ![...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].includes(newRoom.apartment))) && (
+                                            {(!newRoom.apartment || (newRoom.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().includes(newRoom.apartment))) && (
                                                 <input
                                                     type="text"
                                                     placeholder="Wohnung eingeben"
@@ -2334,7 +2334,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                         <select
                                             className="form-input"
-                                            value={newRoom.apartment && ![...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].includes(newRoom.apartment) ? 'Sonstiges' : newRoom.apartment}
+                                            value={newRoom.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().includes(newRoom.apartment) ? 'Sonstiges' : newRoom.apartment}
                                             onChange={(e) => {
                                                 const val = e.target.value;
                                                 if (val === 'Sonstiges') {
@@ -2346,14 +2346,14 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                             style={{ padding: '0.5rem', fontSize: '0.9rem' }}
                                         >
                                             <option value="">Wohnung wählen... (Pflicht)</option>
-                                            {[...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].map(apt => (
+                                            {[...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().map(apt => (
                                                 <option key={apt} value={apt}>{apt}</option>
                                             ))}
                                             <option value="Sonstiges">Neue Wohnung eingeben...</option>
                                         </select>
 
                                         {/* Custom Apartment Input */}
-                                        {(!newRoom.apartment || (newRoom.apartment && ![...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].includes(newRoom.apartment))) && (
+                                        {(!newRoom.apartment || (newRoom.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().includes(newRoom.apartment))) && (
                                             <input
                                                 type="text"
                                                 placeholder="Wohnung eingeben"
@@ -3249,7 +3249,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                                 style={{ borderColor: !newDevice.apartment ? '#F87171' : '' }}
                                             >
                                                 <option value="">Wohnung wählen... (Pflicht)</option>
-                                                {[...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].map(apt => (
+                                                {[...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().map(apt => (
                                                     <option key={apt} value={apt}>{apt}</option>
                                                 ))}
                                                 <option value="Sonstiges">Neue Wohnung eingeben...</option>
@@ -3260,7 +3260,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                                 Let's stick to the pattern used for Rooms: Select + Conditional Input if "Sonstiges" or custom.
                                                 However, here we want to SUGGEST from existing rooms.
                                             */}
-                                            {((newDevice.apartment && ![...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].includes(newDevice.apartment)) || !formData.rooms.some(r => r.apartment)) && (
+                                            {((newDevice.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().includes(newDevice.apartment)) || !formData.rooms.some(r => r.apartment)) && (
                                                 <input
                                                     type="text"
                                                     placeholder="Wohnung eingeben (Pflicht)"
