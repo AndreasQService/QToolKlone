@@ -4101,7 +4101,7 @@ END:VCARD`;
                                 <span style={{ fontSize: '0.9rem' }}>Email Import</span>
                             </button>
                         )}
-                        {formData.status === 'Leckortung' && (
+                        {formData.status === 'Leckortung' && mode === 'desktop' && (
                             <button
                                 type="button"
                                 className="btn btn-outline"
@@ -4976,14 +4976,16 @@ END:VCARD`;
 
                                 {/* Report Actions */}
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem', gap: '0.5rem' }}>
-                                    <button
-                                        type="button"
-                                        className="btn btn-outline"
-                                        onClick={generateEnergyReport}
-                                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderColor: 'var(--primary)', color: 'var(--primary)' }}
-                                    >
-                                        <FileText size={16} /> Energieprotokoll (PDF)
-                                    </button>
+                                    {mode === 'desktop' && (
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline"
+                                            onClick={generateEnergyReport}
+                                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                                        >
+                                            <FileText size={16} /> Energieprotokoll (PDF)
+                                        </button>
+                                    )}
                                 </div>
 
                                 {/* Add new device form */}
