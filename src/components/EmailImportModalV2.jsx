@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import OpenAI from "openai";
-import { X, ArrowRight, Mail, Settings, Check, RotateCw } from 'lucide-react';
+import { X, ArrowRight, Mail, Settings, Check, RotateCw, FileUp } from 'lucide-react';
 import { swissPLZ } from '../data/swiss_plz';
 
 const EmailImportModalV2 = ({ onClose, onImport, audioDevices, selectedDeviceId, onSelectDeviceId, initialShowSettings = false, onRefreshDevices, deviceError }) => {
@@ -50,6 +50,7 @@ const EmailImportModalV2 = ({ onClose, onImport, audioDevices, selectedDeviceId,
 
             const openai = new OpenAI({
                 apiKey: apiKey,
+                baseURL: window.location.origin + '/openai-api', // Use local proxy to avoid CORS
                 dangerouslyAllowBrowser: true // Required for client-side usage
             });
 
@@ -455,6 +456,84 @@ const EmailImportModalV2 = ({ onClose, onImport, audioDevices, selectedDeviceId,
     // Verify document.body exists (it always should in browser, but good for safety)
     if (typeof document === 'undefined') return null;
 
+    const [isDragging, setIsDragging] = useState(false);
+
+    // --- PDF HANDLING ---
+    const processPdfFile = async (file) => {
+        if (file.type !== 'application/pdf') {
+            alert('Bitte nur PDF-Dateien hochladen.');
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const arrayBuffer = await file.arrayBuffer();
+
+            // Dynamic import for the library
+            const pdfjs = await import('pdfjs-dist/build/pdf');
+
+            // Fix: Use a CDN URL for the worker.
+            pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+            const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+            let fullText = '';
+
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map(item => item.str).join(' ');
+                fullText += `--- Seite ${i} ---\n${pageText}\n\n`;
+            }
+
+            setText(prev => prev + (prev ? '\n\n' : '') + `=== PDF IMPORT: ${file.name} ===\n` + fullText);
+
+        } catch (error) {
+            console.error('PDF Error:', error);
+            alert('Fehler beim Lesen der PDF: ' + error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleFileUpload = (event) => {
+        const file = event.target.files[0];
+        if (file) processPdfFile(file);
+        event.target.value = null; // Reset input
+    };
+
+    // --- DRAG & DROP HANDLERS ---
+    const onDragOver = (e) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const onDragLeave = (e) => {
+        e.preventDefault();
+        setIsDragging(false);
+    };
+
+    const onDrop = async (e) => {
+        e.preventDefault();
+        setIsDragging(false);
+
+        // 1. Files dropped?
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            const file = e.dataTransfer.files[0];
+            if (file.type === 'application/pdf') {
+                await processPdfFile(file);
+            } else {
+                alert("Bitte nur PDF-Dateien oder Text droppen.");
+            }
+            return;
+        }
+
+        // 2. Text dropped?
+        const droppedText = e.dataTransfer.getData('text');
+        if (droppedText) {
+            setText(prev => prev + (prev ? '\n\n' : '') + droppedText);
+        }
+    };
+
     return createPortal(
         <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -471,7 +550,7 @@ const EmailImportModalV2 = ({ onClose, onImport, audioDevices, selectedDeviceId,
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Mail size={24} />
-                        Projekt aus Email importieren
+                        Projekt aus Email / PDF importieren
                     </h3>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button
@@ -556,7 +635,7 @@ const EmailImportModalV2 = ({ onClose, onImport, audioDevices, selectedDeviceId,
 
                 <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                        Kopiere den Email-Text hier hinein:
+                        Kopiere den Text hier hinein oder lade ein PDF hoch:
                     </div>
                     {apiKey && (
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', cursor: 'pointer', userSelect: 'none' }}>
@@ -573,19 +652,73 @@ const EmailImportModalV2 = ({ onClose, onImport, audioDevices, selectedDeviceId,
                     )}
                 </div>
 
-                <textarea
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    placeholder="Email Text hier einfügen..."
-                    className="form-input"
+                <div
+                    onDragOver={onDragOver}
+                    onDragLeave={onDragLeave}
+                    onDrop={onDrop}
                     style={{
-                        flex: 1, minHeight: '300px', width: '100%', padding: '1rem',
-                        border: '1px solid var(--border)', borderRadius: '4px', resize: 'none',
-                        fontFamily: 'monospace', fontSize: '0.9rem',
-                        backgroundColor: 'var(--background)',
-                        color: 'var(--text-main)'
+                        position: 'relative',
+                        flex: 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        transition: 'all 0.2s ease',
+                        border: isDragging ? '2px dashed var(--primary)' : '1px solid transparent',
+                        borderRadius: '4px'
                     }}
-                />
+                >
+                    <textarea
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        placeholder="Email Text hier einfügen oder PDF Drag & Drop..."
+                        className="form-input"
+                        style={{
+                            flex: 1, minHeight: '300px', width: '100%', padding: '1rem',
+                            border: '1px solid var(--border)', borderRadius: '4px', resize: 'none',
+                            fontFamily: 'monospace', fontSize: '0.9rem',
+                            backgroundColor: isDragging ? 'rgba(var(--primary-rgb), 0.05)' : 'var(--background)',
+                            color: 'var(--text-main)'
+                        }}
+                    />
+
+                    {/* Visual Overlay when Dragging */}
+                    {isDragging && (
+                        <div style={{
+                            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                            backgroundColor: 'rgba(var(--primary-active), 0.1)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            zIndex: 10, pointerEvents: 'none',
+                            color: 'var(--primary)', fontWeight: 'bold', fontSize: '1.2rem',
+                            flexDirection: 'column', // Added for vertical alignment of icon and text
+                            gap: '0.5rem' // Added for spacing between icon and text
+                        }}>
+                            <FileUp size={48} style={{ marginBottom: '1rem' }} />
+                            <span>Lassen Sie los zum Importieren</span>
+                        </div>
+                    )}
+
+                    {/* PDF Upload Overlay Button */}
+                    <div style={{ position: 'absolute', bottom: '1rem', right: '1rem', zIndex: 20 }}>
+                        <input
+                            type="file"
+                            accept=".pdf"
+                            id="pdf-upload"
+                            style={{ display: 'none' }}
+                            onChange={handleFileUpload}
+                        />
+                        <label
+                            htmlFor="pdf-upload"
+                            className="btn btn-secondary"
+                            style={{
+                                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                padding: '0.5rem 1rem', fontSize: '0.85rem',
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                            }}
+                        >
+                            <FileUp size={16} />
+                            PDF einlesen
+                        </label>
+                    </div>
+                </div>
 
                 <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
                     <button onClick={onClose} className="btn btn-outline">

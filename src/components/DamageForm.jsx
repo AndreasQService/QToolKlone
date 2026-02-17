@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Image, Trash, X, Plus, Edit3, Save, Upload, FileText, CheckCircle, Circle, AlertTriangle, Play, HelpCircle, ArrowLeft, Mail, Map, MapPin, Folder, Mic, Paperclip, Table, Download, Check, Settings, RotateCcw, ChevronDown, ChevronUp, Briefcase } from 'lucide-react'
+import { Camera, Image, Trash, X, Plus, Edit3, Save, Upload, FileText, CheckCircle, Circle, AlertTriangle, Play, HelpCircle, ArrowLeft, Mail, Map, MapPin, Folder, Mic, Paperclip, Table, Download, Check, Settings, RotateCcw, ChevronDown, ChevronUp, Briefcase, Hammer } from 'lucide-react'
 import { supabase } from '../supabaseClient';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -170,7 +170,6 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
     const [isSaving, setIsSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState(null);
     const [visibleRoomImages, setVisibleRoomImages] = useState({}); // Stores roomId -> boolean for toggle
-    const [showEmailImportModal, setShowEmailImportModal] = useState(false);
 
 
     // Auto-Save Effect
@@ -1749,7 +1748,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                 contacts: newContacts
             };
         });
-        setShowEmailImportModal(false);
+        setShowEmailImport(false);
     };
 
     const handlePDFClick = () => {
@@ -1762,9 +1761,9 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
     if (mode === 'technician' || mode === 'desktop') {
         return (
             <div className="card" style={{ maxWidth: mode === 'desktop' ? '1200px' : '600px', margin: '0 auto', padding: '1rem' }}>
-                {showEmailImportModal && (
+                {showEmailImport && (
                     <EmailImportModal
-                        onClose={() => setShowEmailImportModal(false)}
+                        onClose={() => setShowEmailImport(false)}
                         onImport={handleEmailImport}
                         audioDevices={audioDevices}
                         selectedDeviceId={selectedDeviceId}
@@ -1780,7 +1779,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <button
                             type="button"
-                            onClick={() => setShowEmailImportModal(true)}
+                            onClick={() => setShowEmailImport(true)}
                             className="btn btn-outline"
                             style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', gap: '0.5rem', alignItems: 'center', marginRight: '0.5rem' }}
                             title="Daten aus Email importieren"
@@ -1800,6 +1799,13 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                         </select>
                     </div>
                 </div>
+
+
+
+
+
+
+
 
                 {/* 1a. Project Details (Client / Manager) - Moved Up */}
                 <div style={{ marginBottom: '1.5rem', backgroundColor: 'var(--surface)', padding: '1rem', borderRadius: '8px', color: 'var(--text-main)' }}>
@@ -2064,253 +2070,141 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                     <br />
                 </div>
 
-                {/* Pläne & Grundrisse Section - Inserted for Technician View */}
-                {(mode === 'desktop' || formData.status !== 'Trocknung') && (
-                    <div style={{ marginBottom: '2rem' }}>
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
-                            Pläne & Grundrisse
-                        </h2>
 
-                        <div className="card" style={{ border: '1px solid var(--border)', padding: '1.5rem' }}>
-                            <div
-                                style={{
-                                    border: '2px dashed var(--border)',
-                                    borderRadius: 'var(--radius)',
-                                    padding: '2rem 1rem',
-                                    textAlign: 'center',
-                                    cursor: 'pointer',
-                                    backgroundColor: 'rgba(255,255,255,0.02)',
-                                    transition: 'all 0.2s',
-                                    marginBottom: '1rem',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: 'var(--text-muted)'
-                                }}
-                                onClick={() => document.getElementById('file-upload-Pläne-tech').click()}
-                                onDragOver={(e) => {
-                                    e.preventDefault();
-                                    e.currentTarget.style.borderColor = 'var(--primary)';
-                                    e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)';
-                                    e.currentTarget.style.color = 'var(--primary)';
-                                }}
-                                onDragLeave={(e) => {
-                                    e.preventDefault();
-                                    e.currentTarget.style.borderColor = 'var(--border)';
-                                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)';
-                                    e.currentTarget.style.color = 'var(--text-muted)';
-                                }}
-                                onDrop={(e) => handleCategoryDrop(e, 'Pläne')}
-                            >
-                                <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
-                                <span style={{ fontSize: '0.85rem' }}>Plan / Grundriss hochladen (PDF / Bild)</span>
 
-                                <input
-                                    id="file-upload-Pläne-tech"
-                                    type="file"
-                                    multiple
-                                    accept="image/*,application/pdf"
-                                    style={{ display: 'none' }}
-                                    onChange={(e) => handleCategorySelect(e, 'Pläne')}
-                                />
-                            </div>
 
-                            {/* List of Pläne */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                {formData.images.filter(img => img.assignedTo === 'Pläne').map((item, idx) => (
-                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
-                                        {/* Icon/Preview */}
-                                        {(item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf')) ? (
-                                            <div
-                                                style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }}
-                                                onClick={() => {
-                                                    if (item.file) {
-                                                        const pdfUrl = URL.createObjectURL(item.file);
-                                                        window.open(pdfUrl, '_blank');
-                                                    } else if (item.preview) {
-                                                        window.open(item.preview, '_blank');
-                                                    } else {
-                                                        alert("PDF Vorschau nicht verfügbar (wurde gespeichert).");
-                                                    }
-                                                }}
-                                            >
-                                                <div style={{ padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}>
-                                                    <FileText size={24} color="var(--text-main)" />
-                                                </div>
-                                                <div style={{ fontSize: '1rem', color: 'var(--text-main)', fontWeight: 500, textDecoration: 'underline' }}>
-                                                    {item.name}
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, cursor: 'pointer' }}
-                                                onClick={() => window.open(item.preview, '_blank')}
-                                            >
-                                                <div style={{ width: '80px', height: '80px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
-                                                    <img src={item.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
-                                                </div>
-                                                <div style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--text-main)' }}>{item.name}</div>
-                                            </div>
-                                        )}
 
-                                        {/* Delete Action */}
-                                        <button
-                                            type="button"
-                                            className="btn btn-ghost"
-                                            onClick={() => setFormData(prev => ({ ...prev, images: prev.images.filter(i => i !== item) }))}
-                                            style={{
-                                                color: '#EF4444',
-                                                padding: '0.5rem',
-                                                borderRadius: '50%',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                backgroundColor: 'rgba(239, 68, 68, 0.1)'
-                                            }}
-                                        >
-                                            <Trash size={18} />
-                                        </button>
-                                    </div>
-                                ))}
-                                {formData.images.filter(img => img.assignedTo === 'Pläne').length === 0 && (
-                                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>
-                                        Keine Pläne vorhanden.
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
 
                 {/* 3. Rooms & Photos */}
                 <div style={{ marginBottom: '2rem' }}>
-                    {(
-                        <div style={{ marginBottom: '1rem' }}>
-                            {mode !== 'technician' && (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                    <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>
-                                        Räume / Fotos
-                                    </h3>
-                                    <button
-                                        type="button"
-                                        onClick={handleGeneratePDF}
-                                        disabled={isGeneratingPDF}
-                                        className="btn btn-outline"
-                                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', gap: '0.5rem', alignItems: 'center', backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
-                                    >
-                                        <FileText size={16} />
-                                        Schadensbericht
-                                    </button>
-                                </div>
-                            )}
+                    <div style={{ marginBottom: '1rem' }}>
+                        {mode !== 'technician' && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>
+                                    Räume / Fotos
+                                </h3>
+                                <button
+                                    type="button"
+                                    onClick={handleGeneratePDF}
+                                    disabled={isGeneratingPDF}
+                                    className="btn btn-outline"
+                                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', gap: '0.5rem', alignItems: 'center', backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+                                >
+                                    <FileText size={16} />
+                                    Schadensbericht
+                                </button>
+                            </div>
+                        )}
 
-                            {mode === 'technician' && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    <button
-                                        type="button"
-                                        className={`btn ${showAddRoomForm ? 'btn-ghost' : 'btn-primary'}`}
-                                        onClick={() => setShowAddRoomForm(!showAddRoomForm)}
-                                        style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', color: showAddRoomForm ? '#EF4444' : undefined, borderColor: showAddRoomForm ? '#EF4444' : undefined }}
-                                    >
-                                        {showAddRoomForm ? <X size={16} /> : <Plus size={16} />}
-                                        {showAddRoomForm ? " Abbrechen" : " Raum hinzufügen"}
-                                    </button>
 
-                                    {showAddRoomForm && (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                                <select
+                        {mode === 'technician' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <button
+                                    type="button"
+                                    className={`btn ${showAddRoomForm ? 'btn-ghost' : 'btn-primary'}`}
+                                    onClick={() => setShowAddRoomForm(!showAddRoomForm)}
+                                    style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', color: showAddRoomForm ? '#EF4444' : undefined, borderColor: showAddRoomForm ? '#EF4444' : undefined }}
+                                >
+                                    {showAddRoomForm ? <X size={16} /> : <Plus size={16} />}
+                                    {showAddRoomForm ? " Abbrechen" : " Raum hinzufügen"}
+                                </button>
+
+                                {showAddRoomForm && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                            <select
+                                                className="form-input"
+
+
+                                                value={newRoom.apartment && ![...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].includes(newRoom.apartment) ? 'Sonstiges' : newRoom.apartment}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val === 'Sonstiges') {
+                                                        setNewRoom(prev => ({ ...prev, apartment: '' }));
+                                                    } else {
+                                                        setNewRoom(prev => ({ ...prev, apartment: val }));
+                                                    }
+                                                }}
+                                                style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                            >
+                                                <option value="">Wohnung wählen... (Pflicht)</option>
+                                                {[...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].map(apt => (
+                                                    <option key={apt} value={apt}>{apt}</option>
+                                                ))}
+                                                <option value="Sonstiges">Neue Wohnung eingeben...</option>
+                                            </select>
+
+                                            {/* Custom Apartment Input */}
+                                            {(!newRoom.apartment || (newRoom.apartment && ![...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].includes(newRoom.apartment))) && (
+                                                <input
+                                                    type="text"
+                                                    placeholder="Wohnung eingeben"
+                                                    value={newRoom.apartment}
+                                                    onChange={(e) => setNewRoom(prev => ({ ...prev, apartment: e.target.value }))}
                                                     className="form-input"
-                                                    value={newRoom.apartment && ![...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].includes(newRoom.apartment) ? 'Sonstiges' : newRoom.apartment}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value;
-                                                        if (val === 'Sonstiges') {
-                                                            setNewRoom(prev => ({ ...prev, apartment: '' }));
-                                                        } else {
-                                                            setNewRoom(prev => ({ ...prev, apartment: val }));
-                                                        }
-                                                    }}
                                                     style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                                >
-                                                    <option value="">Wohnung wählen... (Pflicht)</option>
-                                                    {[...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].map(apt => (
-                                                        <option key={apt} value={apt}>{apt}</option>
-                                                    ))}
-                                                    <option value="Sonstiges">Neue Wohnung eingeben...</option>
-                                                </select>
+                                                />
+                                            )}
+                                        </div>
 
-                                                {/* Custom Apartment Input */}
-                                                {(!newRoom.apartment || (newRoom.apartment && ![...new Set(formData.rooms.map(r => r.apartment).filter(Boolean))].includes(newRoom.apartment))) && (
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Wohnung eingeben"
-                                                        value={newRoom.apartment}
-                                                        onChange={(e) => setNewRoom(prev => ({ ...prev, apartment: e.target.value }))}
-                                                        className="form-input"
-                                                        style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                                    />
-                                                )}
-                                            </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Stockwerk"
+                                            value={newRoom.stockwerk}
+                                            onChange={(e) => setNewRoom(prev => ({ ...prev, stockwerk: e.target.value }))}
+                                            className="form-input"
+                                            style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                        />
 
+                                        <select
+                                            value={newRoom.name}
+                                            onChange={(e) => setNewRoom(prev => ({ ...prev, name: e.target.value }))}
+                                            className="form-input"
+                                            style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                        >
+                                            <option value="">Raum wählen...</option>
+                                            {ROOM_OPTIONS.map(opt => (
+                                                <option key={opt} value={opt}>{opt}</option>
+                                            ))}
+                                            <option value="Sonstiges">Sonstiges / Eigener Name</option>
+                                        </select>
+
+                                        {/* Custom Room Input if 'Sonstiges' or not in list */}
+                                        {((newRoom.name === 'Sonstiges') || (newRoom.name === 'Sonstiges / Eigener Name') || (newRoom.name && !ROOM_OPTIONS.includes(newRoom.name))) && (
                                             <input
                                                 type="text"
-                                                placeholder="Stockwerk"
-                                                value={newRoom.stockwerk}
-                                                onChange={(e) => setNewRoom(prev => ({ ...prev, stockwerk: e.target.value }))}
-                                                className="form-input"
-                                                style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                            />
-
-                                            <select
-                                                value={newRoom.name}
+                                                placeholder="Raum-Name eingeben"
+                                                value={newRoom.name === 'Sonstiges' || newRoom.name === 'Sonstiges / Eigener Name' ? '' : newRoom.name}
                                                 onChange={(e) => setNewRoom(prev => ({ ...prev, name: e.target.value }))}
                                                 className="form-input"
                                                 style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                            >
-                                                <option value="">Raum wählen...</option>
-                                                {ROOM_OPTIONS.map(opt => (
-                                                    <option key={opt} value={opt}>{opt}</option>
-                                                ))}
-                                                <option value="Sonstiges">Sonstiges / Eigener Name</option>
-                                            </select>
+                                                autoFocus
+                                            />
+                                        )}
 
-                                            {/* Custom Room Input if 'Sonstiges' or not in list */}
-                                            {((newRoom.name === 'Sonstiges') || (newRoom.name === 'Sonstiges / Eigener Name') || (newRoom.name && !ROOM_OPTIONS.includes(newRoom.name))) && (
-                                                <input
-                                                    type="text"
-                                                    placeholder="Raum-Name eingeben"
-                                                    value={newRoom.name === 'Sonstiges' || newRoom.name === 'Sonstiges / Eigener Name' ? '' : newRoom.name}
-                                                    onChange={(e) => setNewRoom(prev => ({ ...prev, name: e.target.value }))}
-                                                    className="form-input"
-                                                    style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                                    autoFocus
-                                                />
-                                            )}
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary"
+                                            onClick={() => {
+                                                handleAddRoom();
+                                                setShowAddRoomForm(false); // Auto-close after add
+                                            }}
+                                            disabled={!newRoom.name || newRoom.name === 'Sonstiges' || !newRoom.apartment}
+                                            style={{ marginTop: '0.5rem' }}
+                                        >
+                                            <Check size={16} /> Speichern
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
-                                            <button
-                                                type="button"
-                                                className="btn btn-primary"
-                                                onClick={() => {
-                                                    handleAddRoom();
-                                                    setShowAddRoomForm(false); // Auto-close after add
-                                                }}
-                                                disabled={!newRoom.name || newRoom.name === 'Sonstiges' || !newRoom.apartment}
-                                                style={{ marginTop: '0.5rem' }}
-                                            >
-                                                <Check size={16} /> Speichern
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {mode === 'technician' && (
-                                <h3 style={{ fontSize: '1rem', fontWeight: 600, marginTop: '2rem', marginBottom: '0.5rem' }}>
-                                    Räume / Fotos
-                                </h3>
-                            )}
-                        </div>
-                    )}
+                        {mode === 'technician' && (
+                            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginTop: '2rem', marginBottom: '0.5rem' }}>
+                                Räume / Fotos
+                            </h3>
+                        )}
+                    </div>
 
 
                     {/* Schadenursache - Cause & Photos (Desktop Only) */}
@@ -2840,6 +2734,209 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                     }
                 </div >
 
+                {/* EMAILS & PLANS (Final for User) */}
+                {mode === 'desktop' && (
+                    <div style={{ display: 'block', marginBottom: '2rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                                <Mail size={24} />
+                                Emails & Kommunikation
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={() => setShowEmailImport(true)}
+                                className="btn btn-primary"
+                                style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', gap: '0.25rem' }}
+                            >
+                                <FileText size={14} />
+                                Email-Import (KI)
+                            </button>
+                        </div>
+                        <div className="card" style={{ border: '1px solid var(--border)' }}>
+
+                            <div
+                                style={{
+                                    border: '2px dashed var(--border)',
+                                    borderRadius: 'var(--radius)',
+                                    padding: '2rem 1rem',
+                                    textAlign: 'center',
+                                    cursor: 'pointer',
+                                    backgroundColor: 'rgba(255,255,255,0.02)',
+                                    transition: 'all 0.2s',
+                                    marginBottom: '1rem',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'var(--text-muted)'
+                                }}
+                                onClick={() => document.getElementById('file-upload-emails').click()}
+                                onDragOver={(e) => {
+                                    e.preventDefault();
+                                    e.currentTarget.style.borderColor = 'var(--primary)';
+                                    e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)';
+                                    e.currentTarget.style.color = 'var(--primary)';
+                                }}
+                                onDragLeave={(e) => {
+                                    e.preventDefault();
+                                    e.currentTarget.style.borderColor = 'var(--border)';
+                                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)';
+                                    e.currentTarget.style.color = 'var(--text-muted)';
+                                }}
+                                onDrop={(e) => handleCategoryDrop(e, 'Emails')}
+                            >
+                                <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                                <span style={{ fontSize: '0.85rem' }}>Emails / PDF Upload</span>
+
+                                <input
+                                    id="file-upload-emails"
+                                    type="file"
+                                    multiple
+                                    accept="image/*,application/pdf"
+                                    style={{ display: 'none' }}
+                                    onChange={(e) => handleCategorySelect(e, 'Emails')}
+                                />
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                {formData.images.filter(img => img.assignedTo === 'Emails').map((item, idx) => (
+                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                                        {(item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf')) ? (
+                                            <div style={{ color: '#F87171', display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                                                <FileText size={18} />
+                                                <span style={{ fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-ghost"
+                                                    style={{ marginLeft: 'auto', padding: '0.25rem', fontSize: '0.8rem' }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const url = item.file ? URL.createObjectURL(item.file) : item.preview;
+                                                        if (url) window.open(url, '_blank');
+                                                    }}
+                                                >
+                                                    Öffnen
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <img src={item.preview} alt="Vorschau" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />
+                                                <div style={{ flex: 1, overflow: 'hidden' }}>
+                                                    <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{item.assignedTo}</div>
+                                                    {item.description && (
+                                                        <div style={{ fontSize: '0.85rem', color: '#94A3B8' }}>{item.description.substring(0, 30)}...</div>
+                                                    )}
+                                                </div>
+                                            </>
+                                        )}
+
+                                        <button type="button" onClick={() => { if (window.confirm('Löschen?')) setFormData(prev => ({ ...prev, images: prev.images.filter(img => img !== item) })); }} style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '4px' }}><X size={16} /></button>
+                                    </div>
+                                ))}
+                                {formData.images.filter(img => img.assignedTo === 'Emails').length === 0 && (
+                                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic', padding: '1rem' }}>Keine Emails vorhanden.</div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Pläne & Grundrisse Section */}
+                <div style={{ display: 'block', marginBottom: '2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                            <FileText size={24} />
+                            Pläne & Grundrisse
+                        </h2>
+                    </div>
+                    <div className="card" style={{ border: '1px solid var(--border)' }}>
+
+                        <div
+                            style={{
+                                border: '2px dashed var(--border)',
+                                borderRadius: 'var(--radius)',
+                                padding: '2rem 1rem',
+                                textAlign: 'center',
+                                cursor: 'pointer',
+                                backgroundColor: 'rgba(255,255,255,0.02)',
+                                transition: 'all 0.2s',
+                                marginBottom: '1rem',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'var(--text-muted)'
+                            }}
+                            onClick={() => document.getElementById('file-upload-pläne').click()}
+                            onDragOver={(e) => {
+                                e.preventDefault();
+                                e.currentTarget.style.borderColor = 'var(--primary)';
+                                e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)';
+                                e.currentTarget.style.color = 'var(--primary)';
+                            }}
+                            onDragLeave={(e) => {
+                                e.preventDefault();
+                                e.currentTarget.style.borderColor = 'var(--border)';
+                                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)';
+                                e.currentTarget.style.color = 'var(--text-muted)';
+                            }}
+                            onDrop={(e) => handleCategoryDrop(e, 'Pläne')}
+                        >
+                            <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                            <span style={{ fontSize: '0.85rem' }}>Plan / Grundriss hochladen (PDF / Bild)</span>
+
+                            <input
+                                id="file-upload-pläne"
+                                type="file"
+                                multiple
+                                accept="image/*,application/pdf"
+                                style={{ display: 'none' }}
+                                onChange={(e) => handleCategorySelect(e, 'Pläne')}
+                            />
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {formData.images.filter(img => img.assignedTo === 'Pläne').map((item, idx) => (
+                                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                                    {(item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf')) ? (
+                                        <div style={{ color: '#F87171', display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                                            <FileText size={18} />
+                                            <span style={{ fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                                            <button
+                                                type="button"
+                                                className="btn btn-ghost"
+                                                style={{ marginLeft: 'auto', padding: '0.25rem', fontSize: '0.8rem' }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const url = item.file ? URL.createObjectURL(item.file) : item.preview; if (url) window.open(url, '_blank');
+                                                }}
+                                            >
+                                                Öffnen
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <img src={item.preview} alt="Vorschau" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />
+                                            <div style={{ flex: 1, overflow: 'hidden' }}>
+                                                <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{item.assignedTo}</div>
+                                                {item.description && (
+                                                    <div style={{ fontSize: '0.85rem', color: '#94A3B8' }}>{item.description.substring(0, 30)}...</div>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
+
+                                    <button type="button" onClick={() => { if (window.confirm('Löschen?')) setFormData(prev => ({ ...prev, images: prev.images.filter(img => img !== item) })); }} style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '4px' }}><X size={16} /></button>
+                                </div>
+                            ))}
+                            {formData.images.filter(img => img.assignedTo === 'Pläne').length === 0 && (
+                                <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic', padding: '1rem' }}>Keine Pläne vorhanden.</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+
 
                 {mode === 'desktop' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem', marginBottom: '3rem' }}>
@@ -2848,7 +2945,8 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                         {/* 1. Arbeitsrapporte (Duplicate for Desktop) */}
                         <div style={{ marginTop: '2rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
-                                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', margin: 0 }}>
+                                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                                    <Hammer size={24} />
                                     Arbeitsrapporte
                                 </h2>
                             </div>
@@ -2902,7 +3000,8 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
 
                         {/* 2. Sonstiges (Duplicate of Reports, mapped to 'Sonstiges') */}
                         <div style={{ marginTop: '2rem' }}>
-                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <FileText size={24} />
                                 Sonstiges
                             </h2>
                             <div className="card" style={{ border: '1px solid var(--border)', padding: '1.5rem' }}>
@@ -2956,13 +3055,13 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
 
 
                         {/* 4. Messprotokolle (Duplicate for Desktop) - Reusing logic by referencing existing or duplicating UI */}
+                        <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)', margin: 0 }}>
+                                <FileText size={24} />
+                                Messprotokolle
+                            </h2>
+                        </div>
                         <div className="card" style={{ border: '1px solid var(--border)' }}>
-                            <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
-                                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)', margin: 0 }}>
-                                    <FileText size={20} />
-                                    Messprotokolle
-                                </h3>
-                            </div>
                             <div style={{ marginBottom: '2rem' }}>
                                 <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--primary)' }}>Messen</h4>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -3022,7 +3121,10 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                 {
                     (mode === 'desktop' || formData.status === 'Trocknung') && (
                         <div style={{ marginBottom: '2rem', borderTop: '1px solid var(--border)', paddingTop: '1.5rem', ...(mode === 'desktop' ? { display: 'flex', flexDirection: 'column' } : {}) }}>
-                            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: 'white' }}>Trocknungsgeräte</h3>
+                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: 'var(--primary)' }}>
+                                <Settings size={24} />
+                                Trocknungsgeräte
+                            </h2>
 
 
 
@@ -3230,6 +3332,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                 )}
                             </div>
 
+
                             {/* Energy Report Button (Inserted between form and list) */}
                             {mode === 'desktop' && (
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem', position: 'relative', zIndex: 10, ...(mode === 'desktop' ? { order: 2 } : {}) }}>
@@ -3293,6 +3396,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                     </button>
                                 </div>
                             )}
+
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', ...(mode === 'desktop' ? { order: 1 } : {}) }}>
                                 {formData.equipment
@@ -5639,7 +5743,208 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
 
 
                                     {/* Messprotokolle Special Section (Goodnotes / Measurement) */}
-                                    {mode === 'technician' && (
+
+                                    {/* Pläne & Sonstiges Loop */}
+
+
+
+
+                                    {/* Emails Section */}
+                                    {mode === 'desktop' && (
+                                        <>
+                                            {/* Arbeitsrapporte Section */}
+                                            <div className="card" style={{ border: '1px solid var(--border)', marginTop: '1rem' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                                    <h3 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                                                        <FileText size={18} />
+                                                        Arbeitsrapporte
+                                                    </h3>
+                                                </div>
+
+                                                <div
+                                                    style={{
+                                                        border: '2px dashed var(--border)',
+                                                        borderRadius: 'var(--radius)',
+                                                        padding: '2rem 1rem',
+                                                        textAlign: 'center',
+                                                        cursor: 'pointer',
+                                                        backgroundColor: 'rgba(255,255,255,0.02)',
+                                                        transition: 'all 0.2s',
+                                                        marginBottom: '1rem',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        color: 'var(--text-muted)'
+                                                    }}
+                                                    onClick={() => document.getElementById('file-upload-arbeitsrapporte').click()}
+                                                    onDragOver={(e) => {
+                                                        e.preventDefault();
+                                                        e.currentTarget.style.borderColor = 'var(--primary)';
+                                                        e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)';
+                                                        e.currentTarget.style.color = 'var(--primary)';
+                                                    }}
+                                                    onDragLeave={(e) => {
+                                                        e.preventDefault();
+                                                        e.currentTarget.style.borderColor = 'var(--border)';
+                                                        e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)';
+                                                        e.currentTarget.style.color = 'var(--text-muted)';
+                                                    }}
+                                                    onDrop={(e) => handleCategoryDrop(e, 'Arbeitsrapporte')}
+                                                >
+                                                    <FileText size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                                                    <span style={{ fontSize: '0.85rem' }}>Arbeitsrapport hochladen / Drop</span>
+
+                                                    <input
+                                                        id="file-upload-arbeitsrapporte"
+                                                        type="file"
+                                                        multiple
+                                                        accept="application/pdf,image/*"
+                                                        style={{ display: 'none' }}
+                                                        onChange={(e) => handleCategorySelect(e, 'Arbeitsrapporte')}
+                                                    />
+                                                </div>
+
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                                    {formData.images.filter(img => img.assignedTo === 'Arbeitsrapporte').map((item, idx) => (
+                                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                                                            {(item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf')) ? (
+                                                                <div style={{ color: '#F87171', display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                                                                    <FileText size={18} />
+                                                                    <span style={{ fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn btn-ghost"
+                                                                        style={{ marginLeft: 'auto', padding: '0.25rem', fontSize: '0.8rem' }}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            const url = item.file ? URL.createObjectURL(item.file) : item.preview;
+                                                                            if (url) window.open(url, '_blank');
+                                                                        }}
+                                                                    >
+                                                                        Öffnen
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <>
+                                                                    <img src={item.preview} alt="Vorschau" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />
+                                                                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                                                                        <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{item.assignedTo}</div>
+                                                                        {item.description && (
+                                                                            <div style={{ fontSize: '0.85rem', color: '#94A3B8' }}>{item.description.substring(0, 30)}...</div>
+                                                                        )}
+                                                                    </div>
+                                                                </>
+                                                            )}
+
+                                                            <button type="button" onClick={() => { if (window.confirm('Löschen?')) setFormData(prev => ({ ...prev, images: prev.images.filter(img => img !== item) })); }} style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '4px' }}><X size={16} /></button>
+                                                        </div>
+                                                    ))}
+                                                    {formData.images.filter(img => img.assignedTo === 'Arbeitsrapporte').length === 0 && (
+                                                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic', padding: '1rem' }}>Keine Arbeitsrapporte vorhanden.</div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Sonstiges Section */}
+                                            <div className="card" style={{ border: '1px solid var(--border)', marginTop: '1rem' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                                    <h3 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                                                        <FileText size={18} />
+                                                        Sonstiges
+                                                    </h3>
+                                                </div>
+
+                                                <div
+                                                    style={{
+                                                        border: '2px dashed var(--border)',
+                                                        borderRadius: 'var(--radius)',
+                                                        padding: '2rem 1rem',
+                                                        textAlign: 'center',
+                                                        cursor: 'pointer',
+                                                        backgroundColor: 'rgba(255,255,255,0.02)',
+                                                        transition: 'all 0.2s',
+                                                        marginBottom: '1rem',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        color: 'var(--text-muted)'
+                                                    }}
+                                                    onClick={() => document.getElementById('file-upload-sonstiges').click()}
+                                                    onDragOver={(e) => {
+                                                        e.preventDefault();
+                                                        e.currentTarget.style.borderColor = 'var(--primary)';
+                                                        e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)';
+                                                        e.currentTarget.style.color = 'var(--primary)';
+                                                    }}
+                                                    onDragLeave={(e) => {
+                                                        e.preventDefault();
+                                                        e.currentTarget.style.borderColor = 'var(--border)';
+                                                        e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)';
+                                                        e.currentTarget.style.color = 'var(--text-muted)';
+                                                    }}
+                                                    onDrop={(e) => handleCategoryDrop(e, 'Sonstiges')}
+                                                >
+                                                    <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                                                    <span style={{ fontSize: '0.85rem' }}>Sonstiges Dokument hochladen / Drop</span>
+
+                                                    <input
+                                                        id="file-upload-sonstiges"
+                                                        type="file"
+                                                        multiple
+                                                        accept="application/pdf,image/*"
+                                                        style={{ display: 'none' }}
+                                                        onChange={(e) => handleCategorySelect(e, 'Sonstiges')}
+                                                    />
+                                                </div>
+
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                                    {formData.images.filter(img => img.assignedTo === 'Sonstiges').map((item, idx) => (
+                                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                                                            {(item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf')) ? (
+                                                                <div style={{ color: '#F87171', display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                                                                    <FileText size={18} />
+                                                                    <span style={{ fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn btn-ghost"
+                                                                        style={{ marginLeft: 'auto', padding: '0.25rem', fontSize: '0.8rem' }}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            const url = item.file ? URL.createObjectURL(item.file) : item.preview;
+                                                                            if (url) window.open(url, '_blank');
+                                                                        }}
+                                                                    >
+                                                                        Öffnen
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <>
+                                                                    <img src={item.preview} alt="Vorschau" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />
+                                                                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                                                                        <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{item.assignedTo}</div>
+                                                                        {item.description && (
+                                                                            <div style={{ fontSize: '0.85rem', color: '#94A3B8' }}>{item.description.substring(0, 30)}...</div>
+                                                                        )}
+                                                                    </div>
+                                                                </>
+                                                            )}
+
+                                                            <button type="button" onClick={() => { if (window.confirm('Löschen?')) setFormData(prev => ({ ...prev, images: prev.images.filter(img => img !== item) })); }} style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '4px' }}><X size={16} /></button>
+                                                        </div>
+                                                    ))}
+                                                    {formData.images.filter(img => img.assignedTo === 'Sonstiges').length === 0 && (
+                                                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic', padding: '1rem' }}>Keine sonstigen Dokumente.</div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+
+
+
+                                    {true && (
                                         <div className="card" style={{ border: '1px solid var(--border)' }}>
                                             <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
                                                 <h3 style={{ fontSize: '1.25rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)', margin: 0 }}>
@@ -5840,155 +6145,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
 
 
 
-                                    {
-                                        ['Emails', 'Pläne', 'Sonstiges'].map(category => (
-                                            <div key={category} className="card" style={{ border: '1px solid var(--border)' }}>
-                                                <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                    {category === 'Schadenfotos' && <Image size={18} />}
-                                                    {category === 'Messprotokolle' && <FileText size={18} />}
-                                                    {category === 'Emails' && <Mail size={18} />}
-                                                    {category === 'Pläne' && <Map size={18} />}
-                                                    {category === 'Sonstiges' && <Folder size={18} />}
-                                                    {category}
-                                                </h3>
 
-                                                <div
-                                                    style={{
-                                                        border: '2px dashed var(--border)',
-                                                        borderRadius: 'var(--radius)',
-                                                        padding: '2rem 1rem',
-                                                        textAlign: 'center',
-                                                        cursor: 'pointer',
-                                                        backgroundColor: 'rgba(255,255,255,0.02)',
-                                                        transition: 'all 0.2s',
-                                                        marginBottom: '1rem',
-                                                        display: 'flex',
-                                                        flexDirection: 'column',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        color: 'var(--text-muted)'
-                                                    }}
-                                                    onClick={() => document.getElementById(`file-upload-${category}`).click()}
-                                                    onDragOver={(e) => {
-                                                        e.preventDefault();
-                                                        e.currentTarget.style.borderColor = 'var(--primary)';
-                                                        e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)';
-                                                        e.currentTarget.style.color = 'var(--primary)';
-                                                    }}
-                                                    onDragLeave={(e) => {
-                                                        e.preventDefault();
-                                                        e.currentTarget.style.borderColor = 'var(--border)';
-                                                        e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)';
-                                                        e.currentTarget.style.color = 'var(--text-muted)';
-                                                    }}
-                                                    onDrop={(e) => handleCategoryDrop(e, category)}
-                                                >
-                                                    <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
-                                                    <span style={{ fontSize: '0.85rem' }}>Upload / Drop</span>
-
-                                                    <input
-                                                        id={`file-upload-${category}`}
-                                                        type="file"
-                                                        multiple
-                                                        accept="image/*,application/pdf"
-                                                        style={{ display: 'none' }}
-                                                        onChange={(e) => handleCategorySelect(e, category)}
-                                                    />
-                                                </div>
-
-                                                {/* Preview for this category */}
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                                    {formData.images.filter(img => img.assignedTo === category).map((item, idx) => (
-                                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
-                                                            {/* Icon/Preview */}
-                                                            {(item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf')) ? (
-                                                                // PDF / Document Layout
-                                                                <div
-                                                                    style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', minWidth: 0 }}
-                                                                    onClick={() => {
-                                                                        if (item.file) {
-                                                                            const pdfUrl = URL.createObjectURL(item.file);
-                                                                            window.open(pdfUrl, '_blank');
-                                                                        } else if (item.preview) {
-                                                                            window.open(item.preview, '_blank');
-                                                                        } else {
-                                                                            // Fallback for PDF without preview URL (e.g. just generated but lost blob)
-                                                                            alert("PDF Vorschau nicht verfügbar (wurde gespeichert).");
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    <div style={{ padding: '0.25rem', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                                        {/* PDF Icon */}
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28">
-                                                                            <path fill="#EF4444" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
-                                                                            <path fill="rgba(255,255,255,0.5)" d="M14 2v6h6" />
-                                                                            <text x="50%" y="70%" dominantBaseline="middle" textAnchor="middle" fill="#fff" fontSize="6" fontWeight="bold">PDF</text>
-                                                                        </svg>
-                                                                    </div>
-                                                                    <div style={{ fontSize: '1rem', color: 'var(--text-main)', fontWeight: 500, textDecoration: 'underline', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                        {item.name}
-                                                                    </div>
-                                                                </div>
-                                                            ) : (
-                                                                // Image Layout
-                                                                <>
-                                                                    <div style={{ width: '80px', height: '80px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F1F5F9', borderRadius: '4px', overflow: 'hidden' }}>
-                                                                        <img
-                                                                            src={item.preview}
-                                                                            alt=""
-                                                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                                                            onClick={() => setActiveImageMeta(item)} // Allow re-opening modal by clicking image
-                                                                        />
-                                                                    </div>
-                                                                    <div style={{ flex: 1, padding: '0 0.5rem', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                                                        <div
-                                                                            style={{ fontSize: '0.95rem', color: 'var(--text-main)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                                                                            title={item.name}
-                                                                        >
-                                                                            {item.name}
-                                                                        </div>
-                                                                        {item.description && (
-                                                                            <div style={{ fontSize: '0.85rem', color: '#94A3B8', display: 'flex', alignItems: 'flex-start', gap: '0.25rem' }}>
-                                                                                <span style={{ marginTop: '2px', flexShrink: 0 }}>📝</span>
-                                                                                <span style={{ fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                                                                                    {item.description}
-                                                                                </span>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                </>
-                                                            )}
-
-                                                            {/* Edit - Hide for PDFs */}
-                                                            {!((item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf'))) && (
-                                                                <button
-                                                                    type="button"
-                                                                    title="Bearbeiten"
-                                                                    style={{ border: 'none', background: 'transparent', color: 'var(--primary)', cursor: 'pointer', padding: '4px' }}
-                                                                    onClick={() => setEditingImage(item)}
-                                                                >
-                                                                    <Edit3 size={16} />
-                                                                </button>
-                                                            )}
-
-                                                            {/* Delete */}
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    if (window.confirm('Möchten Sie diese Datei wirklich löschen?')) {
-                                                                        setFormData(prev => ({ ...prev, images: prev.images.filter(img => img !== item) }));
-                                                                    }
-                                                                }}
-                                                                style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '4px' }}
-                                                            >
-                                                                <X size={16} />
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ))
-                                    }
                                 </>
                                 )}
                             </div>
@@ -6766,10 +6923,9 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                 </div>
                             </div>
                         )}
-
-                        {showEmailImportModal && (
+                        {showEmailImport && (
                             <EmailImportModal
-                                onClose={() => setShowEmailImportModal(false)}
+                                onClose={() => setShowEmailImport(false)}
                                 onImport={handleEmailImport}
                                 audioDevices={audioDevices}
                                 selectedDeviceId={selectedDeviceId}
