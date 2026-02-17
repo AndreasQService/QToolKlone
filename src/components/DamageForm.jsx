@@ -1793,6 +1793,7 @@ END:VCARD`;
 
 
 
+
     if (mode === 'technician' || mode === 'desktop') {
         return (
             <div className="card" style={{ maxWidth: mode === 'desktop' ? '1200px' : '600px', margin: '0 auto', padding: '1rem' }}>
@@ -6301,112 +6302,118 @@ END:VCARD`;
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-outline"
-                                                        onClick={async () => {
-                                                            try {
-                                                                await generateMeasurementExcel(formData);
-                                                            } catch (error) {
-                                                                console.error("Excel Export failed:", error);
-                                                                alert("Fehler beim Erstellen des Excel-Protokolls.");
-                                                            }
-                                                        }}
-                                                        style={{ fontSize: '0.85rem', padding: '0.5rem 1rem', gap: '0.4rem', borderColor: '#10B981', color: '#10B981', display: 'flex', alignItems: 'center' }}
-                                                        title="Excel Export aller Messräume (Download)"
-                                                    >
-                                                        <Table size={16} />
-                                                        Excel Export
-                                                    </button>
-                                                </div>
+                                                {mode === 'desktop' && (
+                                                    <>
+                                                        <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-outline"
+                                                                onClick={async () => {
+                                                                    try {
+                                                                        await generateMeasurementExcel(formData);
+                                                                    } catch (error) {
+                                                                        console.error("Excel Export failed:", error);
+                                                                        alert("Fehler beim Erstellen des Excel-Protokolls.");
+                                                                    }
+                                                                }}
+                                                                style={{ fontSize: '0.85rem', padding: '0.5rem 1rem', gap: '0.4rem', borderColor: '#10B981', color: '#10B981', display: 'flex', alignItems: 'center' }}
+                                                                title="Excel Export aller Messräume (Download)"
+                                                            >
+                                                                <Table size={16} />
+                                                                Excel Export
+                                                            </button>
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
 
                                             {/* Divider */}
 
 
-
                                             {/* Divider */}
-                                            <div style={{ borderTop: '1px solid var(--border)', margin: '0 -1.5rem 1.5rem -1.5rem' }}></div>
+                                            {mode === 'desktop' && (
+                                                <>
+                                                    <div style={{ borderTop: '1px solid var(--border)', margin: '0 -1.5rem 1.5rem -1.5rem' }}></div>
 
-                                            {/* Section 3: Schadensbericht (PDF) */}
-                                            <div>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+                                                    {/* Section 3: Schadensbericht (PDF) */}
                                                     <div>
-                                                        <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                            <FileText size={18} className="text-rose-500" style={{ color: '#EF4444' }} />
-                                                            Schadensbericht
-                                                        </h4>
-                                                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
-                                                            PDF-Exporte des Berichts
-                                                        </p>
-                                                    </div>
-
-                                                </div>
-
-                                                {/* Calculated / Generated Files List */}
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                                    {formData.images
-                                                        .filter(img => img.assignedTo === 'Schadensbericht') // Now distinct!
-                                                        .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-                                                        .map((item, idx) => (
-                                                            <div
-                                                                key={idx}
-                                                                onClick={() => {
-                                                                    if (item.file) {
-                                                                        const url = URL.createObjectURL(item.file);
-                                                                        const a = document.createElement('a');
-                                                                        a.href = url;
-                                                                        a.download = item.name;
-                                                                        a.click();
-                                                                    } else if (item.preview) {
-                                                                        window.open(item.preview, '_blank');
-                                                                    }
-                                                                }}
-                                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'}
-                                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'}
-                                                                style={{
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '0.75rem',
-                                                                    padding: '0.75rem',
-                                                                    backgroundColor: 'rgba(255,255,255,0.02)',
-                                                                    border: '1px solid var(--border)',
-                                                                    borderRadius: 'var(--radius)',
-                                                                    cursor: 'pointer',
-                                                                    transition: 'background-color 0.2s ease'
-                                                                }}
-                                                                title="Klicken zum Öffnen"
-                                                            >
-                                                                <div style={{ padding: '0.25rem', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                                    {/* PDF Icon */}
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28">
-                                                                        <path fill="#EF4444" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
-                                                                        <path fill="rgba(255,255,255,0.5)" d="M14 2v6h6" />
-                                                                        <text x="50%" y="70%" dominantBaseline="middle" textAnchor="middle" fill="#fff" fontSize="6" fontWeight="bold">PDF</text>
-                                                                    </svg>
-                                                                </div>
-
-                                                                <div style={{ flex: 1, overflow: 'hidden' }}>
-                                                                    <div style={{ fontSize: '0.95rem', color: 'var(--text-main)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
-                                                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>{item.date ? new Date(item.date).toLocaleDateString('de-CH') : '-'}</div>
-                                                                </div>
-
-                                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                                    <div style={{ color: 'var(--primary)', opacity: 0.8 }}>
-                                                                        <Download size={18} />
-                                                                    </div>
-                                                                </div>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+                                                            <div>
+                                                                <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                                    <FileText size={18} className="text-rose-500" style={{ color: '#EF4444' }} />
+                                                                    Schadensbericht
+                                                                </h4>
+                                                                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+                                                                    PDF-Exporte des Berichts
+                                                                </p>
                                                             </div>
-                                                        ))}
-                                                    {formData.images.filter(img => img.assignedTo === 'Schadensbericht').length === 0 && (
-                                                        <div style={{ padding: '1rem', fontStyle: 'italic', color: 'var(--text-muted)', textAlign: 'center', fontSize: '0.85rem' }}>
-                                                            Keine Schadensberichte vorhanden.
+
                                                         </div>
-                                                    )}
-                                                </div>
-                                            </div >
-                                        </div>
+
+                                                        {/* Calculated / Generated Files List */}
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                                            {formData.images
+                                                                .filter(img => img.assignedTo === 'Schadensbericht') // Now distinct!
+                                                                .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+                                                                .map((item, idx) => (
+                                                                    <div
+                                                                        key={idx}
+                                                                        onClick={() => {
+                                                                            if (item.file) {
+                                                                                const url = URL.createObjectURL(item.file);
+                                                                                const a = document.createElement('a');
+                                                                                a.href = url;
+                                                                                a.download = item.name;
+                                                                                a.click();
+                                                                            } else if (item.preview) {
+                                                                                window.open(item.preview, '_blank');
+                                                                            }
+                                                                        }}
+                                                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'}
+                                                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'}
+                                                                        style={{
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '0.75rem',
+                                                                            padding: '0.75rem',
+                                                                            backgroundColor: 'rgba(255,255,255,0.02)',
+                                                                            border: '1px solid var(--border)',
+                                                                            borderRadius: 'var(--radius)',
+                                                                            cursor: 'pointer',
+                                                                            transition: 'background-color 0.2s ease'
+                                                                        }}
+                                                                        title="Klicken zum Öffnen"
+                                                                    >
+                                                                        <div style={{ padding: '0.25rem', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                                            {/* PDF Icon */}
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28">
+                                                                                <path fill="#EF4444" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
+                                                                                <path fill="rgba(255,255,255,0.5)" d="M14 2v6h6" />
+                                                                                <text x="50%" y="70%" dominantBaseline="middle" textAnchor="middle" fill="#fff" fontSize="6" fontWeight="bold">PDF</text>
+                                                                            </svg>
+                                                                        </div>
+
+                                                                        <div style={{ flex: 1, overflow: 'hidden' }}>
+                                                                            <div style={{ fontSize: '0.95rem', color: 'var(--text-main)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
+                                                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>{item.date ? new Date(item.date).toLocaleDateString('de-CH') : '-'}</div>
+                                                                        </div>
+
+                                                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                                            <div style={{ color: 'var(--primary)', opacity: 0.8 }}>
+                                                                                <Download size={18} />
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            {formData.images.filter(img => img.assignedTo === 'Schadensbericht').length === 0 && (
+                                                                <div style={{ padding: '1rem', fontStyle: 'italic', color: 'var(--text-muted)', textAlign: 'center', fontSize: '0.85rem' }}>
+                                                                    Keine Schadensberichte vorhanden.
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )}</div>
                                     )}
 
 
