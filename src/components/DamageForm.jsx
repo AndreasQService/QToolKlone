@@ -1793,16 +1793,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                         {formData.projectTitle || 'Projekt'}
                     </h2>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <button
-                            type="button"
-                            onClick={() => setShowEmailImport(true)}
-                            className="btn btn-outline"
-                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', gap: '0.5rem', alignItems: 'center', marginRight: '0.5rem' }}
-                            title="Daten aus Email importieren"
-                        >
-                            <Mail size={16} />
-                            <span className="hide-mobile">Email Import</span>
-                        </button>
+
                         <select
                             className="form-input"
                             style={{ padding: '0.25rem 0.5rem', fontSize: '0.9rem', width: 'auto' }}
@@ -1992,9 +1983,8 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                 <div style={{ marginBottom: '1.5rem' }}>
                     <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Kontakte</h3>
                     <div style={{
-                        display: mode === 'desktop' ? 'grid' : 'flex',
-                        gridTemplateColumns: mode === 'desktop' ? 'repeat(4, 1fr)' : undefined,
-                        flexDirection: mode === 'desktop' ? undefined : 'column',
+                        display: 'grid',
+                        gridTemplateColumns: mode === 'desktop' ? 'repeat(4, 1fr)' : 'repeat(2, 1fr)',
                         gap: '0.75rem'
                     }}>
                         {formData.contacts.map((contact, idx) => (
@@ -2043,13 +2033,35 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
                                 <div style={{ display: 'flex', gap: '0.25rem' }}>
                                     <input
                                         type="text"
-                                        placeholder="Telefon"
+                                        placeholder="+41 79 123 45 67"
                                         className="form-input"
                                         value={contact.phone}
                                         onChange={(e) => {
                                             const newContacts = [...formData.contacts];
                                             newContacts[idx].phone = e.target.value;
                                             setFormData({ ...formData, contacts: newContacts });
+                                        }}
+                                        onBlur={(e) => {
+                                            let val = e.target.value.replace(/\s+/g, '');
+                                            // Convert 079... to +4179...
+                                            if (val.match(/^0\d{9}$/)) {
+                                                val = '+41' + val.substring(1);
+                                            }
+                                            // Format +41791234567 -> +41 79 123 45 67 (Standard Mobile)
+                                            if (val.match(/^\+41\d{9}$/)) {
+                                                val = val.replace(/(\+41)(\d{2})(\d{3})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5');
+                                            }
+                                            // Handle 8 digits edge case (+41 76 61 31 22)
+                                            else if (val.match(/^\+41\d{8}$/)) {
+                                                val = val.replace(/(\+41)(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5');
+                                            }
+
+                                            // Update state if changed
+                                            if (val !== e.target.value) {
+                                                const newContacts = [...formData.contacts];
+                                                newContacts[idx].phone = val;
+                                                setFormData({ ...formData, contacts: newContacts });
+                                            }
                                         }}
                                         style={{ flex: 1, fontSize: '0.9rem' }}
                                     />
