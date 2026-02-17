@@ -6508,15 +6508,17 @@ END:VCARD`;
                         )}
 
                         <div style={{ display: 'flex', gap: '1rem' }}>
-                            <button
-                                type="button"
-                                className="btn btn-outline"
-                                onClick={handlePDFClick}
-                                style={{ color: '#365E7D', borderColor: '#365E7D' }}
-                            >
-                                <FileText size={18} />
-                                Bericht konfigurieren
-                            </button>
+                            {mode === 'desktop' && (
+                                <button
+                                    type="button"
+                                    className="btn btn-outline"
+                                    onClick={handlePDFClick}
+                                    style={{ color: '#365E7D', borderColor: '#365E7D' }}
+                                >
+                                    <FileText size={18} />
+                                    Bericht konfigurieren
+                                </button>
+                            )}
                             <button type="button" className="btn btn-outline" onClick={onCancel}>Abbrechen</button>
                             {mode === 'desktop' && (
                                 <button type="submit" className="btn btn-primary">
