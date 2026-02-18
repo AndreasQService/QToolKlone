@@ -3,7 +3,7 @@ import AiSuggestionsPanel from "./AiSuggestionsPanel";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Camera, Image, Trash, X, Plus, Edit3, Save, Upload, FileText, CheckCircle, Circle, AlertTriangle, Play, HelpCircle, ArrowLeft, Mail, Map, MapPin, Folder, Mic, Paperclip, Table, Download, Check, Settings, RotateCcw, ChevronDown, ChevronUp, Briefcase, Hammer, ClipboardList, MicOff } from 'lucide-react'
+import { Camera, Image, Trash, X, Plus, Edit3, Save, Upload, FileText, CheckCircle, Circle, AlertTriangle, Play, HelpCircle, ArrowLeft, Mail, Map, MapPin, Folder, Mic, Paperclip, Table, Download, Check, Settings, RotateCcw, ChevronDown, ChevronUp, Briefcase, Hammer } from 'lucide-react'
 import { supabase } from '../supabaseClient';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -18,16 +18,6 @@ import OpenAI from "openai";
 import CameraCaptureModal from './CameraCaptureModal';
 import MeasurementModal from './MeasurementModal';
 import { generateMeasurementExcel } from '../utils/MeasurementExcelExporter';
-
-/* Custom PDF Icon */
-const PdfIcon = ({ size = 24, style = {} }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
-        <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" fill="white" stroke="#4b5563" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <polyline points="14 2 14 8 20 8" fill="none" stroke="#4b5563" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <rect x="3" y="11" width="18" height="7" rx="1.5" fill="#ef4444" />
-        <text x="12" y="15.5" fill="white" fontSize="5.5" fontWeight="900" textAnchor="middle" dominantBaseline="middle" style={{ fontFamily: 'Arial, sans-serif', userSelect: 'none' }}>PDF</text>
-    </svg>
-);
 
 const STEPS = ['Schadenaufnahme', 'Leckortung', 'Trocknung', 'Instandsetzung']
 
@@ -231,54 +221,6 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
     const [availableDevices, setAvailableDevices] = useState([]);
     const [selectedDevice, setSelectedDevice] = useState(null); // The object from DB
     const [deviceFetchError, setDeviceFetchError] = useState(null);
-
-    // Measures State
-    const [showMeasuresDropdown, setShowMeasuresDropdown] = useState(false);
-    const [isListeningMeasures, setIsListeningMeasures] = useState(false);
-    const recognitionRefMeasures = useRef(null);
-
-    const toggleMeasuresListening = () => {
-        if (isListeningMeasures) {
-            recognitionRefMeasures.current?.stop();
-            setIsListeningMeasures(false);
-            return;
-        }
-
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert("Ihr Browser unterstützt keine Spracherkennung.");
-            return;
-        }
-
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'de-DE';
-        recognition.interimResults = false;
-        recognition.continuous = false;
-
-        recognition.onstart = () => setIsListeningMeasures(true);
-        recognition.onend = () => setIsListeningMeasures(false);
-        recognition.onerror = (event) => {
-            console.error("Speech error", event.error);
-            setIsListeningMeasures(false);
-        };
-
-        recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            if (transcript) {
-                const current = formData.measures ? formData.measures + ' ' : '';
-                setFormData(prev => ({ ...prev, measures: current + transcript }));
-            }
-        };
-
-        recognitionRefMeasures.current = recognition;
-        recognition.start();
-    };
-
-    const addMeasure = (text) => {
-        const current = formData.measures ? formData.measures + '\n' : '';
-        setFormData(prev => ({ ...prev, measures: current + text }));
-        setShowMeasuresDropdown(false);
-    };
 
     // Fetch available devices on mount (and when status changes)
     useEffect(() => {
@@ -1898,43 +1840,16 @@ END:VCARD`;
         console.log("handleEmailImport called with:", data);
         if (!data) return;
 
-        // Enhanced Logic: Filter out "Verwaltung" from contacts if mapped to assignedTo
-        let importContacts = [...(data.contacts || [])];
-        let importManager = data.manager;
-
-        // Find "Verwaltung" contact to merge/remove
-        const adminIndex = importContacts.findIndex(c =>
-            c.role === 'Verwaltung' || (importManager && c.name && c.name.toLowerCase().includes(importManager.toLowerCase()))
-        );
-
-        if (adminIndex !== -1) {
-            const adminC = importContacts[adminIndex];
-            // Construct detailed string: Name, Tel, Email
-            // Only add if not already present in the string
-            if (!importManager) importManager = adminC.name;
-
-            if (adminC.phone && (!importManager || !importManager.includes(adminC.phone))) {
-                importManager = (importManager ? importManager + ", " : "") + adminC.phone;
-            }
-            if (adminC.email && (!importManager || !importManager.includes(adminC.email))) {
-                importManager = (importManager ? importManager + ", " : "") + adminC.email;
-            }
-
-            // Remove from list to avoid duplication
-            importContacts.splice(adminIndex, 1);
-        }
-
         setFormData(prev => {
             const newContacts = [
                 ...(prev.contacts || []),
-                ...importContacts
+                ...(data.contacts || [])
             ];
 
             return {
                 ...prev,
                 projectTitle: data.projectTitle || prev.projectTitle,
                 client: data.client || prev.client,
-                assignedTo: importManager || prev.assignedTo,
                 description: data.description ? (prev.description ? prev.description + '\n\n' + data.description : data.description) : prev.description,
                 street: data.street || prev.street,
                 zip: data.zip || prev.zip,
@@ -1967,27 +1882,10 @@ END:VCARD`;
                         deviceError={deviceError}
                     />
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '2px solid var(--primary)', paddingBottom: '0.5rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        <button
-                            onClick={onCancel}
-                            style={{
-                                background: 'transparent',
-                                border: 'none',
-                                color: 'var(--text-main)',
-                                padding: '0.25rem',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                            }}
-                        >
-                            <ArrowLeft size={24} />
-                        </button>
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
-                            {formData.projectTitle || 'Projekt'}
-                        </h2>
-                    </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '2px solid var(--primary)' }}>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
+                        {formData.projectTitle || 'Projekt'}
+                    </h2>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
 
                         <select
@@ -2010,93 +1908,89 @@ END:VCARD`;
 
 
 
-                {/* File Upload Panel & AI Suggestions - ONLY DESKTOP */}
-                {mode === 'desktop' && (
-                    <div style={{ marginBottom: '1.5rem' }}>
-                        <UploadPanel
-                            caseId={formData.id}
-                            onCaseCreated={(newId) => setFormData(prev => ({ ...prev, id: newId }))}
-                            onExtractionComplete={(data) => {
-                                console.log("Extraction complete, applying data direct:", data);
-                                handleEmailImport(data);
-                            }}
-                            onImagesUploaded={(newImages) => {
+                {/* File Upload Panel */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <UploadPanel
+                        caseId={formData.id}
+                        onCaseCreated={(newId) => setFormData(prev => ({ ...prev, id: newId }))}
+                        onExtractionComplete={(data) => {
+                            console.log("Extraction complete, reviewing data:", data);
+                            setExtractedData(data);
+                        }}
+                        onImagesUploaded={(newImages) => {
+                            setFormData(prev => ({
+                                ...prev,
+                                images: [...(prev.images || []), ...newImages]
+                            }));
+                        }}
+                    />
+
+                    {/* AI Suggestions Confirmation Panel */}
+                    {extractedData && (
+                        <AiSuggestionsPanel
+                            extractedData={extractedData}
+                            currentFormData={formData}
+                            onDismiss={() => setExtractedData(null)}
+                            onApplyField={(field, value) => {
                                 setFormData(prev => ({
                                     ...prev,
-                                    images: [...(prev.images || []), ...newImages]
+                                    [field]: value
                                 }));
+                                // Remove field from suggestions after applying? Or keep until dismissed?
+                                // Usually better to keep it visible so user knows what came from AI
+                            }}
+                            onApplyAll={(allData) => {
+                                console.log("Applying all AI data:", allData);
+                                handleEmailImport(allData); // Reuse existing import logic
+                                setExtractedData(null); // Close panel
                             }}
                         />
+                    )}
+                </div>
 
-                        {/* AI Suggestions Confirmation Panel */}
-                        {extractedData && (
-                            <AiSuggestionsPanel
-                                extractedData={extractedData}
-                                currentFormData={formData}
-                                onDismiss={() => setExtractedData(null)}
-                                onApplyField={(field, value) => {
-                                    setFormData(prev => ({
-                                        ...prev,
-                                        [field]: value
-                                    }));
-                                    // Remove field from suggestions after applying? Or keep until dismissed?
-                                    // Usually better to keep it visible so user knows what came from AI
-                                }}
-                                onApplyAll={(allData) => {
-                                    console.log("Applying all AI data:", allData);
-                                    handleEmailImport(allData); // Reuse existing import logic
-                                    setExtractedData(null); // Close panel
-                                }}
+                {/* 1a. Project Details (Client / Manager) - Moved Up */}
+                <div style={{ marginBottom: '1.5rem', backgroundColor: 'var(--surface)', padding: '1rem', borderRadius: '8px', color: 'var(--text-main)' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
+                        <Briefcase size={18} /> Auftrag & Verwaltung
+                    </h3>
+
+                    <div style={{ display: 'flex', flexDirection: 'row', gap: '1rem', flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, minWidth: '200px' }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Auftraggeber</label>
+                            <input
+                                type="text"
+                                className="form-input"
+                                value={formData.client || ''}
+                                onChange={(e) => setFormData(prev => ({ ...prev, client: e.target.value }))}
+                                placeholder="Auftraggeber eingeben"
+                                style={{ width: '100%' }}
                             />
-                        )}
-                    </div>
-                )}
-
-                {/* 1a. Project Details (Client / Manager) - ONLY DESKTOP */}
-                {mode === 'desktop' && (
-                    <div style={{ marginBottom: '1.5rem', backgroundColor: 'var(--surface)', padding: '1rem', borderRadius: '8px', color: 'var(--text-main)' }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
-                            <Briefcase size={18} /> Auftrag & Verwaltung
-                        </h3>
-
-                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'nowrap' }}>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Auftraggeber</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.client || ''}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, client: e.target.value }))}
-                                    placeholder="Auftraggeber eingeben"
-                                    style={{ width: '100%' }}
-                                />
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Zuständige Bewirtschaftung</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.assignedTo || ''}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, assignedTo: e.target.value }))}
-                                    placeholder="Verwaltung / Bewirtschafter eingeben"
-                                    style={{ width: '100%' }}
-                                />
-                            </div>
-                            <div style={{ width: '160px', flexShrink: 0 }}>
-                                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Schadensart</label>
-                                <select
-                                    className="form-input"
-                                    value={formData.damageCategory || 'Wasserschaden'}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, damageCategory: e.target.value }))}
-                                    style={{ width: '100%' }}
-                                >
-                                    <option value="Wasserschaden">Wasserschaden</option>
-                                    <option value="Schimmel">Schimmel</option>
-                                </select>
-                            </div>
+                        </div>
+                        <div style={{ flex: 1, minWidth: '200px' }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Zuständige Bewirtschaftung</label>
+                            <input
+                                type="text"
+                                className="form-input"
+                                value={formData.assignedTo || ''}
+                                onChange={(e) => setFormData(prev => ({ ...prev, assignedTo: e.target.value }))}
+                                placeholder="Verwaltung / Bewirtschafter eingeben"
+                                style={{ width: '100%' }}
+                            />
+                        </div>
+                        <div style={{ flex: 1, minWidth: '200px' }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Schadensart</label>
+                            <select
+                                className="form-input"
+                                value={formData.damageCategory || 'Wasserschaden'}
+                                onChange={(e) => setFormData(prev => ({ ...prev, damageCategory: e.target.value }))}
+                                style={{ width: '100%' }}
+                            >
+                                <option value="Wasserschaden">Wasserschaden</option>
+                                <option value="Schimmel">Schimmel</option>
+                            </select>
                         </div>
                     </div>
-                )}
+                </div>
 
                 {/* Address Text Details */}
                 <div style={{ marginBottom: '1.5rem', backgroundColor: 'var(--surface)', padding: '1rem', borderRadius: '8px', color: 'var(--text-main)' }}>
@@ -2120,56 +2014,6 @@ END:VCARD`;
                         )}
                     </div>
                 </div>
-
-                {/* Technician: Schadenbeschreibung & Bilder (KI / Meldung) */}
-                {mode === 'technician' && (
-                    <div style={{ marginBottom: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <FileText size={18} /> Schadenbeschreibung (KI / Meldung)
-                        </h3>
-                        <div style={{ backgroundColor: 'var(--surface)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '1.5rem' }}>
-                            <textarea
-                                className="form-input"
-                                value={formData.description || ''}
-                                readOnly={true}
-                                placeholder="Beschrieb aus der Meldung..."
-                                style={{
-                                    width: '100%', minHeight: '100px',
-                                    backgroundColor: 'transparent', border: 'none',
-                                    resize: 'none',
-                                    fontFamily: 'inherit', color: 'var(--text-main)',
-                                    cursor: 'default'
-                                }}
-                            />
-                        </div>
-
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Image size={18} /> Schadensbilder (Meldung)
-                        </h3>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', backgroundColor: 'var(--surface)', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                            {formData.images && formData.images.filter(img => {
-                                const isDoc = img.type === 'document' ||
-                                    img.name?.toLowerCase().endsWith('.msg') ||
-                                    img.name?.toLowerCase().endsWith('.pdf') ||
-                                    img.name?.toLowerCase().endsWith('.txt');
-                                return img && !img.roomId && !isDoc;
-                            }).map((img, idx) => (
-                                <div key={idx}
-                                    style={{
-                                        width: '80px', height: '80px', borderRadius: '4px', overflow: 'hidden',
-                                        border: '1px solid var(--border)', cursor: 'pointer'
-                                    }}
-                                    onClick={() => setGlobalPreviewImage(img.preview)}
-                                >
-                                    <img src={img.preview} alt="Schadensbild" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                </div>
-                            ))}
-                            {(!formData.images || formData.images.filter(img => !img.roomId && !(img.type === 'document' || img.name?.toLowerCase().endsWith('.msg') || img.name?.toLowerCase().endsWith('.pdf') || img.name?.toLowerCase().endsWith('.txt'))).length === 0) && (
-                                <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', width: '100%', textAlign: 'center', padding: '1rem' }}>Keine Bilder vorhanden.</div>
-                            )}
-                        </div>
-                    </div>
-                )}
 
                 {/* Desktop-Only: Schadenbeschreibung (AI Extracted) */}
                 {mode === 'desktop' && (
@@ -2371,10 +2215,7 @@ END:VCARD`;
                                             onClick={() => window.open(img.preview, '_blank')}
                                             title={img.name}
                                         >
-                                            {(img.name?.toLowerCase().endsWith('.pdf') || img.fileType === 'pdf') ?
-                                                <PdfIcon size={24} /> :
-                                                (img.name?.toLowerCase().endsWith('.msg') ? <Mail size={24} color="var(--primary)" /> : <FileText size={24} color="var(--primary)" />)
-                                            }
+                                            {img.name?.toLowerCase().endsWith('.msg') ? <Mail size={24} color="var(--primary)" /> : <FileText size={24} color="var(--primary)" />}
                                             <div style={{ fontSize: '0.7rem', marginTop: 4, width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center', color: 'var(--text-main)' }}>
                                                 {img.name}
                                             </div>
@@ -2677,97 +2518,6 @@ END:VCARD`;
 
                         {mode === 'technician' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                {/* NEW: Schadenursache Section (Technician) */}
-                                <div style={{ marginBottom: '1rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.02)' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                                        <h4 style={{ fontSize: '1rem', fontWeight: 600, margin: 0, color: 'var(--text-main)' }}>Schadenursache</h4>
-                                        <button
-                                            type="button"
-                                            onClick={handleGeneratePDF}
-                                            disabled={isGeneratingPDF}
-                                            className="btn btn-outline"
-                                            style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', display: 'flex', gap: '0.4rem', alignItems: 'center', backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
-                                        >
-                                            <FileText size={14} />
-                                            Schadensbericht
-                                        </button>
-                                    </div>
-
-                                    <div style={{ marginBottom: '1rem' }}>
-                                        <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Schadenursache</label>
-                                        <textarea
-                                            className="form-input"
-                                            value={formData.causeDescription || ''}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, causeDescription: e.target.value }))}
-                                            placeholder="Beschreibung der Ursache..."
-                                            style={{ width: '100%', minHeight: '80px', fontFamily: 'inherit' }}
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Fotos zur Ursache</label>
-
-                                        <div
-                                            style={{
-                                                border: '2px dashed var(--border)', borderRadius: '8px', padding: '1.5rem',
-                                                textAlign: 'center', cursor: 'pointer', backgroundColor: 'var(--bg-secondary)',
-                                                marginBottom: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem'
-                                            }}
-                                            onClick={() => document.getElementById('cause-upload-input').click()}
-                                        >
-                                            <Plus size={24} color="var(--text-muted)" />
-                                            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Schadenfoto hochladen / Drop</div>
-                                        </div>
-                                        <input
-                                            id="cause-upload-input"
-                                            type="file"
-                                            multiple
-                                            accept="image/*"
-                                            style={{ display: 'none' }}
-                                            onChange={(e) => {
-                                                if (e.target.files && e.target.files.length > 0) {
-                                                    const files = Array.from(e.target.files).map(file => ({
-                                                        file,
-                                                        preview: URL.createObjectURL(file),
-                                                        name: file.name,
-                                                        type: 'image'
-                                                    }));
-                                                    setFormData(prev => ({ ...prev, causeImages: [...(prev.causeImages || []), ...files] }));
-                                                }
-                                            }}
-                                        />
-
-                                        {(!formData.causeImages || formData.causeImages.length === 0) ? (
-                                            <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
-                                                Keine Schadenfotos vorhanden.
-                                            </div>
-                                        ) : (
-                                            <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
-                                                {formData.causeImages.map((img, idx) => (
-                                                    <div key={idx} style={{ position: 'relative', width: '70px', height: '70px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--border)' }}>
-                                                        <img src={img.preview || img.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                const newImages = [...formData.causeImages];
-                                                                newImages.splice(idx, 1);
-                                                                setFormData(prev => ({ ...prev, causeImages: newImages }));
-                                                            }}
-                                                            style={{
-                                                                position: 'absolute', top: 0, right: 0,
-                                                                background: 'rgba(0,0,0,0.6)', color: 'white',
-                                                                border: 'none', cursor: 'pointer', padding: '2px'
-                                                            }}
-                                                        >
-                                                            <X size={12} />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
                                 <button
                                     type="button"
                                     className={`btn ${showAddRoomForm ? 'btn-ghost' : 'btn-primary'}`}
@@ -3200,21 +2950,23 @@ END:VCARD`;
                                                                                 <img src={img.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onClick={() => window.open(img.preview, '_blank')} />
                                                                             </div>
                                                                             <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '0 2px', alignItems: 'center' }}>
-                                                                                <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', fontSize: '0.75rem', cursor: 'pointer', color: 'var(--text-main)' }}>
-                                                                                    <input
-                                                                                        type="checkbox"
-                                                                                        style={{ width: '20px', height: '20px', accentColor: 'var(--primary)' }}
-                                                                                        checked={img.includeInReport !== false}
-                                                                                        onChange={(e) => {
-                                                                                            const isChecked = e.target.checked;
-                                                                                            setFormData(prev => ({
-                                                                                                ...prev,
-                                                                                                images: prev.images.map(i => i === img ? { ...i, includeInReport: isChecked } : i)
-                                                                                            }));
-                                                                                        }}
-                                                                                    />
-                                                                                    <span style={{ fontWeight: 600 }}>Bericht</span>
-                                                                                </label>
+                                                                                {mode === 'desktop' && (
+                                                                                    <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', fontSize: '0.75rem', cursor: 'pointer', color: '#374151' }}>
+                                                                                        <input
+                                                                                            type="checkbox"
+                                                                                            style={{ width: '20px', height: '20px', accentColor: 'var(--primary)' }}
+                                                                                            checked={img.includeInReport !== false}
+                                                                                            onChange={(e) => {
+                                                                                                const isChecked = e.target.checked;
+                                                                                                setFormData(prev => ({
+                                                                                                    ...prev,
+                                                                                                    images: prev.images.map(i => i === img ? { ...i, includeInReport: isChecked } : i)
+                                                                                                }));
+                                                                                            }}
+                                                                                        />
+                                                                                        <span style={{ fontWeight: 600 }}>Bericht</span>
+                                                                                    </label>
+                                                                                )}
                                                                                 <button
                                                                                     type="button"
                                                                                     title="Bearbeiten"
@@ -3553,75 +3305,6 @@ END:VCARD`;
                                     <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic', padding: '1rem' }}>Keine Emails vorhanden.</div>
                                 )}
                             </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* 2b. Massnahmen (Measures) - Technician Only (Schadenaufnahme/Leckortung) */}
-                {mode === 'technician' && (formData.status === 'Schadenaufnahme' || formData.status === 'Leckortung') && (
-                    <div style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.02)' }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <ClipboardList size={18} /> Massnahmen
-                        </h3>
-
-                        {/* Checkbox Liste */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
-                            {[
-                                "Trocknung",
-                                "Schimmelbehandlung",
-                                "Organisation externer Handwerker",
-                                "Instandstellung"
-                            ].map((item) => (
-                                <label key={item} style={{
-                                    display: 'flex', alignItems: 'center', gap: '0.75rem',
-                                    padding: '0.75rem',
-                                    border: '1px solid var(--border)',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    backgroundColor: (formData.selectedMeasures?.includes(item)) ? 'rgba(56, 189, 248, 0.1)' : 'transparent',
-                                    borderColor: (formData.selectedMeasures?.includes(item)) ? 'var(--primary)' : 'var(--border)'
-                                }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.selectedMeasures?.includes(item) || false}
-                                        onChange={() => {
-                                            setFormData(prev => {
-                                                const current = prev.selectedMeasures || [];
-                                                if (current.includes(item)) {
-                                                    return { ...prev, selectedMeasures: current.filter(i => i !== item) };
-                                                } else {
-                                                    return { ...prev, selectedMeasures: [...current, item] };
-                                                }
-                                            });
-                                        }}
-                                        style={{ width: '20px', height: '20px', accentColor: 'var(--primary)' }}
-                                    />
-                                    <span style={{ fontSize: '1rem', fontWeight: 500 }}>{item}</span>
-                                </label>
-                            ))}
-                        </div>
-
-                        {/* Freitext & Mikrofon */}
-                        <div style={{ position: 'relative' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Eigener Text / Ergänzungen</label>
-                                <button
-                                    type="button"
-                                    className={`btn ${isListeningMeasures ? 'btn-danger' : 'btn-outline'}`}
-                                    onClick={toggleMeasuresListening}
-                                    style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                                >
-                                    {isListeningMeasures ? <MicOff size={14} /> : <Mic size={14} />}
-                                    {isListeningMeasures ? 'Stop' : 'Diktieren'}
-                                </button>
-                            </div>
-                            <textarea
-                                className="form-input"
-                                value={formData.measures || ''}
-                                onChange={(e) => setFormData(prev => ({ ...prev, measures: e.target.value }))}
-                                placeholder="Eigenen Text eingeben"
-                                style={{ width: '100%', minHeight: '80px', fontFamily: 'inherit' }}
-                            />
                         </div>
                     </div>
                 )}

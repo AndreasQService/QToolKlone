@@ -308,233 +308,164 @@ export default function Dashboard({ reports, onSelectReport, onDeleteReport, mod
             {/* Pass Filtered Reports to Monitors (only when not in Archive OR Technician Mode) */}
             {!showArchive && mode !== 'technician' && <DryingMonitor reports={filteredReports} onSelectReport={onSelectReport} />}
 
-            {mode === 'technician' ? (
-                <div style={{ paddingBottom: '4rem', maxWidth: '600px', margin: '0 auto', width: '100%' }}>
-                    <div style={{ marginBottom: '0.75rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                        {paginatedReports.length} Projekte gefunden
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        {paginatedReports.map(report => (
-                            <div
-                                key={report.id}
-                                onClick={() => onSelectReport(report)}
-                                style={{
-                                    backgroundColor: 'var(--surface)',
-                                    padding: '0.75rem',
-                                    borderRadius: '10px',
-                                    border: '1px solid var(--border)',
-                                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center'
-                                }}
-                            >
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
-                                        <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {report.projectTitle || report.id}
-                                        </span>
-                                        <span className={`status-badge ${statusColors[report.status] || 'bg-gray-100'}`} style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', whiteSpace: 'nowrap', marginLeft: '0.5rem', flexShrink: 0 }}>
-                                            {report.status}
-                                        </span>
-                                    </div>
-
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '0' }}>
-                                        <MapPin size={12} style={{ flexShrink: 0 }} />
-                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {report.street ? `${report.street}, ${report.city}` : (report.address ? report.address.split(',')[0] : 'Keine Adresse')}
-                                        </span>
-                                    </div>
-                                </div>
-                                <ArrowRight size={18} style={{ color: 'var(--primary)', marginLeft: '0.5rem', flexShrink: 0 }} />
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Simple Pagination for Mobile if needed, reuse same controls or simplify */}
-                    {totalPages > 1 && (
-                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '1.5rem' }}>
-                            <button
-                                className="btn btn-outline"
-                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                disabled={currentPage === 1}
-                                style={{ flex: 1 }}
-                            >
-                                Zurück
-                            </button>
-                            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{currentPage} / {totalPages}</span>
-                            <button
-                                className="btn btn-outline"
-                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                disabled={currentPage === totalPages}
-                                style={{ flex: 1 }}
-                            >
-                                Weiter
-                            </button>
-                        </div>
-                    )}
+            <div className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Alle Fälle ({filteredReports.length})</h3>
+                    <button className="btn btn-sm btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Filter size={16} /> Filter
+                    </button>
                 </div>
-            ) : (
-                <div className="card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Alle Fälle ({filteredReports.length})</h3>
-                        <button className="btn btn-sm btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Filter size={16} /> Filter
-                        </button>
-                    </div>
 
-                    <div className="table-container" style={{ maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}>
-                        <table className="data-table">
-                            <thead>
-                                <tr>
-                                    <th style={{ width: '100px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Nr.</th>
-                                    <th style={{ width: '100px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Datum</th>
-                                    <th style={{ minWidth: '150px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Schadenort</th>
-                                    <th style={{ minWidth: '180px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Adresse</th>
-                                    <th style={{ minWidth: '140px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Auftraggeber</th>
-                                    <th style={{ minWidth: '110px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Bewirtschafter/in</th>
-                                    <th style={{ minWidth: '140px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Schaden</th>
-                                    <th style={{ width: '130px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Status</th>
-                                    <th style={{ minWidth: '120px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Kunde von</th>
+                <div className="table-container" style={{ maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}>
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th style={{ width: '100px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Nr.</th>
+                                <th style={{ width: '100px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Datum</th>
+                                <th style={{ minWidth: '150px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Schadenort</th>
+                                <th style={{ minWidth: '180px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Adresse</th>
+                                <th style={{ minWidth: '140px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Auftraggeber</th>
+                                <th style={{ minWidth: '110px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Bewirtschafter/in</th>
+                                <th style={{ minWidth: '140px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Schaden</th>
+                                <th style={{ width: '130px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Status</th>
+                                <th style={{ minWidth: '120px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Kunde von</th>
 
-                                    <th style={{ width: '80px', textAlign: 'center', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Geräte</th>
-                                    <th style={{ width: '80px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)' }}></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {paginatedReports.map((report) => {
-                                    const activeDevices = report.equipment ? report.equipment.length : 0;
-                                    return (
-                                        <tr key={report.id} onClick={() => onSelectReport(report)} style={{ cursor: 'pointer' }}>
-                                            <td style={{ fontWeight: 600, fontSize: '0.9rem' }}>{report.projectTitle || report.id}</td>
-                                            <td style={{ fontSize: '0.875rem', whiteSpace: 'nowrap' }}>{formatDate(report.date)}</td>
-                                            <td style={{ fontWeight: 500 }}>{report.locationDetails || '-'}</td>
-                                            <td>
-                                                {report.street ? `${report.street}, ${report.zip} ${report.city}` : (report.address ? report.address.split(',')[0] : '')}
-                                            </td>
-                                            <td style={{ fontWeight: 500 }}>{report.client}</td>
-                                            <td>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                                                    <span>{report.assignedTo}</span>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                    <span style={{ fontWeight: 500 }}>{report.damageCategory || 'Wasserschaden'}</span>
-                                                    {report.type && (
-                                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{report.type}</span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <span className={`status-badge ${statusColors[report.status] || 'bg-gray-100'}`} style={{ color: '#1F2937' }}>
-                                                    {report.status}
-                                                </span>
-                                            </td>
-                                            <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
-                                                    <span>{report.clientSource || '-'}</span>
-                                                    {report.clientSource && (
-                                                        <button
-                                                            className="btn btn-sm btn-ghost"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                // Logic to send WhatsApp message
-                                                                const text = `Hallo ${report.clientSource || 'Partner'},\n\nhier ist ein neuer Auftrag:\nProjekt: ${report.projectTitle || report.id}\nKunde: ${report.client}\nAdresse: ${report.address}\nArt: ${report.type}\n\nBitte um Bestätigung.`;
-                                                                const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-
-                                                                if (confirm(`Auftrag an ${report.clientSource} senden via WhatsApp?`)) {
-                                                                    window.open(whatsappUrl, '_blank');
-                                                                }
-                                                            }}
-                                                            title="Auftrag via WhatsApp senden"
-                                                            style={{ padding: '2px', color: '#25D366', height: 'auto' }}
-                                                        >
-                                                            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                                                                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-                                                            </svg>
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </td>
-
-                                            <td style={{ textAlign: 'center' }}>
-                                                {activeDevices > 0 ? (
-                                                    <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                                                        {activeDevices}
-                                                    </span>
-                                                ) : (
-                                                    <span style={{ color: 'var(--border)' }}>-</span>
+                                <th style={{ width: '80px', textAlign: 'center', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>Geräte</th>
+                                <th style={{ width: '80px', position: 'sticky', top: 0, zIndex: 20, backgroundColor: 'var(--background)' }}></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {paginatedReports.map((report) => {
+                                const activeDevices = report.equipment ? report.equipment.length : 0;
+                                return (
+                                    <tr key={report.id} onClick={() => onSelectReport(report)} style={{ cursor: 'pointer' }}>
+                                        <td style={{ fontWeight: 600, fontSize: '0.9rem' }}>{report.projectTitle || report.id}</td>
+                                        <td style={{ fontSize: '0.875rem', whiteSpace: 'nowrap' }}>{formatDate(report.date)}</td>
+                                        <td style={{ fontWeight: 500 }}>{report.locationDetails || '-'}</td>
+                                        <td>
+                                            {report.street ? `${report.street}, ${report.zip} ${report.city}` : (report.address ? report.address.split(',')[0] : '')}
+                                        </td>
+                                        <td style={{ fontWeight: 500 }}>{report.client}</td>
+                                        <td>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
+                                                <span>{report.assignedTo}</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                <span style={{ fontWeight: 500 }}>{report.damageCategory || 'Wasserschaden'}</span>
+                                                {report.type && (
+                                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{report.type}</span>
                                                 )}
-                                            </td>
-                                            <td>
-                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span className={`status-badge ${statusColors[report.status] || 'bg-gray-100'}`} style={{ color: '#1F2937' }}>
+                                                {report.status}
+                                            </span>
+                                        </td>
+                                        <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+                                                <span>{report.clientSource || '-'}</span>
+                                                {report.clientSource && (
                                                     <button
+                                                        className="btn btn-sm btn-ghost"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            if (window.confirm(`Möchten Sie den Bericht "${report.projectTitle || report.id}" wirklich unwiderruflich löschen?`)) {
-                                                                onDeleteReport(report.id);
+                                                            // Logic to send WhatsApp message
+                                                            const text = `Hallo ${report.clientSource || 'Partner'},\n\nhier ist ein neuer Auftrag:\nProjekt: ${report.projectTitle || report.id}\nKunde: ${report.client}\nAdresse: ${report.address}\nArt: ${report.type}\n\nBitte um Bestätigung.`;
+                                                            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+
+                                                            if (confirm(`Auftrag an ${report.clientSource} senden via WhatsApp?`)) {
+                                                                window.open(whatsappUrl, '_blank');
                                                             }
                                                         }}
-                                                        className="btn btn-sm btn-ghost"
-                                                        style={{ color: '#EF4444', padding: '0.25rem' }}
-                                                        title="Bericht löschen"
+                                                        title="Auftrag via WhatsApp senden"
+                                                        style={{ padding: '2px', color: '#25D366', height: 'auto' }}
                                                     >
-                                                        <Trash2 size={16} />
+                                                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                                                            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                                                        </svg>
                                                     </button>
-                                                    <ArrowRight size={16} className="text-muted" />
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    )
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                                                )}
+                                            </div>
+                                        </td>
 
-                    {/* Pagination Controls */}
-                    {totalPages > 1 && (
-                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginTop: '1.5rem' }}>
-                            <button
-                                className="btn btn-outline"
-                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                disabled={currentPage === 1}
-                                style={{ padding: '0.25rem 0.5rem' }}
-                            >
-                                &lt;
-                            </button>
-
-                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                                <button
-                                    key={page}
-                                    className={`btn ${currentPage === page ? 'btn-primary' : 'btn-outline'}`}
-                                    onClick={() => setCurrentPage(page)}
-                                    style={{
-                                        width: '32px',
-                                        height: '32px',
-                                        padding: 0,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}
-                                >
-                                    {page}
-                                </button>
-                            ))}
-
-                            <button
-                                className="btn btn-outline"
-                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                disabled={currentPage === totalPages}
-                                style={{ padding: '0.25rem 0.5rem' }}
-                            >
-                                &gt;
-                            </button>
-                        </div>
-                    )}
+                                        <td style={{ textAlign: 'center' }}>
+                                            {activeDevices > 0 ? (
+                                                <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                                                    {activeDevices}
+                                                </span>
+                                            ) : (
+                                                <span style={{ color: 'var(--border)' }}>-</span>
+                                            )}
+                                        </td>
+                                        <td>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (window.confirm(`Möchten Sie den Bericht "${report.projectTitle || report.id}" wirklich unwiderruflich löschen?`)) {
+                                                            onDeleteReport(report.id);
+                                                        }
+                                                    }}
+                                                    className="btn btn-sm btn-ghost"
+                                                    style={{ color: '#EF4444', padding: '0.25rem' }}
+                                                    title="Bericht löschen"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                                <ArrowRight size={16} className="text-muted" />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )
+                            })}
+                        </tbody>
+                    </table>
                 </div>
-            )}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginTop: '1.5rem' }}>
+                        <button
+                            className="btn btn-outline"
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            style={{ padding: '0.25rem 0.5rem' }}
+                        >
+                            &lt;
+                        </button>
+
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                            <button
+                                key={page}
+                                className={`btn ${currentPage === page ? 'btn-primary' : 'btn-outline'}`}
+                                onClick={() => setCurrentPage(page)}
+                                style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    padding: 0,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}
+                            >
+                                {page}
+                            </button>
+                        ))}
+
+                        <button
+                            className="btn btn-outline"
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                            style={{ padding: '0.25rem 0.5rem' }}
+                        >
+                            &gt;
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
     )
 }

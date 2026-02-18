@@ -1,0 +1,357 @@
+:root {
+  --primary: #38BDF8;
+  /* Sky 400 */
+  --primary-hover: #0EA5E9;
+  /* Sky 500 */
+  --secondary: #2DD4BF;
+  /* Teal 400 */
+  --accent: #FBBF24;
+  /* Amber 400 */
+  --success: #34D399;
+  /* Emerald 400 */
+  --danger: #F87171;
+  /* Red 400 */
+  --background: #0F172A;
+  /* Slate 900 */
+  --surface: #1E293B;
+  /* Slate 800 */
+  --text-main: #F1F5F9;
+  /* Slate 100 */
+  --text-muted: #94A3B8;
+  /* Slate 400 */
+  --border: #334155;
+  /* Slate 700 */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
+  --radius: 0.75rem;
+  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--background);
+  color: var(--text-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+.container {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+/* Utilities */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  border: none;
+  gap: 0.5rem;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-main);
+}
+
+.btn-outline:hover {
+  background-color: var(--background);
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.375rem;
+  color: var(--text-main);
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+  background-color: var(--surface);
+  color: var(--text-main);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+}
+
+/* Fix for AutoFill Background Color */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--surface) inset !important;
+  -webkit-text-fill-color: var(--text-main) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Header */
+.app-header {
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  padding: 1rem 0;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--primary);
+}
+
+.logo-img {
+  height: 40px;
+  width: auto;
+}
+
+/* Table Styles */
+.table-container {
+  overflow-x: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 1rem;
+  background-color: var(--background);
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-main);
+}
+
+.report-row {
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.report-row:hover {
+  background-color: #F8FAFC;
+}
+
+/* Status Badges */
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.bg-gray-100 {
+  background-color: rgba(148, 163, 184, 0.15);
+  color: #94A3B8 !important;
+}
+
+.bg-blue-100 {
+  background-color: rgba(56, 189, 248, 0.15);
+  color: #38BDF8 !important;
+}
+
+.bg-yellow-100 {
+  background-color: rgba(251, 191, 36, 0.15);
+  color: #FBBF24 !important;
+}
+
+.bg-green-100 {
+  background-color: rgba(52, 211, 153, 0.15);
+  color: #34D399 !important;
+}
+
+.bg-gray-200 {
+  background-color: rgba(148, 163, 184, 0.25);
+  color: #CBD5E1 !important;
+
+}
+
+/* Print Styles */
+@media print {
+  @page {
+    margin: 1cm;
+    size: A4;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  /* Print Specific Tweaks for Excel-like Layout */
+  .print-only-container {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide everything else */
+  body > *:not(.print-wrapper) {
+    display: none !important;
+  }
+
+  .print-wrapper {
+    display: block !important;
+    width: 100vw;
+    height: 100vh;
+    background: white;
+  }
+
+  .app-header,
+  .card,
+  .btn,
+  .form-group,
+  nav,
+  header,
+  footer {
+    display: none !important;
+  }
+
+  /* Show ONLY our specific print container */
+  .print-only {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: white;
+    padding: 0;
+    margin: 0;
+  }
+
+  /* Ensure page breaks avoid breaking inside elements */
+  .print-break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* Hide print container on screen */
+.print-only {
+  display: none;
+}
+
+/* Dark Mode Date Picker Fix */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  color-scheme: dark;
+  color: white;
+  /* Ensure text is white */
+  background-color: transparent;
+  /* Or variable */
+}
+
+/* Custom white calendar icon to ensure visibility - ONLY for date/time inputs */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="15" viewBox="0 0 24 24" fill="white"><path d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z"/></svg>');
+  opacity: 1;
+  filter: none;
+}
+
+/* Hide the default dropdown arrow for datalists in text inputs to look cleaner */
+input[type="text"]::-webkit-calendar-picker-indicator {
+  display: none !important;
+}
+
+::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.8;
+}
+
+/* Hide number input spin buttons */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}

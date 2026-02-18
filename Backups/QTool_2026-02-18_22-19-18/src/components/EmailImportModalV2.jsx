@@ -62,87 +62,31 @@ const EmailImportModalV2 = ({ onClose, onImport, audioDevices, selectedDeviceId,
                 messages: [
                     {
                         role: "system",
-                        content: `Du extrahierst strukturierte Projektdaten für eine Gebäude-Sanierungsfirma (Q-Service).
+                        content: `Du extrahierst strukturierte Daten für eine Gebäude-Sanierungsfirma (Q-Service).
 
-Allgemeine Regeln:
+Regeln:
 - Erfinde keine Informationen.
 - Wenn ein Wert nicht eindeutig vorhanden ist, setze null.
-- Verwende nur Informationen, die im Dokument eindeutig stehen.
-- Verwende keine Annahmen oder Interpretationen über die expliziten Angaben hinaus.
+- projectTitle Format: "[Schadenstyp] - [Strasse]"
+- client ist die Firma oder Person, die den Auftrag erteilt oder erstellt hat.
+  In Verwaltungsaufträgen ist dies in der Regel die Verwaltung.
+  Eigentümer oder Rechnungsadresse sind nicht automatisch Auftraggeber.
+- street enthält nur Strasse und Hausnummer.
+- zip enthält nur die 4-stellige PLZ.
+- city enthält nur den Ortsnamen.
+- description ist eine sachliche, kurze Zusammenfassung (max. 3 Sätze).
 
-Felddefinitionen:
-
-- projectTitle:
-  Format: "[Schadenstyp] - [Strasse]".
-  Beispiel: "Schimmel - Waldhofstrasse 16".
-  Der Schadenstyp soll sachlich und kurz sein (z.B. Wasserschaden, Schimmel, Feuchtigkeit).
-
-- client:
-  Das ist der Auftraggeber.
-  Wenn eine Verwaltung genannt ist, ist diese IMMER als client zu setzen.
-  Eigentümer oder Rechnungsadresse sind NICHT automatisch Auftraggeber.
-  Falls keine Verwaltung vorhanden ist, verwende die Person/Firma, die den Auftrag erstellt oder versendet hat.
-
-- manager:
-  Die konkret zuständige Person der Verwaltung (Sachbearbeiter/in, Assistent/in), falls genannt.
-  Wenn keine zuständige Person genannt ist, setze null.
-
-- street:
-  Nur Strasse und Hausnummer.
-  Kein Ort, keine PLZ.
-
-- zip:
-  Nur die 4-stellige PLZ.
-
-- city:
-  Nur der Ortsname.
-
-- description:
-  Sachliche Zusammenfassung des Schadens in maximal 3 kurzen Sätze.
-  Keine Interpretation, nur Beschreibung des gemeldeten Zustands.
-
-Kontakte (contacts):
-
-Extrahiere alle relevanten Personen oder Firmen mit Rolle.
-Jeder Kontakt enthält:
-- name
-- phone
-- email
-- role
-
-Rollen-Zuordnung:
-
-- Mieter:
-  Betroffene Person oder Zutrittsperson der Wohnung.
-
-- Verwaltung:
-  Firma oder Person, die den Auftrag erstellt oder versendet hat.
-
-- Eigentümer:
-  Im Abschnitt "Eigentümer" genannte Partei.
-
-- Hauswart:
-  Nur wenn explizit als Hauswart bezeichnet.
-
-- Sonstiges:
-  Nur wenn keine der oben genannten Rollen zutrifft.
-
-Zusätzliche Regeln für Kontakte:
-- Telefonnummern immer als String übernehmen.
-- E-Mail-Adressen exakt übernehmen.
-- Wenn phone oder email nicht vorhanden sind, setze null.
-- Erzeuge keine doppelten Kontakte.
-
-Wichtig:
-- Keine zusätzlichen Felder erzeugen.
-- Wenn Informationen fehlen, verwende null.
-- Halte dich strikt an die vorgegebene JSON-Struktur.
+Rollen-Zuordnung für contacts:
+- Mieter: betroffene Person oder Zutrittsperson.
+- Verwaltung: Person oder Firma, die den Auftrag erstellt oder versendet hat.
+- Eigentümer: im Abschnitt Eigentümer genannte Partei.
+- Hauswart: wenn explizit so bezeichnet.
+- Sonstiges: nur wenn keine der oben genannten Rollen zutrifft.
 
  Format (JSON):
  {
      "projectTitle": "...",
      "client": "...",
-     "manager": "...",
      "street": "...",
      "zip": "...",
      "city": "...",
@@ -191,7 +135,7 @@ Wichtig:
         // ... (Regex logic remains similar, but setPreviewData instead of onImport) ...
         const lines = text.split('\n').map(l => l.trim()).filter(l => l);
         const data = {
-            projectTitle: '', client: '', street: '', zip: '', city: '', description: '', contacts: [], damageType: '', manager: ''
+            projectTitle: '', client: '', street: '', zip: '', city: '', description: '', contacts: [], damageType: ''
         };
 
         // ... (Keep existing regex logic for consistency/fallback, largely omitted for brevity in this replace but conceptually same) ...
@@ -258,10 +202,6 @@ Wichtig:
                         <div>
                             <label style={{ display: 'block', fontSize: '0.8rem' }}>Auftraggeber</label>
                             <input className="form-input" style={{ width: '100%' }} value={previewData.client || ''} onChange={e => setPreviewData({ ...previewData, client: e.target.value })} />
-                        </div>
-                        <div style={{ gridColumn: 'span 2' }}>
-                            <label style={{ display: 'block', fontSize: '0.8rem' }}>Verwaltung / Zuständig</label>
-                            <input className="form-input" style={{ width: '100%' }} value={previewData.manager || ''} onChange={e => setPreviewData({ ...previewData, manager: e.target.value })} />
                         </div>
                         <div style={{ gridColumn: 'span 2', display: 'flex', gap: '0.5rem' }}>
                             <div style={{ flex: 2 }}>

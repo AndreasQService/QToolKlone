@@ -1,0 +1,206 @@
+[
+  {
+    "number": "1",
+    "type": "Bautrockner",
+    "model": "Corroventa K 3 mit Pumpe",
+    "status": "Aktiv"
+  },
+  {
+    "number": "101",
+    "type": "Bautrockner",
+    "model": "AD740",
+    "status": "Aktiv"
+  },
+  {
+    "number": "11",
+    "type": "Bautrockner",
+    "model": "Corroventa K3 mit Pumpe",
+    "status": "Inaktiv"
+  },
+  {
+    "number": "17",
+    "type": "Turbinen",
+    "model": "Corroventa T2ES",
+    "status": "Inaktiv"
+  },
+  {
+    "number": "19",
+    "type": "Bautrockner",
+    "model": "Corroventa K 3 mit Pumpe",
+    "status": "Aktiv"
+  },
+  {
+    "number": "2",
+    "type": "Wasserabscheider",
+    "model": "Corroventa WS 4 ES",
+    "status": "Aktiv"
+  },
+  {
+    "number": "25",
+    "type": "Bautrockner",
+    "model": "Corroventa K3 mit Pumpe",
+    "status": "Inaktiv"
+  },
+  {
+    "number": "27",
+    "type": "Ventilatoren",
+    "model": "Standard",
+    "status": "Inaktiv"
+  },
+  {
+    "number": "28",
+    "type": "Ventilatoren",
+    "model": "Standard",
+    "status": "Inaktiv"
+  },
+  {
+    "number": "3",
+    "type": "Turbinen",
+    "model": "Corroventa T2 ES",
+    "status": "Aktiv"
+  },
+  {
+    "number": "3.13",
+    "type": "Bautrockner",
+    "model": "Corroventa K3 mit Pumpe",
+    "status": "Aktiv"
+  },
+  {
+    "number": "3.5",
+    "type": "Bautrockner",
+    "model": "Corroventa K3 mit Pumpe",
+    "status": "Aktiv"
+  },
+  {
+    "number": "31",
+    "type": "Bautrockner",
+    "model": "Corroventa K3 mit Pumpe",
+    "status": "Aktiv"
+  },
+  {
+    "number": "32",
+    "type": "Ventilatoren",
+    "model": "Standard",
+    "status": "Inaktiv"
+  },
+  {
+    "number": "33",
+    "type": "Ventilatoren",
+    "model": "Standard",
+    "status": "Inaktiv"
+  },
+  {
+    "number": "34",
+    "type": "Turbinen",
+    "model": "Corroventa T2 Turbine",
+    "status": "Inaktiv"
+  },
+  {
+    "number": "35",
+    "type": "Bautrockner",
+    "model": "Corroventa K 3 mit Pumpe",
+    "status": "Aktiv"
+  },
+  {
+    "number": "36",
+    "type": "Bautrockner",
+    "model": "Corroventa K 3 mit Pumpe",
+    "status": "Inaktiv"
+  },
+  {
+    "number": "37",
+    "type": "Bautrockner",
+    "model": "Corroventa K 3 mit Pumpe",
+    "status": "Aktiv"
+  },
+  {
+    "number": "38",
+    "type": "Bautrockner",
+    "model": "Corroventa K 3 mit Pumpe",
+    "status": "Inaktiv"
+  },
+  {
+    "number": "39",
+    "type": "Bautrockner",
+    "model": "Corroventa K 3 mit Pumpe",
+    "status": "Aktiv"
+  },
+  {
+    "number": "4",
+    "type": "Bautrockner",
+    "model": "Corroventa K3 mit Pumpe",
+    "status": "Aktiv"
+  },
+  {
+    "number": "40",
+    "type": "Ventilator",
+    "model": "Corroventa Turbine T2",
+    "status": "Inaktiv"
+  },
+  {
+    "number": "41",
+    "type": "Bautrockner",
+    "model": "Corroventa K3 mit Pumpe",
+    "status": "Inaktiv"
+  },
+  {
+    "number": "42",
+    "type": "Turbinen",
+    "model": "Corroventa T2 Turbine",
+    "status": "Aktiv"
+  },
+  {
+    "number": "43",
+    "type": "Ventilator",
+    "model": "Corroventa Turbine T2",
+    "status": "Inaktiv"
+  },
+  {
+    "number": "44",
+    "type": "Bautrockner",
+    "model": "Corroventa K3 mit Pumpe",
+    "status": "Aktiv"
+  },
+  {
+    "number": "45",
+    "type": "Bautrockner",
+    "model": "Corroventa K3 mit Behalter",
+    "status": "Aktiv"
+  },
+  {
+    "number": "47",
+    "type": "Bautrockner",
+    "model": "Corroventa K 3 mit Pumpe",
+    "status": "Aktiv"
+  },
+  {
+    "number": "48",
+    "type": "Bautrockner",
+    "model": "Corroventa K 3 mit Pumpe",
+    "status": "Inaktiv"
+  },
+  {
+    "number": "49",
+    "type": "Turbinen",
+    "model": "Corroventa T2 Turbine",
+    "status": "Inaktiv"
+  },
+  {
+    "number": "5",
+    "type": "Turbinen",
+    "model": "Corroventa T2 Es",
+    "status": "Aktiv"
+  },
+  {
+    "number": "50",
+    "type": "Bautrockner",
+    "model": "Corroventa K 3 mit Pumpe",
+    "status": "Aktiv"
+  },
+  {
+    "number": "51",
+    "type": "Bautrockner",
+    "model": "Corroventa K 3 mit Pumpe",
+    "status": "Aktiv"
+  }
+]

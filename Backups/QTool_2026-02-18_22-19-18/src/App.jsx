@@ -357,7 +357,7 @@ function App() {
         </div>
       </header>
 
-      <main className="container" style={{ marginTop: isTechnicianMode ? '1rem' : '2rem', padding: isTechnicianMode ? '0.5rem' : '1rem' }}>
+      <main className="container" style={{ marginTop: '2rem' }}>
         {view === 'dashboard' && <Dashboard reports={reports} onSelectReport={handleSelectReport} onDeleteReport={handleDeleteReport} mode={isTechnicianMode ? 'technician' : 'desktop'} />}
         {view === 'devices' && <DeviceManager reports={reports} onBack={() => setView('dashboard')} onNavigateToReport={handleNavigateToReport} />}
         {(view === 'new-report' || view === 'details') && (
