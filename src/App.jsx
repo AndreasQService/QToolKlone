@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, LayoutDashboard, Settings, User, Users, LogOut, Thermometer } from 'lucide-react'
+import { Plus, LayoutDashboard, Settings, User, Users, LogOut, Thermometer, Database } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import Dashboard from './components/Dashboard'
 import DamageForm from './components/DamageForm'
@@ -16,7 +16,7 @@ function App() {
   // Authentication / User Management State
   const [showUserModal, setShowUserModal] = useState(false);
   const [showMeasurementManager, setShowMeasurementManager] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null); // The logged in user
+  const [currentUser, setCurrentUser] = useState({ id: 1, name: 'Admin User', role: 'admin' }); // Auto-login as admin
   const [userRole, setUserRole] = useState('admin'); // 'admin' | 'technician' | 'user'
   const [isTechnicianMode, setIsTechnicianMode] = useState(false); // Mode state
 
@@ -299,6 +299,17 @@ function App() {
                   <button className="btn btn-primary" onClick={() => { setSelectedReport(null); setView('new-report'); }}>
                     <Plus size={18} />
                     {i18n.t('newOrder')}
+                  </button>
+                )}
+
+                {!isTechnicianMode && (
+                  <button
+                    className="btn btn-outline"
+                    onClick={() => showToast('Funktion noch nicht implementiert', 'info')}
+                    title="Datenübernahme"
+                  >
+                    <Database size={18} />
+                    Datenübernahme
                   </button>
                 )}
 

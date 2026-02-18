@@ -1,4 +1,8 @@
+import UploadPanel from "./UploadPanel";
+import AiSuggestionsPanel from "./AiSuggestionsPanel";
+
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Camera, Image, Trash, X, Plus, Edit3, Save, Upload, FileText, CheckCircle, Circle, AlertTriangle, Play, HelpCircle, ArrowLeft, Mail, Map, MapPin, Folder, Mic, Paperclip, Table, Download, Check, Settings, RotateCcw, ChevronDown, ChevronUp, Briefcase, Hammer } from 'lucide-react'
 import { supabase } from '../supabaseClient';
 import ExcelJS from 'exceljs';
@@ -103,6 +107,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
         }
         return { street, zip, city };
     }
+    const [caseId, setCaseId] = useState(null);
 
     const initialAddressParts = parseAddress(initialData?.address);
 
@@ -111,6 +116,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
         projectTitle: initialData.projectTitle || initialData.id || '', // Include projectTitle
         client: initialData.client || '',
         locationDetails: initialData.locationDetails || '', // New field for Schadenort (e.g. "Wohnung ...")
+        extractedData: initialData?.extractedData || null, // Keep track of AI data if re-editing (unlikely but safe)
         exteriorPhoto: initialData.exteriorPhoto || null, // New field for Exterior Photo
         clientSource: initialData.clientSource || '',
         propertyType: initialData.propertyType || '',
@@ -264,6 +270,64 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
     })
 
     const [showImageSelector, setShowImageSelector] = useState(false);
+    const [globalPreviewImage, setGlobalPreviewImage] = useState(null);
+    // const dialogRef = useRef(null); // Unused
+
+    useEffect(() => {
+        // Vanilla JS implementation to guarantee overlay visibility
+        const currentOverlay = document.getElementById('manual-lightbox');
+        if (currentOverlay) currentOverlay.remove();
+
+        if (globalPreviewImage) {
+            const div = document.createElement('div');
+            div.id = 'manual-lightbox';
+            Object.assign(div.style, {
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                zIndex: '2147483647',
+                backgroundColor: 'rgba(0,0,0,0.95)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer'
+            });
+
+            const img = document.createElement('img');
+            img.src = globalPreviewImage;
+            img.alt = "Große Ansicht";
+            Object.assign(img.style, {
+                maxWidth: '98vw', maxHeight: '98vh',
+                objectFit: 'contain',
+                boxShadow: '0 0 50px rgba(0,0,0,0.8)',
+                cursor: 'default',
+                borderRadius: '4px'
+            });
+            img.onclick = (e) => e.stopPropagation();
+
+            const closeBtn = document.createElement('div');
+            closeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+            Object.assign(closeBtn.style, {
+                position: 'absolute', top: '20px', right: '20px',
+                background: 'rgba(255,255,255,0.2)',
+                borderRadius: '50%', width: '50px', height: '50px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', zIndex: '2147483648'
+            });
+            closeBtn.onclick = (e) => {
+                e.stopPropagation();
+                setGlobalPreviewImage(null);
+            };
+
+            div.onclick = () => setGlobalPreviewImage(null);
+
+            div.appendChild(img);
+            div.appendChild(closeBtn);
+            document.body.appendChild(div);
+        }
+
+        return () => {
+            const existing = document.getElementById('manual-lightbox');
+            if (existing) existing.remove();
+        };
+    }, [globalPreviewImage]);
+
     const [editingImage, setEditingImage] = useState(null);
     const [activeImageMeta, setActiveImageMeta] = useState(null); // For the new Metadata Modal
     const [showEmailImport, setShowEmailImport] = useState(false);
@@ -276,7 +340,11 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
     const [activeRoomForMeasurement, setActiveRoomForMeasurement] = useState(null); // Track which room we are editing
     const [showAddDeviceForm, setShowAddDeviceForm] = useState(false);
     const [showAddRoomForm, setShowAddRoomForm] = useState(false);
+
     const [unsubscribeStates, setUnsubscribeStates] = useState({}); // { [idx]: { endDate, counterEnd, hours } }
+
+    // AI Extraction State
+    const [extractedData, setExtractedData] = useState(null);
 
     // Audio Recording State
     const [isRecording, setIsRecording] = useState(false); // false | 'modal' | image.preview
@@ -813,6 +881,8 @@ END:VCARD`;
             // Optimistic UI: Show local preview immediately
             const previewUrl = URL.createObjectURL(file);
             const tempId = Math.random().toString(36).substring(7);
+            const fileExt = file.name.split('.').pop().toLowerCase();
+            const isDoc = ['pdf', 'msg', 'txt'].includes(fileExt);
 
             // Basic metadata
             const imageEntry = {
@@ -823,7 +893,9 @@ END:VCARD`;
                 date: new Date().toISOString(),
                 ...contextData,
                 includeInReport: true, // Default to true
-                uploading: true // Mark as uploading
+                uploading: true, // Mark as uploading
+                type: isDoc ? 'document' : 'image',
+                fileType: fileExt
             };
 
             // Add to state immediately (optimistic)
@@ -902,9 +974,11 @@ END:VCARD`;
 
     const handleCategoryDrop = (e, category) => {
         e.preventDefault();
+        e.stopPropagation();
+
+        // Reset styles
         e.currentTarget.style.borderColor = 'var(--border)';
-        e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)';
-        e.currentTarget.style.color = 'var(--text-muted)';
+        e.currentTarget.style.backgroundColor = 'transparent';
 
         const files = Array.from(e.dataTransfer.files);
         handleImageUpload(files, {
@@ -1834,6 +1908,46 @@ END:VCARD`;
 
 
 
+                {/* File Upload Panel */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <UploadPanel
+                        caseId={formData.id}
+                        onCaseCreated={(newId) => setFormData(prev => ({ ...prev, id: newId }))}
+                        onExtractionComplete={(data) => {
+                            console.log("Extraction complete, reviewing data:", data);
+                            setExtractedData(data);
+                        }}
+                        onImagesUploaded={(newImages) => {
+                            setFormData(prev => ({
+                                ...prev,
+                                images: [...(prev.images || []), ...newImages]
+                            }));
+                        }}
+                    />
+
+                    {/* AI Suggestions Confirmation Panel */}
+                    {extractedData && (
+                        <AiSuggestionsPanel
+                            extractedData={extractedData}
+                            currentFormData={formData}
+                            onDismiss={() => setExtractedData(null)}
+                            onApplyField={(field, value) => {
+                                setFormData(prev => ({
+                                    ...prev,
+                                    [field]: value
+                                }));
+                                // Remove field from suggestions after applying? Or keep until dismissed?
+                                // Usually better to keep it visible so user knows what came from AI
+                            }}
+                            onApplyAll={(allData) => {
+                                console.log("Applying all AI data:", allData);
+                                handleEmailImport(allData); // Reuse existing import logic
+                                setExtractedData(null); // Close panel
+                            }}
+                        />
+                    )}
+                </div>
+
                 {/* 1a. Project Details (Client / Manager) - Moved Up */}
                 <div style={{ marginBottom: '1.5rem', backgroundColor: 'var(--surface)', padding: '1rem', borderRadius: '8px', color: 'var(--text-main)' }}>
                     <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
@@ -1900,6 +2014,239 @@ END:VCARD`;
                         )}
                     </div>
                 </div>
+
+                {/* Desktop-Only: Schadenbeschreibung (AI Extracted) */}
+                {mode === 'desktop' && (
+                    <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: '0.5rem' }}>
+                            <label style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <FileText size={16} /> Schadenbeschreibung (KI / Meldung)
+                            </label>
+                        </div>
+                        <textarea
+                            value={formData.description || ''}
+                            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="Beschrieb aus der Meldung..."
+                            style={{
+                                width: '100%',
+                                minHeight: '100px',
+                                padding: '0.75rem',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border)',
+                                backgroundColor: 'var(--background)',
+                                color: 'var(--text-main)',
+                                resize: 'vertical',
+                                fontFamily: 'inherit',
+                                fontSize: '0.95rem',
+                                lineHeight: 1.5
+                            }}
+                        />
+
+                        {/* Schadensbilder Upload */}
+                        <div style={{ marginTop: '1rem' }}>
+                            <label style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                <Image size={16} /> Schadensbilder
+                            </label>
+
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                {formData.images && Array.isArray(formData.images) && formData.images.filter(img => {
+                                    const isDoc = img.type === 'document' ||
+                                        img.name?.toLowerCase().endsWith('.msg') ||
+                                        img.name?.toLowerCase().endsWith('.pdf') ||
+                                        img.name?.toLowerCase().endsWith('.txt');
+                                    return img && !img.roomId && !isDoc;
+                                }).map((img, idx) => {
+                                    const isDoc = false; // We filtered them out already
+                                    return (
+                                        <div key={idx}
+                                            style={{
+                                                position: 'relative', width: '80px', height: '80px', borderRadius: '4px', overflow: 'hidden',
+                                                border: '1px solid var(--border)', cursor: 'pointer',
+                                                backgroundColor: isDoc ? 'var(--background-muted)' : 'transparent',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                            }}
+                                            onClick={() => {
+                                                if (img.preview) {
+                                                    console.log("Opening preview (global):", img.preview);
+                                                    setGlobalPreviewImage(img.preview);
+                                                }
+                                            }}
+                                            title={img.name || 'Unbekannt'}
+                                        >
+                                            {isDoc ? (
+                                                <div style={{ textAlign: 'center', color: 'var(--text-main)' }}>
+                                                    {(img.fileType === 'msg' || img.name?.toLowerCase().endsWith('.msg')) ? <Mail size={32} /> : <FileText size={32} />}
+                                                    <div style={{ fontSize: '0.6rem', marginTop: 4, maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {img.name}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <img
+                                                        src={img.preview}
+                                                        alt="Schadensbild"
+                                                        style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }}
+                                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                                    />
+                                                    <div
+                                                        style={{
+                                                            position: 'absolute', inset: 0,
+                                                            zIndex: 5, cursor: 'zoom-in'
+                                                        }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setGlobalPreviewImage(img.preview);
+                                                        }}
+                                                        title="Vergrößern"
+                                                    />
+                                                </>
+                                            )}
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        images: prev.images.filter(i => i !== img) // Safer remove by reference
+                                                    }));
+                                                }}
+                                                style={{
+                                                    position: 'absolute', top: 2, right: 2,
+                                                    background: 'rgba(0,0,0,0.6)', color: 'white',
+                                                    border: 'none', borderRadius: '50%',
+                                                    width: 20, height: 20,
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    cursor: 'pointer', padding: 0,
+                                                    zIndex: 10
+                                                }}
+                                                title="Löschen"
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    )
+                                })}
+
+                                <label style={{
+                                    width: '80px', height: '80px',
+                                    border: '1px dashed var(--border)', borderRadius: '4px',
+                                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                                    cursor: 'pointer', backgroundColor: 'var(--surface-hover)',
+                                    fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center'
+                                }}>
+                                    <Plus size={20} />
+                                    <span>Bild add.</span>
+                                    <input
+                                        type="file"
+                                        multiple
+                                        accept="image/*"
+                                        style={{ display: 'none' }}
+                                        onChange={async (e) => {
+                                            if (!e.target.files?.length) return;
+                                            const files = Array.from(e.target.files);
+
+                                            // Ensure ID exists
+                                            let currentId = formData.id;
+                                            if (!currentId) {
+                                                currentId = "TMP-" + Date.now();
+                                                setFormData(prev => ({ ...prev, id: currentId }));
+                                            }
+
+                                            for (const file of files) {
+                                                const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+                                                const filePath = `cases/${currentId}/images/${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+
+                                                try {
+                                                    // Upload
+                                                    const { error: uploadError } = await supabase.storage
+                                                        .from("case-files")
+                                                        .upload(filePath, file);
+
+                                                    if (uploadError) throw uploadError;
+
+                                                    // Get Public URL
+                                                    const { data: { publicUrl } } = supabase.storage
+                                                        .from("case-files")
+                                                        .getPublicUrl(filePath);
+
+                                                    // Add to formData
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        images: [...(prev.images || []), {
+                                                            preview: publicUrl,
+                                                            name: file.name,
+                                                            description: 'Initialbild (Mail)',
+                                                            date: new Date().toISOString(),
+                                                            roomId: null // Global / Initial
+                                                        }]
+                                                    }));
+                                                } catch (err) {
+                                                    console.error("Image upload failed", err);
+                                                    alert("Fehler beim Bilder-Upload: " + err.message);
+                                                }
+                                            }
+                                        }}
+                                    />
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* Dokumente & Anhänge Section */}
+                        {formData.images && formData.images.some(img => img && !img.roomId && (img.type === 'document' || img.name?.toLowerCase().endsWith('.pdf') || img.name?.toLowerCase().endsWith('.msg') || img.name?.toLowerCase().endsWith('.txt'))) && (
+                            <div style={{ marginTop: '1.5rem' }}>
+                                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                    <FileText size={16} /> Dokumente & Anhänge (PDF, MSG)
+                                </label>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                    {formData.images.filter(img => {
+                                        const isDoc = img.type === 'document' ||
+                                            img.name?.toLowerCase().endsWith('.msg') ||
+                                            img.name?.toLowerCase().endsWith('.pdf') ||
+                                            img.name?.toLowerCase().endsWith('.txt');
+                                        return img && !img.roomId && isDoc;
+                                    }).map((img, idx) => (
+                                        <div key={idx}
+                                            style={{
+                                                position: 'relative', width: '120px', height: '80px', borderRadius: '4px', overflow: 'hidden',
+                                                border: '1px solid var(--border)', cursor: 'pointer',
+                                                backgroundColor: 'var(--surface)',
+                                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                                                padding: '0.5rem'
+                                            }}
+                                            onClick={() => window.open(img.preview, '_blank')}
+                                            title={img.name}
+                                        >
+                                            {img.name?.toLowerCase().endsWith('.msg') ? <Mail size={24} color="var(--primary)" /> : <FileText size={24} color="var(--primary)" />}
+                                            <div style={{ fontSize: '0.7rem', marginTop: 4, width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center', color: 'var(--text-main)' }}>
+                                                {img.name}
+                                            </div>
+
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        images: prev.images.filter(i => i !== img)
+                                                    }));
+                                                }}
+                                                style={{
+                                                    position: 'absolute', top: 2, right: 2,
+                                                    background: 'transparent', color: '#ef4444',
+                                                    border: 'none',
+                                                    width: 20, height: 20,
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    cursor: 'pointer', padding: 0
+                                                }}
+                                                title="Löschen"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Container for Map & Exterior Photo (Side-by-Side) */}
                 <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'stretch', marginBottom: '1.5rem' }}>
@@ -2846,7 +3193,23 @@ END:VCARD`;
                                 Email-Import (KI)
                             </button>
                         </div>
-                        <div className="card" style={{ border: '1px solid var(--border)' }}>
+                        <div
+                            className="card"
+                            style={{ border: '1px solid var(--border)', position: 'relative' }}
+                            onDragOver={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.currentTarget.style.borderColor = 'var(--primary)';
+                                e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.05)';
+                            }}
+                            onDragLeave={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.currentTarget.style.borderColor = 'var(--border)';
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                            onDrop={(e) => handleCategoryDrop(e, 'Emails')}
+                        >
 
                             <div
                                 style={{
@@ -2867,15 +3230,7 @@ END:VCARD`;
                                 onClick={() => document.getElementById('file-upload-emails').click()}
                                 onDragOver={(e) => {
                                     e.preventDefault();
-                                    e.currentTarget.style.borderColor = 'var(--primary)';
-                                    e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)';
-                                    e.currentTarget.style.color = 'var(--primary)';
-                                }}
-                                onDragLeave={(e) => {
-                                    e.preventDefault();
-                                    e.currentTarget.style.borderColor = 'var(--border)';
-                                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)';
-                                    e.currentTarget.style.color = 'var(--text-muted)';
+                                    e.stopPropagation();
                                 }}
                                 onDrop={(e) => handleCategoryDrop(e, 'Emails')}
                             >
@@ -2886,47 +3241,66 @@ END:VCARD`;
                                     id="file-upload-emails"
                                     type="file"
                                     multiple
-                                    accept="image/*,application/pdf"
+                                    accept="image/*,application/pdf,.msg,.txt"
                                     style={{ display: 'none' }}
                                     onChange={(e) => handleCategorySelect(e, 'Emails')}
                                 />
                             </div>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                {formData.images.filter(img => img.assignedTo === 'Emails').map((item, idx) => (
-                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
-                                        {(item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf')) ? (
-                                            <div style={{ color: '#F87171', display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                                                <FileText size={18} />
-                                                <span style={{ fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-ghost"
-                                                    style={{ marginLeft: 'auto', padding: '0.25rem', fontSize: '0.8rem' }}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        const url = item.file ? URL.createObjectURL(item.file) : item.preview;
-                                                        if (url) window.open(url, '_blank');
-                                                    }}
-                                                >
-                                                    Öffnen
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <img src={item.preview} alt="Vorschau" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />
-                                                <div style={{ flex: 1, overflow: 'hidden' }}>
-                                                    <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{item.assignedTo}</div>
-                                                    {item.description && (
-                                                        <div style={{ fontSize: '0.85rem', color: '#94A3B8' }}>{item.description.substring(0, 30)}...</div>
-                                                    )}
-                                                </div>
-                                            </>
-                                        )}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+                                onDragOver={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                }}
+                                onDrop={(e) => handleCategoryDrop(e, 'Emails')}
+                            >
+                                {formData.images.filter(img => img.assignedTo === 'Emails').map((item, idx) => {
+                                    const isDoc = (item.file && item.file.type === 'application/pdf') ||
+                                        (item.name && item.name.toLowerCase().endsWith('.pdf')) ||
+                                        (item.name && item.name.toLowerCase().endsWith('.msg')) ||
+                                        (item.name && item.name.toLowerCase().endsWith('.txt')) ||
+                                        item.type === 'document';
 
-                                        <button type="button" onClick={() => { if (window.confirm('Löschen?')) setFormData(prev => ({ ...prev, images: prev.images.filter(img => img !== item) })); }} style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '4px' }}><X size={16} /></button>
-                                    </div>
-                                ))}
+                                    return (
+                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                                            {isDoc ? (
+                                                <div style={{ color: item.name?.toLowerCase().endsWith('.pdf') ? '#F87171' : '#60A5FA', display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                                                    {(item.name?.toLowerCase().endsWith('.msg')) ? <Mail size={18} /> : <FileText size={18} />}
+                                                    <span style={{ fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-ghost"
+                                                        style={{ marginLeft: 'auto', padding: '0.25rem', fontSize: '0.8rem' }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const url = item.file ? URL.createObjectURL(item.file) : item.preview;
+                                                            if (url) window.open(url, '_blank');
+                                                        }}
+                                                    >
+                                                        Öffnen
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <img
+                                                        src={item.preview}
+                                                        alt="Vorschau"
+                                                        style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }}
+                                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                                    />
+                                                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                                                        <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{item.assignedTo}</div>
+                                                        {item.description && (
+                                                            <div style={{ fontSize: '0.85rem', color: '#94A3B8' }}>{item.description.substring(0, 30)}...</div>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            <button type="button" onClick={() => { if (window.confirm('Löschen?')) setFormData(prev => ({ ...prev, images: prev.images.filter(img => img !== item) })); }} style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '4px' }}><X size={16} /></button>
+                                        </div>
+                                    )
+                                })}
                                 {formData.images.filter(img => img.assignedTo === 'Emails').length === 0 && (
                                     <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic', padding: '1rem' }}>Keine Emails vorhanden.</div>
                                 )}
@@ -7269,12 +7643,12 @@ END:VCARD`;
                                     </div>
                                 ))}
 
-
                         </div>
 
                     </div>
                 )
             }
+
 
         </>
     )
