@@ -6686,15 +6686,40 @@ END:VCARD`;
 
                                     {/* Schadensbericht Button below room list - DESKTOP ONLY */}
                                     {mode !== 'technician' && (
-                                        <div style={{ marginTop: '1rem', marginBottom: '2rem', display: 'flex', justifyContent: 'flex-start' }}>
+                                        <div style={{ marginTop: '3rem', marginBottom: '3rem', display: 'flex', justifyContent: 'center' }}>
                                             <button
                                                 type="button"
                                                 onClick={handleGeneratePDF}
                                                 disabled={isGeneratingPDF}
-                                                className="btn btn-primary"
-                                                style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}
+                                                style={{
+                                                    padding: '1.25rem 3rem',
+                                                    fontSize: '1.2rem',
+                                                    display: 'flex',
+                                                    gap: '1rem',
+                                                    alignItems: 'center',
+                                                    backgroundColor: 'var(--primary)',
+                                                    color: 'white',
+                                                    border: 'none',
+                                                    borderRadius: '12px',
+                                                    fontWeight: '800',
+                                                    cursor: 'pointer',
+                                                    boxShadow: '0 10px 25px rgba(56, 189, 248, 0.4)',
+                                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.5px'
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.transform = 'scale(1.05)';
+                                                    e.currentTarget.style.boxShadow = '0 15px 30px rgba(56, 189, 248, 0.5)';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.transform = 'scale(1)';
+                                                    e.currentTarget.style.boxShadow = '0 10px 25px rgba(56, 189, 248, 0.4)';
+                                                }}
                                             >
-                                                <FileText size={18} />
+                                                <div style={{ backgroundColor: 'white', padding: '0.25rem', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <FileText size={22} color="#EF4444" />
+                                                </div>
                                                 Schadensbericht erstellen
                                             </button>
                                         </div>
