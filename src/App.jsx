@@ -7,6 +7,7 @@ import DeviceManager from './components/DeviceManager'
 import UserManagementModal from './components/UserManagementModal'
 import MeasurementDeviceManager from './components/MeasurementDeviceManager'
 import LoginScreen from './components/LoginScreen'
+import EmailImportModalV2 from './components/EmailImportModalV2'
 import i18n from './i18n'
 
 function App() {
@@ -19,6 +20,9 @@ function App() {
   const [currentUser, setCurrentUser] = useState({ id: 1, name: 'Admin User', role: 'admin' }); // Auto-login as admin
   const [userRole, setUserRole] = useState('admin'); // 'admin' | 'technician' | 'user'
   const [isTechnicianMode, setIsTechnicianMode] = useState(false); // Mode state
+  const [showEmailImport, setShowEmailImport] = useState(false);
+  const [audioDevices, setAudioDevices] = useState([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState(localStorage.getItem('qtool_selected_mic') || '');
 
   // Users List (Managed here to share with LoginScreen)
   const [users, setUsers] = useState(() => {
@@ -199,6 +203,65 @@ function App() {
     }
   };
 
+  const handleEmailImport = (importedData) => {
+    const newId = `P-${Date.now()}`;
+    const newReport = {
+      id: newId,
+      projectTitle: importedData.projectTitle || 'Importiertes Projekt',
+      client: importedData.client || '',
+      street: importedData.street || '',
+      zip: importedData.zip || '',
+      city: importedData.city || '',
+      address: `${importedData.street || ''}, ${importedData.zip || ''} ${importedData.city || ''}`.trim(),
+      description: importedData.description || '',
+      manager: importedData.manager || '',
+      status: 'Schadenaufnahme',
+      date: new Date().toISOString(),
+      contacts: importedData.contacts || [],
+      rooms: [],
+      images: [],
+      equipment: [],
+      measures: '',
+      findings: '',
+      history: []
+    };
+
+    handleSaveReport(newReport);
+    setShowEmailImport(false);
+    showToast('Projekt erfolgreich importiert', 'success');
+  };
+
+  const refreshDevices = useCallback(async () => {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        console.warn("Media devices API not available");
+        return;
+      }
+      // Request permission only if not granted to avoid jumping UI
+      await navigator.mediaDevices.getUserMedia({ audio: true }).catch(err => console.warn("Mic permission denied", err));
+
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const mics = devices.filter(d => d.kind === 'audioinput');
+      setAudioDevices(mics);
+
+      if (mics.length > 0 && !selectedDeviceId) {
+        const defaultMic = mics.find(m => m.deviceId === 'default') || mics[0];
+        setSelectedDeviceId(defaultMic.deviceId);
+      }
+    } catch (err) {
+      console.error("Error enumerating devices:", err);
+    }
+  }, [selectedDeviceId]);
+
+  useEffect(() => {
+    refreshDevices();
+  }, [refreshDevices]);
+
+  const handleSelectDeviceId = (id) => {
+    setSelectedDeviceId(id);
+    localStorage.setItem('qtool_selected_mic', id);
+  };
+
   const [toast, setToast] = useState(null);
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -305,7 +368,7 @@ function App() {
                 {!isTechnicianMode && (
                   <button
                     className="btn btn-outline"
-                    onClick={() => showToast('Funktion noch nicht implementiert', 'info')}
+                    onClick={() => setShowEmailImport(true)}
                     title="Datenübernahme"
                   >
                     <Database size={18} />
@@ -374,6 +437,16 @@ function App() {
       {/* Render User Management Modal */}
       {showUserModal && <UserManagementModal onClose={() => setShowUserModal(false)} users={users} setUsers={setUsers} />}
       {showMeasurementManager && <MeasurementDeviceManager onClose={() => setShowMeasurementManager(false)} />}
+      {showEmailImport && (
+        <EmailImportModalV2
+          onClose={() => setShowEmailImport(false)}
+          onImport={handleEmailImport}
+          audioDevices={audioDevices}
+          selectedDeviceId={selectedDeviceId}
+          onSelectDeviceId={handleSelectDeviceId}
+          onRefreshDevices={refreshDevices}
+        />
+      )}
     </div>
   )
 }

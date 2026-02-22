@@ -30,7 +30,7 @@ const PdfIcon = ({ size = 24, style = {} }) => (
     </svg>
 );
 
-const STEPS = ['Schadenaufnahme', 'Leckortung', 'Trocknung', 'Instandsetzung']
+const STEPS = ['Schadenaufnahme', 'Leckortung', 'Trocknung', 'Instandsetzung', 'Abgeschlossen']
 
 const statusColors = {
     'Schadenaufnahme': 'bg-gray-100',
@@ -780,7 +780,6 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
         latestFormData.current = formData;
     }, [formData]);
 
-    /*
     useEffect(() => {
         const timeoutId = setTimeout(() => {
             if (onSave) {
@@ -797,7 +796,6 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
 
         return () => clearTimeout(timeoutId);
     }, [formData, onSave]);
-    */
 
     // Save on Unmount
     useEffect(() => {
@@ -1401,19 +1399,17 @@ END:VCARD`;
                 })
             );
 
-            let processedDamageTypeImage = dataToUse.damageTypeImage;
-            if (processedDamageTypeImage) {
-                try {
-                    const base64 = await urlToDataUrl(processedDamageTypeImage);
-                    if (base64) processedDamageTypeImage = base64;
-                } catch (e) { console.warn("Failed to convert damage type image", e); }
-            }
+            // Process Hero Images (Cause Photos marked for report)
+            const causePhotos = processedImages.filter(img => img.assignedTo === 'Schadenfotos' && img.includeInReport !== false);
+            const processedHeroImages = causePhotos.map(img => img.preview);
 
             // Prepare Data for Document Component
             const docData = {
                 ...dataToUse,
+                damageType: dataToUse.damageCategory || '-',
                 images: processedImages,
-                damageTypeImage: processedDamageTypeImage,
+                damageTypeImages: processedHeroImages, // All selected cause photos
+                damageTypeImage: processedHeroImages[0] || null, // Primary one for fallback
                 logo: logoData,
             };
 
@@ -2602,11 +2598,11 @@ END:VCARD`;
                                                             borderRadius: '4px',
                                                             overflow: 'hidden',
                                                             flexShrink: 0,
-                                                            border: formData.damageTypeImage === img.preview ? '2px solid #10B981' : '1px solid var(--border)'
+                                                            border: img.includeInReport !== false ? '2px solid #0F6EA3' : '1px solid var(--border)'
                                                         }}>
                                                             <img src={img.preview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onClick={() => setActiveImageMeta(img)} />
 
-                                                            {/* Selection Checkbox for Damage Type Image */}
+                                                            {/* Include in Report Toggle (Centered/Unified) */}
                                                             <div
                                                                 style={{
                                                                     position: 'absolute',
@@ -2618,22 +2614,22 @@ END:VCARD`;
                                                                     alignItems: 'center',
                                                                     justifyContent: 'center',
                                                                     padding: '2px',
-                                                                    zIndex: 5
+                                                                    zIndex: 10
                                                                 }}
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
                                                                     setFormData(prev => ({
                                                                         ...prev,
-                                                                        damageTypeImage: prev.damageTypeImage === img.preview ? null : img.preview,
-                                                                        damageTypeImageInReport: true
+                                                                        images: prev.images.map(i => i.preview === img.preview ? { ...i, includeInReport: i.includeInReport === false } : i)
                                                                     }));
                                                                 }}
+                                                                title="Im Bericht anzeigen"
                                                             >
                                                                 <input
                                                                     type="checkbox"
-                                                                    checked={formData.damageTypeImage === img.preview}
+                                                                    checked={img.includeInReport !== false}
                                                                     onChange={() => { }}
-                                                                    style={{ width: '14px', height: '14px', cursor: 'pointer' }}
+                                                                    style={{ width: '14px', height: '14px', cursor: 'pointer', accentColor: '#0F6EA3' }}
                                                                 />
                                                             </div>
 
@@ -2838,23 +2834,29 @@ END:VCARD`;
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                         {formData.images.filter(img => img.assignedTo === 'Schadenfotos').map((item, idx) => (
                                             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
-                                                <div style={{ width: '80px', height: '80px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px', border: formData.damageTypeImage === item.preview ? '2px solid #10B981' : 'none' }}>
+                                                <div style={{ width: '80px', height: '80px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px', border: item.includeInReport !== false ? '2px solid #0F6EA3' : 'none' }}>
                                                     <img src={item.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
                                                 </div>
 
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0 0.5rem', cursor: 'pointer' }} onClick={() => setFormData(prev => ({ ...prev, damageTypeImage: prev.damageTypeImage === item.preview ? null : item.preview, damageTypeImageInReport: false }))}>
+                                                {/* Unified Toggle */}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0 0.5rem', cursor: 'pointer' }}
+                                                    title="In PDF Bericht anzeigen"
+                                                    onClick={() => setFormData(prev => ({
+                                                        ...prev,
+                                                        images: prev.images.map(i => i.preview === item.preview ? { ...i, includeInReport: i.includeInReport === false } : i)
+                                                    }))}>
                                                     <input
                                                         type="checkbox"
-                                                        checked={formData.damageTypeImage === item.preview}
+                                                        checked={item.includeInReport !== false}
                                                         readOnly
-                                                        style={{ width: '1.25rem', height: '1.25rem', cursor: 'pointer' }}
+                                                        style={{ width: '1.25rem', height: '1.25rem', cursor: 'pointer', accentColor: '#0F6EA3' }}
                                                     />
                                                 </div>
 
                                                 <div style={{ flex: 1, fontWeight: 500, color: 'var(--text-main)' }}>
                                                     {item.name}
-                                                    {formData.damageTypeImage === item.preview && (
-                                                        <div style={{ fontSize: '0.8rem', color: '#10B981', fontWeight: 600 }}>Ausgewählt</div>
+                                                    {item.includeInReport !== false && (
+                                                        <div style={{ fontSize: '0.8rem', color: '#0F6EA3', fontWeight: 600 }}>In Bericht</div>
                                                     )}
                                                 </div>
 
@@ -2989,42 +2991,64 @@ END:VCARD`;
                                                 {room.apartment && <span style={{ fontSize: '0.9rem', color: '#94A3B8', fontWeight: 500 }}>{room.apartment}</span>}
                                             </div>
                                             <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                <>
-                                                    <button
-                                                        type="button"
-                                                        disabled={!room.measurementData}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (room.measurementData) {
+                                                {room.measurementData ? (
+                                                    <>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setActiveRoomForMeasurement(room);
+                                                                setIsNewMeasurement(true);
+                                                                setIsMeasurementReadOnly(false);
+                                                                setShowMeasurementModal(true);
+                                                            }}
+                                                            style={{
+                                                                padding: '0.4rem 0.6rem',
+                                                                borderRadius: '6px',
+                                                                border: '1px solid var(--border)',
+                                                                backgroundColor: 'rgba(255,255,255,0.05)',
+                                                                color: 'var(--text-main)',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.25rem',
+                                                                fontSize: '0.75rem',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                        >
+                                                            <Plus size={14} /> Neue Messreihe
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
                                                                 setActiveRoomForMeasurement(room);
                                                                 setIsNewMeasurement(false);
-                                                                setIsMeasurementReadOnly(true);
+                                                                setIsMeasurementReadOnly(false);
                                                                 setShowMeasurementModal(true);
-                                                            }
-                                                        }}
-                                                        style={{
-                                                            padding: '0.4rem 0.6rem',
-                                                            borderRadius: '6px',
-                                                            border: '1px solid var(--border)',
-                                                            backgroundColor: 'rgba(255,255,255,0.05)',
-                                                            color: 'var(--text-muted)',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '0.25rem',
-                                                            fontSize: '0.75rem',
-                                                            cursor: room.measurementData ? 'pointer' : 'not-allowed',
-                                                            opacity: room.measurementData ? 1 : 0.5
-                                                        }}
-                                                    >
-                                                        <FileText size={14} />
-                                                        Messung ansehen
-                                                    </button>
+                                                            }}
+                                                            style={{
+                                                                padding: '0.4rem 0.6rem',
+                                                                borderRadius: '6px',
+                                                                border: '1px solid #10B981',
+                                                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                                                color: '#10B981',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.25rem',
+                                                                fontSize: '0.75rem',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                        >
+                                                            <FileText size={14} /> Messreihe fortsetzen
+                                                        </button>
+                                                    </>
+                                                ) : (
                                                     <button
                                                         type="button"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             setActiveRoomForMeasurement(room);
-                                                            setIsNewMeasurement(true);
+                                                            setIsNewMeasurement(false);
                                                             setIsMeasurementReadOnly(false);
                                                             setShowMeasurementModal(true);
                                                         }}
@@ -3041,30 +3065,7 @@ END:VCARD`;
                                                             cursor: 'pointer'
                                                         }}
                                                     >
-                                                        <Plus size={14} />
-                                                        Messung beginnen
-                                                    </button>
-                                                </>
-                                                {mode !== 'technician' && (
-                                                    <button
-                                                        type="button"
-                                                        title="Raum löschen"
-                                                        onClick={() => {
-                                                            if (window.confirm('Raum wirklich löschen?')) handleRemoveRoom(room.id);
-                                                        }}
-                                                        style={{
-                                                            padding: '0.4rem',
-                                                            borderRadius: '6px',
-                                                            border: '1px solid #EF4444',
-                                                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                                            color: '#EF4444',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            cursor: 'pointer'
-                                                        }}
-                                                    >
-                                                        <Trash size={16} />
+                                                        <Plus size={14} /> Messung starten
                                                     </button>
                                                 )}
                                             </div>
@@ -3892,13 +3893,13 @@ END:VCARD`;
                                                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{hasMeasurement ? `Letzte Messung: ${date}` : 'Keine Messdaten'}</div>
                                                     </div>
                                                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                                        {hasMeasurement ? (
+                                                        {room.measurementData ? (
                                                             <>
-                                                                <button type="button" className="btn btn-outline" onClick={() => { setActiveRoomForMeasurement(room); setIsNewMeasurement(false); setShowMeasurementModal(true); }}>Ansehen</button>
-                                                                <button type="button" className="btn btn-outline" onClick={() => { setActiveRoomForMeasurement(room); setIsNewMeasurement(true); setShowMeasurementModal(true); }}>Neu</button>
+                                                                <button type="button" className="btn btn-outline" onClick={() => { setActiveRoomForMeasurement(room); setIsNewMeasurement(true); setShowMeasurementModal(true); }}>Neue Messreihe</button>
+                                                                <button type="button" className="btn" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10B981', border: '1px solid #10B981' }} onClick={() => { setActiveRoomForMeasurement(room); setIsNewMeasurement(false); setShowMeasurementModal(true); }}>Messreihe fortsetzen</button>
                                                             </>
                                                         ) : (
-                                                            <button type="button" className="btn btn-outline" onClick={() => { setActiveRoomForMeasurement(room); setIsNewMeasurement(false); setShowMeasurementModal(true); }}>Messung starten</button>
+                                                            <button type="button" className="btn" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10B981', border: '1px solid #10B981' }} onClick={() => { setActiveRoomForMeasurement(room); setIsNewMeasurement(false); setShowMeasurementModal(true); }}>Messung starten</button>
                                                         )}
                                                     </div>
                                                 </div>
@@ -6430,7 +6431,7 @@ END:VCARD`;
                                                             {!room.measurementData ? (
                                                                 <button
                                                                     type="button"
-                                                                    className="btn btn-outline"
+                                                                    className="btn btn-primary"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         setActiveRoomForMeasurement(room);
@@ -6438,10 +6439,10 @@ END:VCARD`;
                                                                         setIsMeasurementReadOnly(false);
                                                                         setShowMeasurementModal(true);
                                                                     }}
-                                                                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', gap: '0.25rem', color: 'var(--success)', borderColor: 'var(--success)' }}
-                                                                    title="Messprotokoll erstellen"
+                                                                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', gap: '0.25rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10B981', border: '1px solid #10B981' }}
+                                                                    title="Messung starten"
                                                                 >
-                                                                    <Plus size={14} /> Messung beginnen
+                                                                    <Plus size={14} /> Messung starten
                                                                 </button>
                                                             ) : (
                                                                 <>
@@ -6450,20 +6451,19 @@ END:VCARD`;
                                                                         className="btn btn-outline"
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
-
                                                                             setActiveRoomForMeasurement(room);
                                                                             setIsNewMeasurement(false);
-                                                                            setIsMeasurementReadOnly(true);
+                                                                            setIsMeasurementReadOnly(false);
                                                                             setShowMeasurementModal(true);
                                                                         }}
-                                                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', gap: '0.25rem', color: 'var(--text-muted)', borderColor: 'var(--border)' }}
-                                                                        title="Messprotokoll ansehen"
+                                                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', gap: '0.25rem' }}
+                                                                        title="Aktuelle Messung fortsetzen"
                                                                     >
-                                                                        <FileText size={14} /> Messung ansehen
+                                                                        <FileText size={14} /> Messreihe fortsetzen
                                                                     </button>
                                                                     <button
                                                                         type="button"
-                                                                        className="btn btn-outline"
+                                                                        className="btn btn-primary"
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
                                                                             setActiveRoomForMeasurement(room);
@@ -6471,10 +6471,10 @@ END:VCARD`;
                                                                             setIsMeasurementReadOnly(false);
                                                                             setShowMeasurementModal(true);
                                                                         }}
-                                                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', gap: '0.25rem', color: 'var(--success)', borderColor: 'var(--success)' }}
-                                                                        title="Neue Messung beginnen"
+                                                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', gap: '0.25rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10B981', border: '1px solid #10B981' }}
+                                                                        title="Neue Messreihe starten"
                                                                     >
-                                                                        <Plus size={14} /> Messung beginnen
+                                                                        <Plus size={14} /> Neue Messreihe
                                                                     </button>
                                                                 </>
                                                             )}
@@ -7019,21 +7019,8 @@ END:VCARD`;
                                                                     </div>
 
                                                                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                                                        {hasMeasurement ? (
+                                                                        {room.measurementData ? (
                                                                             <>
-                                                                                <button
-                                                                                    type="button"
-                                                                                    className="btn btn-outline"
-                                                                                    onClick={() => {
-                                                                                        setActiveRoomForMeasurement(room);
-                                                                                        setIsNewMeasurement(false);
-                                                                                        setShowMeasurementModal(true);
-                                                                                    }}
-                                                                                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', color: 'var(--text-muted)', borderColor: 'var(--border)', gap: '0.25rem' }}
-                                                                                    title="Ansehen / Bearbeiten"
-                                                                                >
-                                                                                    <FileText size={14} /> Ansehen
-                                                                                </button>
                                                                                 <button
                                                                                     type="button"
                                                                                     className="btn btn-outline"
@@ -7042,24 +7029,37 @@ END:VCARD`;
                                                                                         setIsNewMeasurement(true);
                                                                                         setShowMeasurementModal(true);
                                                                                     }}
-                                                                                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', color: 'var(--success)', borderColor: 'var(--success)' }}
-                                                                                    title="Neue Messung basierend auf diesem Protokoll"
+                                                                                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', color: 'var(--text-main)', borderColor: 'var(--border)', gap: '0.25rem' }}
+                                                                                    title="Neue Messreihe starten"
                                                                                 >
-                                                                                    <Plus size={14} style={{ marginRight: '0.25rem' }} /> Neu
+                                                                                    <Plus size={14} style={{ marginRight: '0.25rem' }} /> Neue Messreihe
+                                                                                </button>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="btn"
+                                                                                    onClick={() => {
+                                                                                        setActiveRoomForMeasurement(room);
+                                                                                        setIsNewMeasurement(false);
+                                                                                        setShowMeasurementModal(true);
+                                                                                    }}
+                                                                                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10B981', border: '1px solid #10B981' }}
+                                                                                    title="Messreihe fortsetzen"
+                                                                                >
+                                                                                    <FileText size={14} /> Messreihe fortsetzen
                                                                                 </button>
                                                                             </>
                                                                         ) : (
                                                                             <button
                                                                                 type="button"
-                                                                                className="btn btn-outline"
+                                                                                className="btn"
                                                                                 onClick={() => {
                                                                                     setActiveRoomForMeasurement(room);
                                                                                     setIsNewMeasurement(false);
                                                                                     setShowMeasurementModal(true);
                                                                                 }}
-                                                                                style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                                                                                style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10B981', border: '1px solid #10B981' }}
                                                                             >
-                                                                                <Edit3 size={14} style={{ marginRight: '0.25rem' }} /> Messung starten
+                                                                                <Plus size={14} style={{ marginRight: '0.25rem' }} /> Messung starten
                                                                             </button>
                                                                         )}
                                                                     </div>

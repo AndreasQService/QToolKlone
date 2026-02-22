@@ -77,8 +77,8 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#0F6EA3',
         fontWeight: 'bold',
-        marginTop: 15,
-        marginBottom: 12,
+        marginTop: 10,
+        marginBottom: 8,
     },
     textBlock: {
         marginBottom: 10,
@@ -91,8 +91,8 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#0F6EA3',
         fontWeight: 'bold',
-        marginTop: 20,
-        marginBottom: 5,
+        marginTop: 10,
+        marginBottom: 2,
         paddingBottom: 2,
     },
     floorHeader: {
@@ -108,7 +108,8 @@ const styles = StyleSheet.create({
     roomHeader: {
         fontSize: 12,
         fontWeight: 'bold',
-        marginBottom: 5,
+        marginTop: 2,
+        marginBottom: 4,
         color: '#000000',
     },
 
@@ -261,19 +262,42 @@ const DamageReportDocument = ({ data }) => {
                 {/* Meta Data */}
                 <View style={styles.divider} />
                 <View style={styles.metaSection}>
-                    {data.projectNumber && (
-                        <View style={styles.metaRow}>
-                            <Text style={styles.metaLabel}>Projektnummer:</Text>
-                            <Text style={styles.metaValue}>{data.projectNumber}</Text>
+                    <View style={{ flexDirection: 'row', gap: 20 }}>
+                        <View style={{ flex: 1 }}>
+                            {data.projectNumber && (
+                                <View style={styles.metaRow}>
+                                    <Text style={styles.metaLabel}>Projektnummer:</Text>
+                                    <Text style={styles.metaValue}>{data.projectNumber}</Text>
+                                </View>
+                            )}
+                            {data.orderNumber && (
+                                <View style={styles.metaRow}>
+                                    <Text style={styles.metaLabel}>Auftragsnummer:</Text>
+                                    <Text style={styles.metaValue}>{data.orderNumber}</Text>
+                                </View>
+                            )}
+                            {data.damageNumber && (
+                                <View style={styles.metaRow}>
+                                    <Text style={styles.metaLabel}>Schaden-Nr:</Text>
+                                    <Text style={styles.metaValue}>{data.damageNumber}</Text>
+                                </View>
+                            )}
                         </View>
-                    )}
-                    {data.orderNumber && (
-                        <View style={styles.metaRow}>
-                            <Text style={styles.metaLabel}>Auftragsnummer:</Text>
-                            <Text style={styles.metaValue}>{data.orderNumber}</Text>
+                        <View style={{ flex: 1 }}>
+                            <View style={styles.metaRow}>
+                                <Text style={styles.metaLabel}>Datum:</Text>
+                                <Text style={styles.metaValue}>{new Date().toLocaleString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} Uhr</Text>
+                            </View>
+                            {data.damageDate && (
+                                <View style={styles.metaRow}>
+                                    <Text style={styles.metaLabel}>Schadendatum:</Text>
+                                    <Text style={styles.metaValue}>{new Date(data.damageDate).toLocaleDateString('de-CH')}</Text>
+                                </View>
+                            )}
                         </View>
-                    )}
-                    {(data.projectNumber || data.orderNumber) && <View style={{ height: 12 }} />}
+                    </View>
+
+                    <View style={{ height: 10 }} />
 
                     <View style={styles.metaRow}>
                         <Text style={styles.metaLabel}>Strasse:</Text>
@@ -299,10 +323,6 @@ const DamageReportDocument = ({ data }) => {
                         </View>
                     )}
                     <View style={styles.metaRow}>
-                        <Text style={styles.metaLabel}>Datum:</Text>
-                        <Text style={styles.metaValue}>{new Date().toLocaleString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} Uhr</Text>
-                    </View>
-                    <View style={styles.metaRow}>
                         <Text style={styles.metaLabel}>Sachbearbeiter:</Text>
                         <Text style={styles.metaValue}>{data.clientSource || 'Unbekannt'}</Text>
                     </View>
@@ -310,6 +330,12 @@ const DamageReportDocument = ({ data }) => {
                         <Text style={styles.metaLabel}>Auftraggeber:</Text>
                         <Text style={styles.metaValue}>{data.client || ''}</Text>
                     </View>
+                    {data.insurance && (
+                        <View style={styles.metaRow}>
+                            <Text style={styles.metaLabel}>Versicherung:</Text>
+                            <Text style={styles.metaValue}>{data.insurance}</Text>
+                        </View>
+                    )}
                     <View style={styles.metaRow}>
                         <Text style={styles.metaLabel}>Schadenart:</Text>
                         <Text style={styles.metaValue}>{data.damageType || '-'}</Text>
@@ -321,36 +347,32 @@ const DamageReportDocument = ({ data }) => {
                 {data.description && (
                     <View style={{ marginBottom: 15 }} wrap={false}>
                         <View style={styles.divider} />
-                        <Text style={styles.sectionTitle}>Beschreibung:</Text>
+                        <Text style={styles.sectionTitle}>BESCHREIBUNG</Text>
                         <Text style={styles.textBlock}>{data.description}</Text>
                         <View style={styles.divider} />
                     </View>
                 )}
 
-                {/* Damage Type Image (ABOVE Cause if checked - Explicitly TRUE) */}
-                {data.damageTypeImage && (data.damageTypeImageInReport === true) && (
+                {/* Damage Cause Section & Hero Photos */}
+                {(data.cause || (data.images && data.images.some(img => img.assignedTo === 'Schadenfotos' && img.includeInReport !== false))) && (
                     <View style={{ marginBottom: 20 }} wrap={false}>
                         <View style={styles.divider} />
-                        <Text style={styles.sectionTitle}>Schadenart (Bild):</Text>
-                        <Image src={data.damageTypeImage} style={{ width: 300, height: 200, objectFit: 'contain' }} />
-                        <View style={styles.divider} />
-                    </View>
-                )}
+                        <View style={{ marginBottom: 10 }}>
+                            <Text style={styles.sectionTitle}>SCHADENURSACHE</Text>
+                            <Text style={styles.textBlock}>{data.cause || 'Keine Beschreibung der Ursache angegeben.'}</Text>
+                        </View>
 
-                {/* Cause and Bottom Image Combined to prevent page break split */}
-                {((data.cause || data.damageType) || (data.damageTypeImage && data.damageTypeImageInReport !== true)) && (
-                    <View style={{ marginBottom: 20 }} wrap={false}>
-                        <View style={styles.divider} />
-                        {(data.cause || data.damageType) && (
-                            <View style={{ marginBottom: 10 }}>
-                                <Text style={styles.sectionTitle}>Schadenursache:</Text>
-                                <Text style={styles.textBlock}>{data.cause || data.damageType}</Text>
-                            </View>
-                        )}
-                        {data.damageTypeImage && (data.damageTypeImageInReport !== true) && (
-                            <View style={styles.imageGrid}>
-                                <View style={styles.imageContainer}>
-                                    <Image src={data.damageTypeImage} style={styles.image} />
+                        {/* Schadenfotos Grid (The "Selected Pics") */}
+                        {data.images && data.images.some(img => img.assignedTo === 'Schadenfotos' && img.includeInReport !== false) && (
+                            <View style={{ marginTop: 10 }}>
+                                <Text style={[styles.imageDescription, { fontWeight: 'bold', marginBottom: 8, color: '#0F6EA3' }]}>FOTOS ZUR URSACHE</Text>
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                                    {data.images.filter(img => img.assignedTo === 'Schadenfotos' && img.includeInReport !== false).map((img, i) => (
+                                        <View key={i} style={{ width: '48%', marginBottom: 10 }}>
+                                            <Image src={img.preview} style={{ width: '100%', height: 160, objectFit: 'contain' }} />
+                                            {img.description && <Text style={[styles.imageDescription, { marginTop: 4 }]}>{img.description}</Text>}
+                                        </View>
+                                    ))}
                                 </View>
                             </View>
                         )}
@@ -362,7 +384,7 @@ const DamageReportDocument = ({ data }) => {
                 {data.equipment && data.equipment.length > 0 && (
                     <View style={{ marginBottom: 20 }} wrap={false}>
                         <View style={styles.divider} />
-                        <Text style={styles.sectionTitle}>Trocknungsgeräte:</Text>
+                        <Text style={styles.sectionTitle}>TROCKNUNGSGERÄTE</Text>
                         <View style={styles.table}>
                             <View style={styles.tableHeaderRow}>
                                 <View style={{ width: '25%' }}><Text style={styles.tableHeader}>Gerät</Text></View>
@@ -400,14 +422,15 @@ const DamageReportDocument = ({ data }) => {
                     </View>
                 )}
 
-                {/* Raumdokumentation Section Wrapper */}
-                {validRooms.length > 0 && <View style={styles.divider} />}
+                {/* Raumdokumentation Section */}
                 {validRooms.map((room, index) => {
-                    const isNewApt = room.apartment !== currentApartment;
-                    const isNewFloor = room.stockwerk !== currentFloor || isNewApt;
+                    const isNewApt = room.apartment !== currentApartment || room.stockwerk !== currentFloor;
+                    const isFirstRoom = index === 0;
 
-                    if (isNewApt) currentApartment = room.apartment;
-                    if (isNewFloor) currentFloor = room.stockwerk;
+                    if (isNewApt) {
+                        currentApartment = room.apartment;
+                        currentFloor = room.stockwerk;
+                    }
 
                     const roomImages = data.images.filter(img =>
                         (img.roomId === room.id || img.assignedTo === room.name) &&
@@ -419,12 +442,42 @@ const DamageReportDocument = ({ data }) => {
 
                     return (
                         <View key={room.id || index} style={styles.roomContainer}>
-                            {/* Header Block - Keeps Header + 1st Image together */}
+                            {/* Header Block - Keeps Section Title + Room Header + 1st Image together */}
                             <View wrap={false}>
-                                {isNewApt && room.apartment && (
-                                    <Text style={styles.apartmentHeader}>Wohnung: {room.apartment}</Text>
+                                {isFirstRoom && (
+                                    <View>
+                                        <View style={styles.divider} />
+                                        <Text style={styles.sectionTitle}>RAUMDOKUMENTATION</Text>
+                                    </View>
+                                )}
+
+                                {isNewApt && (room.apartment || room.stockwerk) && (
+                                    <View style={{ marginTop: 0 }}>
+                                        <Text style={styles.apartmentHeader}>
+                                            {room.stockwerk ? `${room.stockwerk}${room.apartment ? ', ' : ''}` : ''}
+                                            {room.apartment ? `Wohnung: ${room.apartment}` : ''}
+                                        </Text>
+                                    </View>
                                 )}
                                 <Text style={styles.roomHeader}>{room.name}</Text>
+
+                                {/* Measurements Summary if exists */}
+                                {room.measurementData && room.measurementData.measurements && (
+                                    <View style={[styles.table, { marginTop: 5, marginBottom: 10 }]}>
+                                        <View style={styles.tableHeaderRow}>
+                                            <View style={{ width: '40%' }}><Text style={styles.tableHeader}>Position</Text></View>
+                                            <View style={{ width: '30%' }}><Text style={styles.tableHeader}>W-Wert</Text></View>
+                                            <View style={{ width: '30%' }}><Text style={styles.tableHeader}>B-Wert</Text></View>
+                                        </View>
+                                        {room.measurementData.measurements.map((m, mi) => (
+                                            <View key={mi} style={styles.tableRow}>
+                                                <View style={{ width: '40%' }}><Text style={styles.tableCell}>{m.location || '-'}</Text></View>
+                                                <View style={{ width: '30%' }}><Text style={styles.tableCell}>{m.wValue || '-'}</Text></View>
+                                                <View style={{ width: '30%' }}><Text style={styles.tableCell}>{m.bValue || '-'}</Text></View>
+                                            </View>
+                                        ))}
+                                    </View>
+                                )}
 
                                 {firstImage && (
                                     <View style={[styles.imageGrid, { marginBottom: 10 }]}>
@@ -456,11 +509,28 @@ const DamageReportDocument = ({ data }) => {
                 })}
                 {validRooms.length > 0 && <View style={styles.divider} />}
 
+                {/* Pläne & Grundrisse */}
+                {data.images && data.images.some(img => img.assignedTo === 'Pläne' && img.includeInReport !== false) && (
+                    <View style={{ marginBottom: 20 }} wrap={false}>
+                        <View style={styles.divider} />
+                        <Text style={styles.sectionTitle}>PLÄNE & GRUNDRISSE</Text>
+                        <View style={styles.imageGrid}>
+                            {data.images.filter(img => img.assignedTo === 'Pläne' && img.includeInReport !== false).map((img, i) => (
+                                <View key={i} style={styles.imageContainer}>
+                                    <Image src={img.preview} style={styles.image} />
+                                    {img.name && <Text style={styles.imageDescription}>{img.name}</Text>}
+                                </View>
+                            ))}
+                        </View>
+                        <View style={styles.divider} />
+                    </View>
+                )}
+
                 {/* Findings */}
                 {data.findings && (
                     <View style={{ marginBottom: 15, marginTop: 20 }} wrap={false}>
                         <View style={styles.divider} />
-                        <Text style={styles.sectionTitle}>Feststellungen:</Text>
+                        <Text style={styles.sectionTitle}>FESTSTELLUNGEN</Text>
                         <Text style={styles.textBlock}>{data.findings}</Text>
                         <View style={styles.divider} />
                     </View>
@@ -470,7 +540,7 @@ const DamageReportDocument = ({ data }) => {
                 {data.measures && (
                     <View style={{ marginBottom: 15 }} wrap={false}>
                         <View style={styles.divider} />
-                        <Text style={styles.sectionTitle}>Massnahmen:</Text>
+                        <Text style={styles.sectionTitle}>MASSNAHMEN</Text>
                         <Text style={styles.textBlock}>{data.measures}</Text>
                         <View style={styles.divider} />
                     </View>
