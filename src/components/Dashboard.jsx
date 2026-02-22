@@ -12,7 +12,7 @@ const getDaysDiff = (startDate) => {
     return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 }
 
-// Helper to format date as tt/mm/jj
+// Helper to format date as tt/mm/jj hh:mm
 const formatDate = (dateString) => {
     if (!dateString) return '-';
     const date = new Date(dateString);
@@ -20,7 +20,9 @@ const formatDate = (dateString) => {
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = String(date.getFullYear()).slice(-2);
-    return `${day}/${month}/${year}`;
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
 }
 
 const statusColors = {

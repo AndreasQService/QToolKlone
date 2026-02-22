@@ -15,6 +15,7 @@ import html2canvas from 'html2canvas';
 import ImageEditor from './ImageEditor';
 import EmailImportModal from './EmailImportModalV2';
 import OpenAI from "openai";
+import { jsPDF } from 'jspdf';
 import CameraCaptureModal from './CameraCaptureModal';
 import MeasurementModal from './MeasurementModal';
 import { generateMeasurementExcel } from '../utils/MeasurementExcelExporter';
@@ -154,10 +155,14 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
         images: Array.isArray(initialData.images)
             ? initialData.images.map(img => typeof img === 'string' ? { preview: img, name: 'Existing Image', date: new Date().toISOString() } : img)
             : [],
+        projectNumber: initialData.projectNumber || '',
+        orderNumber: initialData.orderNumber || '',
         rooms: Array.isArray(initialData.rooms) ? initialData.rooms : []
     } : {
         id: null,
         projectTitle: '',
+        projectNumber: '',
+        orderNumber: '',
         client: '',
         locationDetails: '',
         clientSource: '',
@@ -1412,8 +1417,11 @@ END:VCARD`;
             };
 
             // Generate Blob using @react-pdf
-            const blob = await pdf(<DamageReportDocument data={docData} />).toBlob();
-            const fileName = `Export_${dataToUse.projectTitle || 'Projekt'}.pdf`;
+            const blob = await pdf(<DamageReportDocument key={Math.random()} data={docData} />).toBlob();
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+            const dateStr = now.toLocaleDateString('de-CH').replace(/\./g, '-');
+            const fileName = `Export_${dataToUse.projectTitle || 'Projekt'}_${dateStr}_${timeStr}.pdf`;
 
             // 1. Download File
             saveAs(blob, fileName);
@@ -1686,874 +1694,1136 @@ END:VCARD`;
 
     if (mode === 'technician' || mode === 'desktop') {
         return (
-            <div className="card" style={{ maxWidth: mode === 'desktop' ? '1200px' : '600px', margin: '0 auto', padding: '1rem' }}>
-                {showEmailImport && (
-                    <EmailImportModal
-                        onClose={() => setShowEmailImport(false)}
-                        onImport={handleEmailImport}
-                        audioDevices={audioDevices}
-                        selectedDeviceId={selectedDeviceId}
-                        onSelectDeviceId={setSelectedDeviceId}
-                        onRefreshDevices={refreshAudioDevices}
-                        deviceError={deviceError}
-                    />
-                )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '2px solid var(--primary)', paddingBottom: '0.5rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        <button
-                            onClick={onCancel}
-                            style={{
-                                background: 'transparent',
-                                border: 'none',
-                                color: 'var(--text-main)',
-                                padding: '0.25rem',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                            }}
-                        >
-                            <ArrowLeft size={24} />
-                        </button>
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
-                            {formData.projectTitle || 'Projekt'}
-                        </h2>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-
-                        <select
-                            className="form-input"
-                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.9rem', width: 'auto' }}
-                            value={formData.status}
-                            onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-                        >
-                            {Object.keys(statusColors).map(status => (
-                                <option key={status} value={status}>{status}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-
-
-
-
-
-
-
-
-                {/* File Upload Panel & AI Suggestions - ONLY DESKTOP */}
-                {mode === 'desktop' && (
-                    <div style={{ marginBottom: '1.5rem' }}>
-                        <UploadPanel
-                            caseId={formData.id}
-                            onCaseCreated={(newId) => setFormData(prev => ({ ...prev, id: newId }))}
-                            onExtractionComplete={(data) => {
-                                console.log("Extraction complete, applying data direct:", data);
-                                handleEmailImport(data);
-                            }}
-                            onImagesUploaded={(newImages) => {
-                                setFormData(prev => ({
-                                    ...prev,
-                                    images: [...(prev.images || []), ...newImages]
-                                }));
-                            }}
+            <>
+                <div className="card" style={{ maxWidth: mode === 'desktop' ? '1200px' : '600px', margin: '0 auto', padding: '1rem' }}>
+                    {showEmailImport && (
+                        <EmailImportModal
+                            onClose={() => setShowEmailImport(false)}
+                            onImport={handleEmailImport}
+                            audioDevices={audioDevices}
+                            selectedDeviceId={selectedDeviceId}
+                            onSelectDeviceId={setSelectedDeviceId}
+                            onRefreshDevices={refreshAudioDevices}
+                            deviceError={deviceError}
                         />
-
-                        {/* AI Suggestions Confirmation Panel */}
-                        {extractedData && (
-                            <AiSuggestionsPanel
-                                extractedData={extractedData}
-                                currentFormData={formData}
-                                onDismiss={() => setExtractedData(null)}
-                                onApplyField={(field, value) => {
-                                    setFormData(prev => ({
-                                        ...prev,
-                                        [field]: value
-                                    }));
-                                    // Remove field from suggestions after applying? Or keep until dismissed?
-                                    // Usually better to keep it visible so user knows what came from AI
-                                }}
-                                onApplyAll={(allData) => {
-                                    console.log("Applying all AI data:", allData);
-                                    handleEmailImport(allData); // Reuse existing import logic
-                                    setExtractedData(null); // Close panel
-                                }}
-                            />
-                        )}
-                    </div>
-                )}
-
-                {/* 1a. Project Details (Client / Manager) - ONLY DESKTOP */}
-                {mode === 'desktop' && (
-                    <div style={{ marginBottom: '1.5rem', backgroundColor: 'var(--surface)', padding: '1rem', borderRadius: '8px', color: 'var(--text-main)' }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
-                            <Briefcase size={18} /> Auftrag & Verwaltung
-                        </h3>
-
-                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'nowrap' }}>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Auftraggeber</label>
+                    )}
+                    {/* Project & Order Numbers Row */}
+                    {(mode === 'desktop' || mode === 'technician') && (
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.75rem',
+                            marginBottom: '1rem',
+                            padding: '1rem',
+                            backgroundColor: 'rgba(255,255,255,0.03)',
+                            borderRadius: '12px',
+                            border: '1px solid var(--border)',
+                            justifyContent: 'flex-start',
+                            alignItems: 'flex-start'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted)', width: '120px' }}>Projektnummer:</label>
                                 <input
                                     type="text"
                                     className="form-input"
-                                    value={formData.client || ''}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, client: e.target.value }))}
-                                    placeholder="Auftraggeber eingeben"
-                                    style={{ width: '100%' }}
+                                    style={{ padding: '0.4rem 0.75rem', fontSize: '0.95rem', width: '250px', backgroundColor: 'var(--background)' }}
+                                    value={formData.projectNumber || ''}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, projectNumber: e.target.value }))}
+                                    placeholder="z.B. P-2024-001"
                                 />
                             </div>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Zuständige Bewirtschaftung</label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted)', width: '120px' }}>Auftragsnummer:</label>
                                 <input
                                     type="text"
                                     className="form-input"
-                                    value={formData.assignedTo || ''}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, assignedTo: e.target.value }))}
-                                    placeholder="Verwaltung / Bewirtschafter eingeben"
-                                    style={{ width: '100%' }}
+                                    style={{ padding: '0.4rem 0.75rem', fontSize: '0.95rem', width: '250px', backgroundColor: 'var(--background)' }}
+                                    value={formData.orderNumber || ''}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, orderNumber: e.target.value }))}
+                                    placeholder="z.B. A-12345"
                                 />
                             </div>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Sachbearbeiter</label>
+                        </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '2px solid var(--primary)', paddingBottom: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <button
+                                onClick={onCancel}
+                                style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: 'var(--text-main)',
+                                    padding: '0.25rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}
+                            >
+                                <ArrowLeft size={24} />
+                            </button>
+                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
+                                {formData.projectTitle || 'Projekt'}
+                            </h2>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {mode === 'desktop' && (
                                 <select
                                     className="form-input"
+                                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.9rem', width: 'auto' }}
                                     value={formData.clientSource || ''}
                                     onChange={(e) => setFormData(prev => ({ ...prev, clientSource: e.target.value }))}
-                                    style={{ width: '100%' }}
                                 >
-                                    <option value="">Bitte wählen...</option>
+                                    <option value="">Sachbearbeiter...</option>
                                     <option value="Xhemil Ademi">Xhemil Ademi</option>
                                     <option value="Adi Shala">Adi Shala</option>
                                     <option value="Andreas Strehler">Andreas Strehler</option>
                                     <option value="André Rothfuchs">André Rothfuchs</option>
                                 </select>
-                            </div>
-                            <div style={{ width: '160px', flexShrink: 0 }}>
-                                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Schadensart</label>
-                                <select
-                                    className="form-input"
-                                    value={formData.damageCategory || 'Wasserschaden'}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, damageCategory: e.target.value }))}
-                                    style={{ width: '100%' }}
-                                >
-                                    <option value="Wasserschaden">Wasserschaden</option>
-                                    <option value="Schimmel">Schimmel</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                            )}
 
-                {/* Address Text Details */}
-                <div style={{ marginBottom: '1.5rem', backgroundColor: 'var(--surface)', padding: '1rem', borderRadius: '8px', color: 'var(--text-main)' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
-                        <MapPin size={18} /> Schadenort (Adresse)
-                    </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        {/* Location Details */}
-                        <div>
-                            <input
+                            <select
                                 className="form-input"
-                                placeholder="Zusatz (z.B. 2. OG)"
-                                value={formData.locationDetails || ''}
-                                onChange={(e) => setFormData(prev => ({ ...prev, locationDetails: e.target.value }))}
-                                style={{ width: '100%', fontSize: '0.9rem' }}
-                            />
-                        </div>
-
-                        {/* Street */}
-                        <div>
-                            <input
-                                className="form-input"
-                                placeholder="Strasse & Nr."
-                                value={formData.street || ''}
-                                onChange={(e) => setFormData(prev => ({ ...prev, street: e.target.value }))}
-                                style={{ width: '100%', fontSize: '0.9rem' }}
-                            />
-                        </div>
-
-                        {/* Zip and City */}
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <input
-                                list="plz-list-mobile"
-                                className="form-input"
-                                placeholder="PLZ"
-                                value={formData.zip || ''}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    const match = swissPLZ.find(entry => entry.plz === val.trim());
-                                    if (match) {
-                                        setFormData(prev => ({ ...prev, zip: val, city: match.city }));
-                                    } else {
-                                        setFormData(prev => ({ ...prev, zip: val }));
-                                    }
-                                }}
-                                style={{ width: '80px', fontSize: '0.9rem' }}
-                            />
-                            <datalist id="plz-list-mobile">
-                                {swissPLZ.map((entry, idx) => (
-                                    <option key={idx} value={entry.plz}>{entry.city}</option>
+                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.9rem', width: 'auto' }}
+                                value={formData.status}
+                                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+                            >
+                                {Object.keys(statusColors).map(status => (
+                                    <option key={status} value={status}>{status}</option>
                                 ))}
-                            </datalist>
-
-                            <input
-                                className="form-input"
-                                placeholder="Ort"
-                                value={formData.city || ''}
-                                onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-                                style={{ flex: 1, fontSize: '0.9rem' }}
-                            />
+                            </select>
                         </div>
                     </div>
-                </div>
 
-                {/* Technician: Schadenbeschreibung & Bilder (KI / Meldung) */}
-                {mode === 'technician' && (
-                    <div style={{ marginBottom: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <FileText size={18} /> Schadenbeschreibung (KI / Meldung)
-                        </h3>
-                        <div style={{ backgroundColor: 'var(--surface)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '1.5rem' }}>
-                            <textarea
-                                className="form-input"
-                                value={formData.description || ''}
-                                readOnly={true}
-                                placeholder="Beschrieb aus der Meldung..."
-                                style={{
-                                    width: '100%', minHeight: '100px',
-                                    backgroundColor: 'transparent', border: 'none',
-                                    resize: 'none',
-                                    fontFamily: 'inherit', color: 'var(--text-main)',
-                                    cursor: 'default'
+
+
+
+
+
+
+
+
+
+                    {/* File Upload Panel & AI Suggestions - ONLY DESKTOP */}
+                    {mode === 'desktop' && (
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <UploadPanel
+                                caseId={formData.id}
+                                onCaseCreated={(newId) => setFormData(prev => ({ ...prev, id: newId }))}
+                                onExtractionComplete={(data) => {
+                                    console.log("Extraction complete, applying data direct:", data);
+                                    handleEmailImport(data);
+                                }}
+                                onImagesUploaded={(newImages) => {
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        images: [...(prev.images || []), ...newImages]
+                                    }));
                                 }}
                             />
-                        </div>
 
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Image size={18} /> Schadensbilder (Meldung)
-                        </h3>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', backgroundColor: 'var(--surface)', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                            {formData.images && formData.images.filter(img => {
-                                const isDoc = img.type === 'document' ||
-                                    img.name?.toLowerCase().endsWith('.msg') ||
-                                    img.name?.toLowerCase().endsWith('.pdf') ||
-                                    img.name?.toLowerCase().endsWith('.txt');
-                                return img && !img.roomId && !isDoc;
-                            }).map((img, idx) => (
-                                <div key={idx}
-                                    style={{
-                                        width: '80px', height: '80px', borderRadius: '4px', overflow: 'hidden',
-                                        border: '1px solid var(--border)', cursor: 'pointer'
+                            {/* AI Suggestions Confirmation Panel */}
+                            {extractedData && (
+                                <AiSuggestionsPanel
+                                    extractedData={extractedData}
+                                    currentFormData={formData}
+                                    onDismiss={() => setExtractedData(null)}
+                                    onApplyField={(field, value) => {
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            [field]: value
+                                        }));
+                                        // Remove field from suggestions after applying? Or keep until dismissed?
+                                        // Usually better to keep it visible so user knows what came from AI
                                     }}
-                                    onClick={() => setGlobalPreviewImage(img.preview)}
-                                >
-                                    <img src={img.preview} alt="Schadensbild" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                </div>
-                            ))}
-                            {(!formData.images || formData.images.filter(img => !img.roomId && !(img.type === 'document' || img.name?.toLowerCase().endsWith('.msg') || img.name?.toLowerCase().endsWith('.pdf') || img.name?.toLowerCase().endsWith('.txt'))).length === 0) && (
-                                <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', width: '100%', textAlign: 'center', padding: '1rem' }}>Keine Bilder vorhanden.</div>
+                                    onApplyAll={(allData) => {
+                                        console.log("Applying all AI data:", allData);
+                                        handleEmailImport(allData); // Reuse existing import logic
+                                        setExtractedData(null); // Close panel
+                                    }}
+                                />
                             )}
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {/* Desktop-Only: Schadenbeschreibung (AI Extracted) */}
-                {mode === 'desktop' && (
-                    <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: '0.5rem' }}>
-                            <label style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <FileText size={16} /> Schadenbeschreibung (KI / Meldung)
-                            </label>
+                    {/* 1a. Project Details (Client / Manager) - ONLY DESKTOP */}
+                    {mode === 'desktop' && (
+                        <div style={{ marginBottom: '1.5rem', backgroundColor: 'var(--surface)', padding: '1rem', borderRadius: '8px', color: 'var(--text-main)' }}>
+                            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
+                                <Briefcase size={18} /> Auftrag & Verwaltung
+                            </h3>
+
+                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'nowrap' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Auftraggeber</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        value={formData.client || ''}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, client: e.target.value }))}
+                                        placeholder="Auftraggeber eingeben"
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Zuständige Bewirtschaftung</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        value={formData.assignedTo || ''}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, assignedTo: e.target.value }))}
+                                        placeholder="Verwaltung / Bewirtschafter eingeben"
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Sachbearbeiter</label>
+                                    <select
+                                        className="form-input"
+                                        value={formData.clientSource || ''}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, clientSource: e.target.value }))}
+                                        style={{ width: '100%' }}
+                                    >
+                                        <option value="">Bitte wählen...</option>
+                                        <option value="Xhemil Ademi">Xhemil Ademi</option>
+                                        <option value="Adi Shala">Adi Shala</option>
+                                        <option value="Andreas Strehler">Andreas Strehler</option>
+                                        <option value="André Rothfuchs">André Rothfuchs</option>
+                                    </select>
+                                </div>
+                                <div style={{ width: '160px', flexShrink: 0 }}>
+                                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Schadensart</label>
+                                    <select
+                                        className="form-input"
+                                        value={formData.damageCategory || 'Wasserschaden'}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, damageCategory: e.target.value }))}
+                                        style={{ width: '100%' }}
+                                    >
+                                        <option value="Wasserschaden">Wasserschaden</option>
+                                        <option value="Schimmel">Schimmel</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
-                        <textarea
-                            value={formData.description || ''}
-                            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                            placeholder="Beschrieb aus der Meldung..."
-                            style={{
-                                width: '100%',
-                                minHeight: '100px',
-                                padding: '0.75rem',
-                                borderRadius: '8px',
-                                border: '1px solid var(--border)',
-                                backgroundColor: 'var(--background)',
-                                color: 'var(--text-main)',
-                                resize: 'vertical',
-                                fontFamily: 'inherit',
-                                fontSize: '0.95rem',
-                                lineHeight: 1.5
-                            }}
-                        />
+                    )}
 
-                        {/* Schadensbilder Upload */}
-                        <div style={{ marginTop: '1rem' }}>
-                            <label style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                <Image size={16} /> Schadensbilder
-                            </label>
+                    {/* Address Text Details */}
+                    <div style={{ marginBottom: '1.5rem', backgroundColor: 'var(--surface)', padding: '1rem', borderRadius: '8px', color: 'var(--text-main)' }}>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
+                            <MapPin size={18} /> Schadenort (Adresse)
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {/* Location Details */}
+                            <div>
+                                <input
+                                    className="form-input"
+                                    placeholder="Zusatz (z.B. 2. OG)"
+                                    value={formData.locationDetails || ''}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, locationDetails: e.target.value }))}
+                                    style={{ width: '100%', fontSize: '0.9rem' }}
+                                />
+                            </div>
 
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                {formData.images && Array.isArray(formData.images) && formData.images.filter(img => {
+                            {/* Street */}
+                            <div>
+                                <input
+                                    className="form-input"
+                                    placeholder="Strasse & Nr."
+                                    value={formData.street || ''}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, street: e.target.value }))}
+                                    style={{ width: '100%', fontSize: '0.9rem' }}
+                                />
+                            </div>
+
+                            {/* Zip and City */}
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <input
+                                    list="plz-list-mobile"
+                                    className="form-input"
+                                    placeholder="PLZ"
+                                    value={formData.zip || ''}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        const match = swissPLZ.find(entry => entry.plz === val.trim());
+                                        if (match) {
+                                            setFormData(prev => ({ ...prev, zip: val, city: match.city }));
+                                        } else {
+                                            setFormData(prev => ({ ...prev, zip: val }));
+                                        }
+                                    }}
+                                    style={{ width: '80px', fontSize: '0.9rem' }}
+                                />
+                                <datalist id="plz-list-mobile">
+                                    {swissPLZ.map((entry, idx) => (
+                                        <option key={idx} value={entry.plz}>{entry.city}</option>
+                                    ))}
+                                </datalist>
+
+                                <input
+                                    className="form-input"
+                                    placeholder="Ort"
+                                    value={formData.city || ''}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                                    style={{ flex: 1, fontSize: '0.9rem' }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Technician: Schadenbeschreibung & Bilder (KI / Meldung) */}
+                    {mode === 'technician' && (
+                        <div style={{ marginBottom: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <FileText size={18} /> Schadenbeschreibung (KI / Meldung)
+                            </h3>
+                            <div style={{ backgroundColor: 'var(--surface)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '1.5rem' }}>
+                                <textarea
+                                    className="form-input"
+                                    value={formData.description || ''}
+                                    readOnly={true}
+                                    placeholder="Beschrieb aus der Meldung..."
+                                    style={{
+                                        width: '100%', minHeight: '100px',
+                                        backgroundColor: 'transparent', border: 'none',
+                                        resize: 'none',
+                                        fontFamily: 'inherit', color: 'var(--text-main)',
+                                        cursor: 'default'
+                                    }}
+                                />
+                            </div>
+
+                            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <Image size={18} /> Schadensbilder (Meldung)
+                            </h3>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', backgroundColor: 'var(--surface)', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                {formData.images && formData.images.filter(img => {
                                     const isDoc = img.type === 'document' ||
                                         img.name?.toLowerCase().endsWith('.msg') ||
                                         img.name?.toLowerCase().endsWith('.pdf') ||
                                         img.name?.toLowerCase().endsWith('.txt');
                                     return img && !img.roomId && !isDoc;
-                                }).map((img, idx) => {
-                                    const isDoc = false; // We filtered them out already
-                                    return (
-                                        <div key={idx}
-                                            style={{
-                                                position: 'relative', width: '80px', height: '80px', borderRadius: '4px', overflow: 'hidden',
-                                                border: '1px solid var(--border)', cursor: 'pointer',
-                                                backgroundColor: isDoc ? 'var(--background-muted)' : 'transparent',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                            }}
-                                            onClick={() => {
-                                                if (img.preview) {
-                                                    console.log("Opening preview (global):", img.preview);
-                                                    setGlobalPreviewImage(img.preview);
-                                                }
-                                            }}
-                                            title={img.name || 'Unbekannt'}
-                                        >
-                                            {isDoc ? (
-                                                <div style={{ textAlign: 'center', color: 'var(--text-main)' }}>
-                                                    {(img.fileType === 'msg' || img.name?.toLowerCase().endsWith('.msg')) ? <Mail size={32} /> : <FileText size={32} />}
-                                                    <div style={{ fontSize: '0.6rem', marginTop: 4, maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                        {img.name}
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    <img
-                                                        src={img.preview}
-                                                        alt="Schadensbild"
-                                                        style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }}
-                                                        onError={(e) => { e.target.style.display = 'none'; }}
-                                                    />
-                                                    <div
-                                                        style={{
-                                                            position: 'absolute', inset: 0,
-                                                            zIndex: 5, cursor: 'zoom-in'
-                                                        }}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setGlobalPreviewImage(img.preview);
-                                                        }}
-                                                        title="Vergrößern"
-                                                    />
-                                                </>
-                                            )}
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setFormData(prev => ({
-                                                        ...prev,
-                                                        images: prev.images.filter(i => i !== img) // Safer remove by reference
-                                                    }));
-                                                }}
-                                                style={{
-                                                    position: 'absolute', top: 2, right: 2,
-                                                    background: 'rgba(0,0,0,0.6)', color: 'white',
-                                                    border: 'none', borderRadius: '50%',
-                                                    width: 20, height: 20,
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    cursor: 'pointer', padding: 0,
-                                                    zIndex: 10
-                                                }}
-                                                title="Löschen"
-                                            >
-                                                <X size={12} />
-                                            </button>
-                                        </div>
-                                    )
-                                })}
-
-                                <label style={{
-                                    width: '80px', height: '80px',
-                                    border: '1px dashed var(--border)', borderRadius: '4px',
-                                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                                    cursor: 'pointer', backgroundColor: 'var(--surface-hover)',
-                                    fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center'
-                                }}>
-                                    <Plus size={20} />
-                                    <span>Bild add.</span>
-                                    <input
-                                        type="file"
-                                        multiple
-                                        accept="image/*"
-                                        style={{ display: 'none' }}
-                                        onChange={async (e) => {
-                                            if (!e.target.files?.length) return;
-                                            const files = Array.from(e.target.files);
-
-                                            // Ensure ID exists
-                                            let currentId = formData.id;
-                                            if (!currentId) {
-                                                currentId = "TMP-" + Date.now();
-                                                setFormData(prev => ({ ...prev, id: currentId }));
-                                            }
-
-                                            for (const file of files) {
-                                                const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-                                                const filePath = `cases/${currentId}/images/${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-
-                                                try {
-                                                    // Upload
-                                                    const { error: uploadError } = await supabase.storage
-                                                        .from("case-files")
-                                                        .upload(filePath, file);
-
-                                                    if (uploadError) throw uploadError;
-
-                                                    // Get Public URL
-                                                    const { data: { publicUrl } } = supabase.storage
-                                                        .from("case-files")
-                                                        .getPublicUrl(filePath);
-
-                                                    // Add to formData
-                                                    setFormData(prev => ({
-                                                        ...prev,
-                                                        images: [...(prev.images || []), {
-                                                            preview: publicUrl,
-                                                            name: file.name,
-                                                            description: 'Initialbild (Mail)',
-                                                            date: new Date().toISOString(),
-                                                            roomId: null // Global / Initial
-                                                        }]
-                                                    }));
-                                                } catch (err) {
-                                                    console.error("Image upload failed", err);
-                                                    alert("Fehler beim Bilder-Upload: " + err.message);
-                                                }
-                                            }
+                                }).map((img, idx) => (
+                                    <div key={idx}
+                                        style={{
+                                            width: '80px', height: '80px', borderRadius: '4px', overflow: 'hidden',
+                                            border: '1px solid var(--border)', cursor: 'pointer'
                                         }}
-                                    />
-                                </label>
+                                        onClick={() => setGlobalPreviewImage(img.preview)}
+                                    >
+                                        <img src={img.preview} alt="Schadensbild" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    </div>
+                                ))}
+                                {(!formData.images || formData.images.filter(img => !img.roomId && !(img.type === 'document' || img.name?.toLowerCase().endsWith('.msg') || img.name?.toLowerCase().endsWith('.pdf') || img.name?.toLowerCase().endsWith('.txt'))).length === 0) && (
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', width: '100%', textAlign: 'center', padding: '1rem' }}>Keine Bilder vorhanden.</div>
+                                )}
                             </div>
                         </div>
+                    )}
 
-                        {/* Dokumente & Anhänge Section */}
-                        {formData.images && formData.images.some(img => img && !img.roomId && (img.type === 'document' || img.name?.toLowerCase().endsWith('.pdf') || img.name?.toLowerCase().endsWith('.msg') || img.name?.toLowerCase().endsWith('.txt'))) && (
-                            <div style={{ marginTop: '1.5rem' }}>
-                                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                    <FileText size={16} /> Dokumente & Anhänge (PDF, MSG)
+                    {/* Desktop-Only: Schadenbeschreibung (AI Extracted) */}
+                    {mode === 'desktop' && (
+                        <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: '0.5rem' }}>
+                                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <FileText size={16} /> Schadenbeschreibung (KI / Meldung)
                                 </label>
+                            </div>
+                            <textarea
+                                value={formData.description || ''}
+                                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                                placeholder="Beschrieb aus der Meldung..."
+                                style={{
+                                    width: '100%',
+                                    minHeight: '100px',
+                                    padding: '0.75rem',
+                                    borderRadius: '8px',
+                                    border: '1px solid var(--border)',
+                                    backgroundColor: 'var(--background)',
+                                    color: 'var(--text-main)',
+                                    resize: 'vertical',
+                                    fontFamily: 'inherit',
+                                    fontSize: '0.95rem',
+                                    lineHeight: 1.5
+                                }}
+                            />
+
+                            {/* Schadensbilder Upload */}
+                            <div style={{ marginTop: '1rem' }}>
+                                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                    <Image size={16} /> Schadensbilder
+                                </label>
+
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                    {formData.images.filter(img => {
+                                    {formData.images && Array.isArray(formData.images) && formData.images.filter(img => {
                                         const isDoc = img.type === 'document' ||
                                             img.name?.toLowerCase().endsWith('.msg') ||
                                             img.name?.toLowerCase().endsWith('.pdf') ||
                                             img.name?.toLowerCase().endsWith('.txt');
-                                        return img && !img.roomId && isDoc;
-                                    }).map((img, idx) => (
-                                        <div key={idx}
-                                            style={{
-                                                position: 'relative', width: '120px', height: '80px', borderRadius: '4px', overflow: 'hidden',
-                                                border: '1px solid var(--border)', cursor: 'pointer',
-                                                backgroundColor: 'var(--surface)',
-                                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                                                padding: '0.5rem'
-                                            }}
-                                            onClick={() => window.open(img.preview, '_blank')}
-                                            title={img.name}
-                                        >
-                                            {(img.name?.toLowerCase().endsWith('.pdf') || img.fileType === 'pdf') ?
-                                                <PdfIcon size={24} /> :
-                                                (img.name?.toLowerCase().endsWith('.msg') ? <Mail size={24} color="var(--primary)" /> : <FileText size={24} color="var(--primary)" />)
-                                            }
-                                            <div style={{ fontSize: '0.7rem', marginTop: 4, width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center', color: 'var(--text-main)' }}>
-                                                {img.name}
-                                            </div>
-
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setFormData(prev => ({
-                                                        ...prev,
-                                                        images: prev.images.filter(i => i !== img)
-                                                    }));
-                                                }}
+                                        return img && !img.roomId && !isDoc;
+                                    }).map((img, idx) => {
+                                        const isDoc = false; // We filtered them out already
+                                        return (
+                                            <div key={idx}
                                                 style={{
-                                                    position: 'absolute', top: 2, right: 2,
-                                                    background: 'transparent', color: '#ef4444',
-                                                    border: 'none',
-                                                    width: 20, height: 20,
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    cursor: 'pointer', padding: 0
+                                                    position: 'relative', width: '80px', height: '80px', borderRadius: '4px', overflow: 'hidden',
+                                                    border: '1px solid var(--border)', cursor: 'pointer',
+                                                    backgroundColor: isDoc ? 'var(--background-muted)' : 'transparent',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
                                                 }}
-                                                title="Löschen"
+                                                onClick={() => {
+                                                    if (img.preview) {
+                                                        console.log("Opening preview (global):", img.preview);
+                                                        setGlobalPreviewImage(img.preview);
+                                                    }
+                                                }}
+                                                title={img.name || 'Unbekannt'}
                                             >
-                                                <X size={14} />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
+                                                {isDoc ? (
+                                                    <div style={{ textAlign: 'center', color: 'var(--text-main)' }}>
+                                                        {(img.fileType === 'msg' || img.name?.toLowerCase().endsWith('.msg')) ? <Mail size={32} /> : <FileText size={32} />}
+                                                        <div style={{ fontSize: '0.6rem', marginTop: 4, maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                            {img.name}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <img
+                                                            src={img.preview}
+                                                            alt="Schadensbild"
+                                                            style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }}
+                                                            onError={(e) => { e.target.style.display = 'none'; }}
+                                                        />
+                                                        <div
+                                                            style={{
+                                                                position: 'absolute', inset: 0,
+                                                                zIndex: 5, cursor: 'zoom-in'
+                                                            }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setGlobalPreviewImage(img.preview);
+                                                            }}
+                                                            title="Vergrößern"
+                                                        />
+                                                    </>
+                                                )}
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            images: prev.images.filter(i => i !== img) // Safer remove by reference
+                                                        }));
+                                                    }}
+                                                    style={{
+                                                        position: 'absolute', top: 2, right: 2,
+                                                        background: 'rgba(0,0,0,0.6)', color: 'white',
+                                                        border: 'none', borderRadius: '50%',
+                                                        width: 20, height: 20,
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        cursor: 'pointer', padding: 0,
+                                                        zIndex: 10
+                                                    }}
+                                                    title="Löschen"
+                                                >
+                                                    <X size={12} />
+                                                </button>
+                                            </div>
+                                        )
+                                    })}
 
-                {/* Container for Map & Exterior Photo (Side-by-Side) */}
-                <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'stretch', marginBottom: '1.5rem' }}>
-                    {/* Map Card */}
-                    <div style={{ flex: '1 1 350px', backgroundColor: 'var(--surface)', padding: '1rem', borderRadius: '8px', color: 'var(--text-main)' }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
-                            <MapPin size={18} /> Standort Karte
-                        </h3>
-
-                        {(formData.street || formData.address) ? (
-                            <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)' }}>
-                                <iframe
-                                    width="100%"
-                                    height="300"
-                                    style={{ border: 0, display: 'block' }}
-                                    loading="lazy"
-                                    allowFullScreen
-                                    src={`https://maps.google.com/maps?q=${encodeURIComponent(formData.street ? `${formData.street}, ${formData.zip} ${formData.city}` : formData.address)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
-                                    title="Standort Karte"
-                                ></iframe>
-
-                                {!formData.exteriorPhoto && (
-                                    <label
-                                        style={{
-                                            position: 'absolute',
-                                            bottom: '10px',
-                                            right: '10px',
-                                            backgroundColor: 'var(--primary)',
-                                            color: 'white',
-                                            padding: '0.5rem 1rem',
-                                            borderRadius: '20px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.5rem',
-                                            cursor: 'pointer',
-                                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                                            fontSize: '0.85rem',
-                                            fontWeight: 600,
-                                            zIndex: 10
-                                        }}
-                                        title="Aussenaufnahme hinzufügen"
-                                    >
-                                        <Camera size={16} />
-                                        <span>Foto hinzufügen</span>
+                                    <label style={{
+                                        width: '80px', height: '80px',
+                                        border: '1px dashed var(--border)', borderRadius: '4px',
+                                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                                        cursor: 'pointer', backgroundColor: 'var(--surface-hover)',
+                                        fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center'
+                                    }}>
+                                        <Plus size={20} />
+                                        <span>Bild add.</span>
                                         <input
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={handleExteriorPhotoUpload}
-                                            style={{ display: 'none' }}
-                                        />
-                                    </label>
-                                )}
-                            </div>
-                        ) : (
-                            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px', border: '1px dashed var(--border)', borderRadius: '8px' }}>
-                                Keine Koordinaten verfügbar
-                            </div>
-                        )}
-                    </div>
-
-                    {/* 1b. Exterior Photo (Aussenaufnahme) - Show only if exists */}
-                    {formData.exteriorPhoto && (
-                        <div style={{ flex: '1 1 350px', backgroundColor: 'var(--surface)', padding: '1rem', borderRadius: '8px', color: 'var(--text-main)' }}>
-                            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
-                                <Camera size={18} /> Aussenaufnahme
-                            </h3>
-
-                            <div style={{ position: 'relative', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
-                                <img
-                                    src={formData.exteriorPhoto}
-                                    alt="Aussenaufnahme"
-                                    style={{ width: '100%', maxHeight: '300px', objectFit: 'cover', display: 'block' }}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={removeExteriorPhoto}
-                                    style={{
-                                        position: 'absolute',
-                                        top: '10px',
-                                        right: '10px',
-                                        backgroundColor: 'rgba(0,0,0,0.6)',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '50%',
-                                        width: '32px',
-                                        height: '32px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    <X size={20} />
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* 2. Contacts */}
-                <div style={{ marginBottom: '1.5rem' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Kontakte</h3>
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: mode === 'desktop' ? 'repeat(4, 1fr)' : 'repeat(2, 1fr)',
-                        gap: '0.75rem'
-                    }}>
-                        {formData.contacts.map((contact, idx) => (
-                            <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', backgroundColor: 'var(--surface)', border: '1px solid var(--border)', padding: '0.75rem', borderRadius: '8px', position: 'relative' }}>
-                                {/* Row 1: Name & Role */}
-                                <input
-                                    type="text"
-                                    placeholder="Name"
-                                    className="form-input"
-                                    value={contact.name}
-                                    onChange={(e) => {
-                                        const newContacts = [...formData.contacts];
-                                        newContacts[idx].name = e.target.value;
-                                        setFormData({ ...formData, contacts: newContacts });
-                                    }}
-                                    style={{ fontWeight: 600 }}
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Etage / Stockwerk"
-                                    className="form-input"
-                                    value={contact.floor || ''}
-                                    onChange={(e) => {
-                                        const newContacts = [...formData.contacts];
-                                        newContacts[idx].floor = e.target.value;
-                                        setFormData({ ...formData, contacts: newContacts });
-                                    }}
-                                    style={{ fontSize: '0.9rem' }}
-                                />
-                                <select
-                                    className="form-input"
-                                    value={contact.role || 'Mieter'}
-                                    onChange={(e) => {
-                                        const newContacts = [...formData.contacts];
-                                        newContacts[idx].role = e.target.value;
-                                        setFormData({ ...formData, contacts: newContacts });
-                                    }}
-                                >
-                                    <option value="Mieter">Mieter</option>
-                                    <option value="Eigentümer">Eigentümer</option>
-                                    <option value="Hauswart">Hauswart</option>
-                                    <option value="Verwaltung">Verwaltung</option>
-                                    <option value="Handwerker">Handwerker</option>
-                                    <option value="Sonstiges">Sonstiges</option>
-                                </select>
-                                <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                    <input
-                                        type="text"
-                                        placeholder="+41 79 123 45 67"
-                                        className="form-input"
-                                        value={contact.phone}
-                                        onChange={(e) => {
-                                            const newContacts = [...formData.contacts];
-                                            newContacts[idx].phone = e.target.value;
-                                            setFormData({ ...formData, contacts: newContacts });
-                                        }}
-                                        onBlur={(e) => {
-                                            let val = e.target.value.replace(/\s+/g, '');
-                                            // Convert 079... to +4179...
-                                            if (val.match(/^0\d{9}$/)) {
-                                                val = '+41' + val.substring(1);
-                                            }
-                                            // Format +41791234567 -> +41 79 123 45 67 (Standard Mobile)
-                                            if (val.match(/^\+41\d{9}$/)) {
-                                                val = val.replace(/(\+41)(\d{2})(\d{3})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5');
-                                            }
-                                            // Handle 8 digits edge case (+41 76 61 31 22)
-                                            else if (val.match(/^\+41\d{8}$/)) {
-                                                val = val.replace(/(\+41)(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5');
-                                            }
-
-                                            // Update state if changed
-                                            if (val !== e.target.value) {
-                                                const newContacts = [...formData.contacts];
-                                                newContacts[idx].phone = val;
-                                                setFormData({ ...formData, contacts: newContacts });
-                                            }
-                                        }}
-                                        style={{ flex: 1, fontSize: '0.9rem' }}
-                                    />
-                                    <a href={contact.phone ? `tel:${contact.phone}` : '#'} className="btn btn-outline" style={{ padding: '0.4rem', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: contact.phone ? 1 : 0.5, pointerEvents: contact.phone ? 'auto' : 'none' }} title="Anrufen">
-                                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                                    </a>
-                                    <button
-                                        type="button"
-                                        className="btn btn-outline"
-                                        style={{ padding: '0.4rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                        onClick={() => downloadVCard(contact)}
-                                        title="Kontakt speichern (vCard)"
-                                    >
-                                        <Download size={16} />
-                                    </button>
-                                    {mode === 'desktop' && (
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                const newContacts = formData.contacts.filter((_, i) => i !== idx);
-                                                setFormData({ ...formData, contacts: newContacts });
-                                            }}
-                                            className="btn btn-outline"
-                                            style={{ padding: '0.4rem', color: '#EF4444' }}
-                                            title="Kontakt löschen"
-                                        >
-                                            <Trash size={16} />
-                                        </button>
-                                    )}
-                                </div>
-
-                                {/* Delete Button (Absolute top-right or separate) */}
-
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Add Contact Button */}
-                    <button
-                        type="button"
-                        onClick={handleAddContact}
-                        style={{
-                            marginTop: '0.75rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            color: 'var(--primary)',
-                            background: 'none',
-                            border: 'none',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            padding: '0.25rem 0'
-                        }}
-                    >
-                        <Plus size={18} />
-                        Kontakt hinzufügen
-                    </button>
-                    <br />
-                </div>
-
-
-
-
-
-
-                {/* 3. Rooms & Photos */}
-                <div style={{ marginBottom: '2rem' }}>
-                    <div style={{ marginBottom: '1rem' }}>
-                        {mode !== 'technician' && (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>
-                                    Räume / Fotos
-                                </h3>
-                                <button
-                                    type="button"
-                                    onClick={handleGeneratePDF}
-                                    disabled={isGeneratingPDF}
-                                    className="btn btn-outline"
-                                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', gap: '0.5rem', alignItems: 'center', backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
-                                >
-                                    <FileText size={16} />
-                                    Schadensbericht
-                                </button>
-                            </div>
-                        )}
-
-
-                        {mode === 'technician' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                {/* NEW: Schadenursache Section (Technician) */}
-                                <div style={{ marginBottom: '1rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.02)' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                                        <h4 style={{ fontSize: '1rem', fontWeight: 600, margin: 0, color: 'var(--text-main)' }}>Schadenursache</h4>
-                                        <button
-                                            type="button"
-                                            onClick={handleGeneratePDF}
-                                            disabled={isGeneratingPDF}
-                                            className="btn btn-outline"
-                                            style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', display: 'flex', gap: '0.4rem', alignItems: 'center', backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
-                                        >
-                                            <FileText size={14} />
-                                            Schadensbericht
-                                        </button>
-                                    </div>
-
-                                    <div style={{ marginBottom: '1rem' }}>
-                                        <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Schadenursache</label>
-                                        <textarea
-                                            className="form-input"
-                                            value={formData.causeDescription || ''}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, causeDescription: e.target.value }))}
-                                            placeholder="Beschreibung der Ursache..."
-                                            style={{ width: '100%', minHeight: '80px', fontFamily: 'inherit' }}
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Fotos zur Ursache</label>
-
-                                        <div
-                                            style={{
-                                                border: '2px dashed var(--border)', borderRadius: '8px', padding: '1.5rem',
-                                                textAlign: 'center', cursor: 'pointer', backgroundColor: 'var(--bg-secondary)',
-                                                marginBottom: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem'
-                                            }}
-                                            onClick={() => document.getElementById('cause-upload-input').click()}
-                                        >
-                                            <Plus size={24} color="var(--text-muted)" />
-                                            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Schadenfoto hochladen / Drop</div>
-                                        </div>
-                                        <input
-                                            id="cause-upload-input"
                                             type="file"
                                             multiple
                                             accept="image/*"
                                             style={{ display: 'none' }}
-                                            onChange={(e) => {
-                                                if (e.target.files && e.target.files.length > 0) {
-                                                    const files = Array.from(e.target.files).map(file => ({
-                                                        file,
-                                                        preview: URL.createObjectURL(file),
-                                                        name: file.name,
-                                                        type: 'image'
-                                                    }));
-                                                    setFormData(prev => ({ ...prev, causeImages: [...(prev.causeImages || []), ...files] }));
+                                            onChange={async (e) => {
+                                                if (!e.target.files?.length) return;
+                                                const files = Array.from(e.target.files);
+
+                                                // Ensure ID exists
+                                                let currentId = formData.id;
+                                                if (!currentId) {
+                                                    currentId = "TMP-" + Date.now();
+                                                    setFormData(prev => ({ ...prev, id: currentId }));
+                                                }
+
+                                                for (const file of files) {
+                                                    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+                                                    const filePath = `cases/${currentId}/images/${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+
+                                                    try {
+                                                        // Upload
+                                                        const { error: uploadError } = await supabase.storage
+                                                            .from("case-files")
+                                                            .upload(filePath, file);
+
+                                                        if (uploadError) throw uploadError;
+
+                                                        // Get Public URL
+                                                        const { data: { publicUrl } } = supabase.storage
+                                                            .from("case-files")
+                                                            .getPublicUrl(filePath);
+
+                                                        // Add to formData
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            images: [...(prev.images || []), {
+                                                                preview: publicUrl,
+                                                                name: file.name,
+                                                                description: 'Initialbild (Mail)',
+                                                                date: new Date().toISOString(),
+                                                                roomId: null // Global / Initial
+                                                            }]
+                                                        }));
+                                                    } catch (err) {
+                                                        console.error("Image upload failed", err);
+                                                        alert("Fehler beim Bilder-Upload: " + err.message);
+                                                    }
                                                 }
                                             }}
                                         />
+                                    </label>
+                                </div>
+                            </div>
 
-                                        {(!formData.causeImages || formData.causeImages.length === 0) ? (
-                                            <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
-                                                Keine Schadenfotos vorhanden.
+                            {/* Dokumente & Anhänge Section */}
+                            {formData.images && formData.images.some(img => img && !img.roomId && (img.type === 'document' || img.name?.toLowerCase().endsWith('.pdf') || img.name?.toLowerCase().endsWith('.msg') || img.name?.toLowerCase().endsWith('.txt'))) && (
+                                <div style={{ marginTop: '1.5rem' }}>
+                                    <label style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                        <FileText size={16} /> Dokumente & Anhänge (PDF, MSG)
+                                    </label>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                        {formData.images.filter(img => {
+                                            const isDoc = img.type === 'document' ||
+                                                img.name?.toLowerCase().endsWith('.msg') ||
+                                                img.name?.toLowerCase().endsWith('.pdf') ||
+                                                img.name?.toLowerCase().endsWith('.txt');
+                                            return img && !img.roomId && isDoc;
+                                        }).map((img, idx) => (
+                                            <div key={idx}
+                                                style={{
+                                                    position: 'relative', width: '120px', height: '80px', borderRadius: '4px', overflow: 'hidden',
+                                                    border: '1px solid var(--border)', cursor: 'pointer',
+                                                    backgroundColor: 'var(--surface)',
+                                                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                                                    padding: '0.5rem'
+                                                }}
+                                                onClick={() => window.open(img.preview, '_blank')}
+                                                title={img.name}
+                                            >
+                                                {(img.name?.toLowerCase().endsWith('.pdf') || img.fileType === 'pdf') ?
+                                                    <PdfIcon size={24} /> :
+                                                    (img.name?.toLowerCase().endsWith('.msg') ? <Mail size={24} color="var(--primary)" /> : <FileText size={24} color="var(--primary)" />)
+                                                }
+                                                <div style={{ fontSize: '0.7rem', marginTop: 4, width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center', color: 'var(--text-main)' }}>
+                                                    {img.name}
+                                                </div>
+
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            images: prev.images.filter(i => i !== img)
+                                                        }));
+                                                    }}
+                                                    style={{
+                                                        position: 'absolute', top: 2, right: 2,
+                                                        background: 'transparent', color: '#ef4444',
+                                                        border: 'none',
+                                                        width: 20, height: 20,
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        cursor: 'pointer', padding: 0
+                                                    }}
+                                                    title="Löschen"
+                                                >
+                                                    <X size={14} />
+                                                </button>
                                             </div>
-                                        ) : (
-                                            <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
-                                                {formData.causeImages.map((img, idx) => (
-                                                    <div key={idx} style={{ position: 'relative', width: '70px', height: '70px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--border)' }}>
-                                                        <img src={img.preview || img.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                const newImages = [...formData.causeImages];
-                                                                newImages.splice(idx, 1);
-                                                                setFormData(prev => ({ ...prev, causeImages: newImages }));
-                                                            }}
-                                                            style={{
-                                                                position: 'absolute', top: 0, right: 0,
-                                                                background: 'rgba(0,0,0,0.6)', color: 'white',
-                                                                border: 'none', cursor: 'pointer', padding: '2px'
-                                                            }}
-                                                        >
-                                                            <X size={12} />
-                                                        </button>
-                                                    </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Container for Map & Exterior Photo (Side-by-Side) */}
+                    <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'stretch', marginBottom: '1.5rem' }}>
+                        {/* Map Card */}
+                        <div style={{ flex: '1 1 350px', backgroundColor: 'var(--surface)', padding: '1rem', borderRadius: '8px', color: 'var(--text-main)' }}>
+                            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
+                                <MapPin size={18} /> Standort Karte
+                            </h3>
+
+                            {(formData.street || formData.address) ? (
+                                <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                                    <iframe
+                                        width="100%"
+                                        height="300"
+                                        style={{ border: 0, display: 'block' }}
+                                        loading="lazy"
+                                        allowFullScreen
+                                        src={`https://maps.google.com/maps?q=${encodeURIComponent(formData.street ? `${formData.street}, ${formData.zip} ${formData.city}` : formData.address)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                                        title="Standort Karte"
+                                    ></iframe>
+
+                                    {!formData.exteriorPhoto && (
+                                        <label
+                                            style={{
+                                                position: 'absolute',
+                                                bottom: '10px',
+                                                right: '10px',
+                                                backgroundColor: 'var(--primary)',
+                                                color: 'white',
+                                                padding: '0.5rem 1rem',
+                                                borderRadius: '20px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                cursor: 'pointer',
+                                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                                fontSize: '0.85rem',
+                                                fontWeight: 600,
+                                                zIndex: 10
+                                            }}
+                                            title="Aussenaufnahme hinzufügen"
+                                        >
+                                            <Camera size={16} />
+                                            <span>Foto hinzufügen</span>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleExteriorPhotoUpload}
+                                                style={{ display: 'none' }}
+                                            />
+                                        </label>
+                                    )}
+                                </div>
+                            ) : (
+                                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px', border: '1px dashed var(--border)', borderRadius: '8px' }}>
+                                    Keine Koordinaten verfügbar
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 1b. Exterior Photo (Aussenaufnahme) - Show only if exists */}
+                        {formData.exteriorPhoto && (
+                            <div style={{ flex: '1 1 350px', backgroundColor: 'var(--surface)', padding: '1rem', borderRadius: '8px', color: 'var(--text-main)' }}>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
+                                    <Camera size={18} /> Aussenaufnahme
+                                </h3>
+
+                                <div style={{ position: 'relative', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                                    <img
+                                        src={formData.exteriorPhoto}
+                                        alt="Aussenaufnahme"
+                                        style={{ width: '100%', maxHeight: '300px', objectFit: 'cover', display: 'block' }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={removeExteriorPhoto}
+                                        style={{
+                                            position: 'absolute',
+                                            top: '10px',
+                                            right: '10px',
+                                            backgroundColor: 'rgba(0,0,0,0.6)',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '50%',
+                                            width: '32px',
+                                            height: '32px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 2. Contacts */}
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Kontakte</h3>
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: mode === 'desktop' ? 'repeat(4, 1fr)' : 'repeat(2, 1fr)',
+                            gap: '0.75rem'
+                        }}>
+                            {formData.contacts.map((contact, idx) => (
+                                <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', backgroundColor: 'var(--surface)', border: '1px solid var(--border)', padding: '0.75rem', borderRadius: '8px', position: 'relative' }}>
+                                    {/* Row 1: Name & Role */}
+                                    <input
+                                        type="text"
+                                        placeholder="Name"
+                                        className="form-input"
+                                        value={contact.name}
+                                        onChange={(e) => {
+                                            const newContacts = [...formData.contacts];
+                                            newContacts[idx].name = e.target.value;
+                                            setFormData({ ...formData, contacts: newContacts });
+                                        }}
+                                        style={{ fontWeight: 600 }}
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="Etage / Stockwerk"
+                                        className="form-input"
+                                        value={contact.floor || ''}
+                                        onChange={(e) => {
+                                            const newContacts = [...formData.contacts];
+                                            newContacts[idx].floor = e.target.value;
+                                            setFormData({ ...formData, contacts: newContacts });
+                                        }}
+                                        style={{ fontSize: '0.9rem' }}
+                                    />
+                                    <select
+                                        className="form-input"
+                                        value={contact.role || 'Mieter'}
+                                        onChange={(e) => {
+                                            const newContacts = [...formData.contacts];
+                                            newContacts[idx].role = e.target.value;
+                                            setFormData({ ...formData, contacts: newContacts });
+                                        }}
+                                    >
+                                        <option value="Mieter">Mieter</option>
+                                        <option value="Eigentümer">Eigentümer</option>
+                                        <option value="Hauswart">Hauswart</option>
+                                        <option value="Verwaltung">Verwaltung</option>
+                                        <option value="Handwerker">Handwerker</option>
+                                        <option value="Sonstiges">Sonstiges</option>
+                                    </select>
+                                    <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                        <input
+                                            type="text"
+                                            placeholder="+41 79 123 45 67"
+                                            className="form-input"
+                                            value={contact.phone}
+                                            onChange={(e) => {
+                                                const newContacts = [...formData.contacts];
+                                                newContacts[idx].phone = e.target.value;
+                                                setFormData({ ...formData, contacts: newContacts });
+                                            }}
+                                            onBlur={(e) => {
+                                                let val = e.target.value.replace(/\s+/g, '');
+                                                // Convert 079... to +4179...
+                                                if (val.match(/^0\d{9}$/)) {
+                                                    val = '+41' + val.substring(1);
+                                                }
+                                                // Format +41791234567 -> +41 79 123 45 67 (Standard Mobile)
+                                                if (val.match(/^\+41\d{9}$/)) {
+                                                    val = val.replace(/(\+41)(\d{2})(\d{3})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5');
+                                                }
+                                                // Handle 8 digits edge case (+41 76 61 31 22)
+                                                else if (val.match(/^\+41\d{8}$/)) {
+                                                    val = val.replace(/(\+41)(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5');
+                                                }
+
+                                                // Update state if changed
+                                                if (val !== e.target.value) {
+                                                    const newContacts = [...formData.contacts];
+                                                    newContacts[idx].phone = val;
+                                                    setFormData({ ...formData, contacts: newContacts });
+                                                }
+                                            }}
+                                            style={{ flex: 1, fontSize: '0.9rem' }}
+                                        />
+                                        <a href={contact.phone ? `tel:${contact.phone}` : '#'} className="btn btn-outline" style={{ padding: '0.4rem', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: contact.phone ? 1 : 0.5, pointerEvents: contact.phone ? 'auto' : 'none' }} title="Anrufen">
+                                            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                                        </a>
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline"
+                                            style={{ padding: '0.4rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                            onClick={() => downloadVCard(contact)}
+                                            title="Kontakt speichern (vCard)"
+                                        >
+                                            <Download size={16} />
+                                        </button>
+                                        {mode === 'desktop' && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const newContacts = formData.contacts.filter((_, i) => i !== idx);
+                                                    setFormData({ ...formData, contacts: newContacts });
+                                                }}
+                                                className="btn btn-outline"
+                                                style={{ padding: '0.4rem', color: '#EF4444' }}
+                                                title="Kontakt löschen"
+                                            >
+                                                <Trash size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Delete Button (Absolute top-right or separate) */}
+
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Add Contact Button */}
+                        <button
+                            type="button"
+                            onClick={handleAddContact}
+                            style={{
+                                marginTop: '0.75rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                color: 'var(--primary)',
+                                background: 'none',
+                                border: 'none',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                padding: '0.25rem 0'
+                            }}
+                        >
+                            <Plus size={18} />
+                            Kontakt hinzufügen
+                        </button>
+                        <br />
+                    </div>
+
+
+
+
+
+
+                    {/* 3. Rooms & Photos */}
+                    <div style={{ marginBottom: '2rem' }}>
+                        <div style={{ marginBottom: '1rem' }}>
+                            {mode !== 'technician' && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                    <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>
+                                        Räume / Fotos
+                                    </h3>
+                                    <button
+                                        type="button"
+                                        onClick={handleGeneratePDF}
+                                        disabled={isGeneratingPDF}
+                                        className="btn btn-outline"
+                                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', gap: '0.5rem', alignItems: 'center', backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+                                    >
+                                        <FileText size={16} />
+                                        Schadensbericht
+                                    </button>
+                                </div>
+                            )}
+
+
+                            {mode === 'technician' && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {/* NEW: Schadenursache Section (Technician) */}
+                                    <div style={{ marginBottom: '1rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                                            <h4 style={{ fontSize: '1rem', fontWeight: 600, margin: 0, color: 'var(--text-main)' }}>Schadenursache</h4>
+                                            <button
+                                                type="button"
+                                                onClick={handleGeneratePDF}
+                                                disabled={isGeneratingPDF}
+                                                className="btn btn-outline"
+                                                style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', display: 'flex', gap: '0.4rem', alignItems: 'center', backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+                                            >
+                                                <FileText size={14} />
+                                                Schadensbericht
+                                            </button>
+                                        </div>
+
+                                        <div style={{ marginBottom: '1rem' }}>
+                                            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Schadenursache</label>
+                                            <textarea
+                                                className="form-input"
+                                                value={formData.causeDescription || ''}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, causeDescription: e.target.value }))}
+                                                placeholder="Beschreibung der Ursache..."
+                                                style={{ width: '100%', minHeight: '80px', fontFamily: 'inherit' }}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Fotos zur Ursache</label>
+
+                                            <div
+                                                style={{
+                                                    border: '2px dashed var(--border)', borderRadius: '8px', padding: '1.5rem',
+                                                    textAlign: 'center', cursor: 'pointer', backgroundColor: 'var(--bg-secondary)',
+                                                    marginBottom: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem'
+                                                }}
+                                                onClick={() => document.getElementById('cause-upload-input').click()}
+                                            >
+                                                <Plus size={24} color="var(--text-muted)" />
+                                                <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Schadenfoto hochladen / Drop</div>
+                                            </div>
+                                            <input
+                                                id="cause-upload-input"
+                                                type="file"
+                                                multiple
+                                                accept="image/*"
+                                                style={{ display: 'none' }}
+                                                onChange={(e) => {
+                                                    if (e.target.files && e.target.files.length > 0) {
+                                                        const files = Array.from(e.target.files).map(file => ({
+                                                            file,
+                                                            preview: URL.createObjectURL(file),
+                                                            name: file.name,
+                                                            type: 'image'
+                                                        }));
+                                                        setFormData(prev => ({ ...prev, causeImages: [...(prev.causeImages || []), ...files] }));
+                                                    }
+                                                }}
+                                            />
+
+                                            {(!formData.causeImages || formData.causeImages.length === 0) ? (
+                                                <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                                                    Keine Schadenfotos vorhanden.
+                                                </div>
+                                            ) : (
+                                                <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+                                                    {formData.causeImages.map((img, idx) => (
+                                                        <div key={idx} style={{ position: 'relative', width: '70px', height: '70px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--border)' }}>
+                                                            <img src={img.preview || img.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const newImages = [...formData.causeImages];
+                                                                    newImages.splice(idx, 1);
+                                                                    setFormData(prev => ({ ...prev, causeImages: newImages }));
+                                                                }}
+                                                                style={{
+                                                                    position: 'absolute', top: 0, right: 0,
+                                                                    background: 'rgba(0,0,0,0.6)', color: 'white',
+                                                                    border: 'none', cursor: 'pointer', padding: '2px'
+                                                                }}
+                                                            >
+                                                                <X size={12} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className={`btn ${showAddRoomForm ? 'btn-ghost' : 'btn-primary'}`}
+                                        onClick={() => setShowAddRoomForm(!showAddRoomForm)}
+                                        style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', color: showAddRoomForm ? '#EF4444' : undefined, borderColor: showAddRoomForm ? '#EF4444' : undefined }}
+                                    >
+                                        {showAddRoomForm ? <X size={16} /> : <Plus size={16} />}
+                                        {showAddRoomForm ? " Abbrechen" : " Raum hinzufügen"}
+                                    </button>
+
+                                    {showAddRoomForm && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                                <select
+                                                    className="form-input"
+
+
+                                                    value={newRoom.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().includes(newRoom.apartment) ? 'Sonstiges' : newRoom.apartment}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        if (val === 'Sonstiges') {
+                                                            setNewRoom(prev => ({ ...prev, apartment: '' }));
+                                                        } else {
+                                                            let relatedStockwerk = '';
+                                                            const matchingContact = (formData.contacts || []).find(c => c.name && c.name.trim().split(/\s+/).pop() === val);
+                                                            if (matchingContact) {
+                                                                relatedStockwerk = matchingContact.floor || matchingContact.apartment || '';
+                                                            } else {
+                                                                const existingRoom = formData.rooms.find(r => r.apartment === val);
+                                                                if (existingRoom) {
+                                                                    relatedStockwerk = existingRoom.stockwerk || '';
+                                                                }
+                                                            }
+                                                            setNewRoom(prev => ({ ...prev, apartment: val, stockwerk: relatedStockwerk || prev.stockwerk }));
+                                                        }
+                                                    }}
+                                                    style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                                >
+                                                    <option value="">Wohnung wählen... (Pflicht)</option>
+                                                    {[...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().map(apt => (
+                                                        <option key={apt} value={apt}>{apt}</option>
+                                                    ))}
+                                                    <option value="Sonstiges">Neue Wohnung eingeben...</option>
+                                                </select>
+
+                                                {/* Custom Apartment Input */}
+                                                {(!newRoom.apartment || (newRoom.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().includes(newRoom.apartment))) && (
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Wohnung eingeben"
+                                                        value={newRoom.apartment}
+                                                        onChange={(e) => setNewRoom(prev => ({ ...prev, apartment: e.target.value }))}
+                                                        className="form-input"
+                                                        style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                                    />
+                                                )}
+                                            </div>
+
+                                            <input
+                                                type="text"
+                                                placeholder="Stockwerk"
+                                                value={newRoom.stockwerk}
+                                                onChange={(e) => setNewRoom(prev => ({ ...prev, stockwerk: e.target.value }))}
+                                                className="form-input"
+                                                style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                            />
+
+                                            <select
+                                                value={newRoom.name}
+                                                onChange={(e) => setNewRoom(prev => ({ ...prev, name: e.target.value }))}
+                                                className="form-input"
+                                                style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                            >
+                                                <option value="">Raum wählen...</option>
+                                                {ROOM_OPTIONS.map(opt => (
+                                                    <option key={opt} value={opt}>{opt}</option>
                                                 ))}
+                                                <option value="Sonstiges">Sonstiges / Eigener Name</option>
+                                            </select>
+
+                                            {/* Custom Room Input if 'Sonstiges' or not in list */}
+                                            {((newRoom.name === 'Sonstiges') || (newRoom.name === 'Sonstiges / Eigener Name') || (newRoom.name && !ROOM_OPTIONS.includes(newRoom.name))) && (
+                                                <input
+                                                    type="text"
+                                                    placeholder="Raum-Name eingeben"
+                                                    value={newRoom.name === 'Sonstiges' || newRoom.name === 'Sonstiges / Eigener Name' ? '' : newRoom.name}
+                                                    onChange={(e) => setNewRoom(prev => ({ ...prev, name: e.target.value }))}
+                                                    className="form-input"
+                                                    style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                                    autoFocus
+                                                />
+                                            )}
+
+                                            <button
+                                                type="button"
+                                                className="btn btn-primary"
+                                                onClick={() => {
+                                                    handleAddRoom();
+                                                    setShowAddRoomForm(false); // Auto-close after add
+                                                }}
+                                                disabled={!newRoom.name || newRoom.name === 'Sonstiges' || !newRoom.apartment}
+                                                style={{ marginTop: '0.5rem' }}
+                                            >
+                                                <Check size={16} /> Speichern
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {mode === 'technician' && (
+                                <h3 style={{ fontSize: '1rem', fontWeight: 600, marginTop: '2rem', marginBottom: '0.5rem' }}>
+                                    Räume / Fotos
+                                </h3>
+                            )}
+                        </div>
+
+
+                        {/* Schadenursache - Cause & Photos (Desktop Only) */}
+                        {mode === 'desktop' && (
+                            <div className="card" style={{ marginBottom: '2rem', border: '1px solid var(--border)', padding: '1.5rem', backgroundColor: 'var(--surface)' }}>
+                                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem', color: 'var(--text-main)' }}>Schadenursache</h3>
+
+                                {/* Cause / Description */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginBottom: '2rem' }}>
+                                    <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Schadenursache</span>
+                                        <textarea
+                                            className="form-input"
+                                            rows={3}
+                                            value={formData.cause || ''}
+                                            onChange={e => setFormData({ ...formData, cause: e.target.value })}
+                                            placeholder="Beschreibung der Ursache..."
+                                        />
+                                    </label>
+                                </div>
+
+                                {/* Photos (Schadenfotos) */}
+                                <div>
+
+
+                                    <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-main)' }}>Fotos zur Ursache</h4>
+
+                                    {/* Upload Zone */}
+                                    <div
+                                        style={{
+                                            border: '2px dashed var(--border)',
+                                            borderRadius: 'var(--radius)',
+                                            padding: '2rem 1rem',
+                                            textAlign: 'center',
+                                            cursor: 'pointer',
+                                            backgroundColor: 'rgba(255,255,255,0.02)',
+                                            transition: 'all 0.2s',
+                                            marginBottom: '1rem',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: 'var(--text-muted)'
+                                        }}
+                                        onClick={() => document.getElementById('file-upload-Schadenfotos-desktop').click()}
+                                        onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)'; e.currentTarget.style.color = 'var(--primary)'; }}
+                                        onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                                        onDrop={(e) => handleCategoryDrop(e, 'Schadenfotos')}
+                                    >
+                                        <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                                        <span style={{ fontSize: '0.85rem' }}>Schadenfoto hochladen / Drop</span>
+                                        <input id="file-upload-Schadenfotos-desktop" type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={(e) => handleCategorySelect(e, 'Schadenfotos')} />
+                                    </div>
+
+                                    {/* List */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        {formData.images.filter(img => img.assignedTo === 'Schadenfotos').map((item, idx) => (
+                                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                                                <div style={{ width: '80px', height: '80px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px', border: formData.damageTypeImage === item.preview ? '2px solid #10B981' : 'none' }}>
+                                                    <img src={item.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
+                                                </div>
+
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0 0.5rem', cursor: 'pointer' }} onClick={() => setFormData(prev => ({ ...prev, damageTypeImage: prev.damageTypeImage === item.preview ? null : item.preview, damageTypeImageInReport: false }))}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.damageTypeImage === item.preview}
+                                                        readOnly
+                                                        style={{ width: '1.25rem', height: '1.25rem', cursor: 'pointer' }}
+                                                    />
+                                                </div>
+
+                                                <div style={{ flex: 1, fontWeight: 500, color: 'var(--text-main)' }}>
+                                                    {item.name}
+                                                    {formData.damageTypeImage === item.preview && (
+                                                        <div style={{ fontSize: '0.8rem', color: '#10B981', fontWeight: 600 }}>Ausgewählt</div>
+                                                    )}
+                                                </div>
+
+                                                <button type="button" className="btn btn-ghost" onClick={() => setFormData(prev => ({ ...prev, images: prev.images.filter(i => i !== item) }))} style={{ color: '#EF4444', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}><Trash size={18} /></button>
                                             </div>
+                                        ))}
+                                        {formData.images.filter(img => img.assignedTo === 'Schadenfotos').length === 0 && (
+                                            <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Keine Schadenfotos vorhanden.</div>
                                         )}
                                     </div>
                                 </div>
+                            </div>
+                        )}
+
+                        {mode === 'desktop' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
                                 <button
                                     type="button"
                                     className={`btn ${showAddRoomForm ? 'btn-ghost' : 'btn-primary'}`}
@@ -2569,8 +2839,6 @@ END:VCARD`;
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                             <select
                                                 className="form-input"
-
-
                                                 value={newRoom.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().includes(newRoom.apartment) ? 'Sonstiges' : newRoom.apartment}
                                                 onChange={(e) => {
                                                     const val = e.target.value;
@@ -2664,40 +2932,518 @@ END:VCARD`;
                             </div>
                         )}
 
-                        {mode === 'technician' && (
-                            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginTop: '2rem', marginBottom: '0.5rem' }}>
-                                Räume / Fotos
-                            </h3>
-                        )}
+                        {(
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                {formData.rooms.map(room => (
+                                    <div key={room.id} style={{ border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--surface)' }}>
+                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-main)' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                <span style={{ fontWeight: 700, fontSize: '1.1rem', color: '#0F6EA3' }}>{room.name}</span>
+                                                {room.apartment && <span style={{ fontSize: '0.9rem', color: '#94A3B8', fontWeight: 500 }}>{room.apartment}</span>}
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        disabled={!room.measurementData}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (room.measurementData) {
+                                                                setActiveRoomForMeasurement(room);
+                                                                setIsNewMeasurement(false);
+                                                                setIsMeasurementReadOnly(true);
+                                                                setShowMeasurementModal(true);
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            padding: '0.4rem 0.6rem',
+                                                            borderRadius: '6px',
+                                                            border: '1px solid var(--border)',
+                                                            backgroundColor: 'rgba(255,255,255,0.05)',
+                                                            color: 'var(--text-muted)',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.25rem',
+                                                            fontSize: '0.75rem',
+                                                            cursor: room.measurementData ? 'pointer' : 'not-allowed',
+                                                            opacity: room.measurementData ? 1 : 0.5
+                                                        }}
+                                                    >
+                                                        <FileText size={14} />
+                                                        Messung ansehen
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setActiveRoomForMeasurement(room);
+                                                            setIsNewMeasurement(true);
+                                                            setIsMeasurementReadOnly(false);
+                                                            setShowMeasurementModal(true);
+                                                        }}
+                                                        style={{
+                                                            padding: '0.4rem 0.6rem',
+                                                            borderRadius: '6px',
+                                                            border: '1px solid #10B981',
+                                                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                                            color: '#10B981',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.25rem',
+                                                            fontSize: '0.75rem',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        <Plus size={14} />
+                                                        Messung beginnen
+                                                    </button>
+                                                </>
+                                                {mode !== 'technician' && (
+                                                    <button
+                                                        type="button"
+                                                        title="Raum löschen"
+                                                        onClick={() => {
+                                                            if (window.confirm('Raum wirklich löschen?')) handleRemoveRoom(room.id);
+                                                        }}
+                                                        style={{
+                                                            padding: '0.4rem',
+                                                            borderRadius: '6px',
+                                                            border: '1px solid #EF4444',
+                                                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                                            color: '#EF4444',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        <Trash size={16} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div style={{ padding: '0.75rem' }}>
+                                            <>
+                                                {(() => {
+                                                    const roomImages = formData.images.filter(img => img.roomId === room.id);
+                                                    const shouldCollapse = mode === 'technician' && formData.status === 'Trocknung';
+                                                    const isVisible = !shouldCollapse || visibleRoomImages[room.id];
+
+                                                    return (
+                                                        <>
+                                                            {shouldCollapse && roomImages.length > 0 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setVisibleRoomImages(prev => ({ ...prev, [room.id]: !prev[room.id] }))}
+                                                                    style={{
+                                                                        width: '100%',
+                                                                        padding: '8px',
+                                                                        marginBottom: '12px',
+                                                                        backgroundColor: '#1E293B',
+                                                                        border: '1px solid var(--border)',
+                                                                        color: 'white',
+                                                                        borderRadius: '6px',
+                                                                        cursor: 'pointer',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        gap: '8px',
+                                                                        fontWeight: 500,
+                                                                        fontSize: '0.9rem'
+                                                                    }}
+                                                                >
+                                                                    {isVisible ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                                                    {isVisible ? 'Bilder verbergen' : `Bilder anzeigen (${roomImages.length})`}
+                                                                </button>
+                                                            )}
+
+                                                            {isVisible && (
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+                                                                    {roomImages.map((img, idx) => (
+                                                                        <div key={idx} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', border: '1px solid var(--border)', padding: '0.5rem', borderRadius: '6px', backgroundColor: 'var(--background)' }}>
+                                                                            {/* Thumbnail check */}
+                                                                            <div style={{ flex: '0 0 100px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                                                                                <div style={{ width: '100px', height: '100px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                                                                                    <img src={img.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onClick={() => window.open(img.preview, '_blank')} />
+                                                                                </div>
+                                                                                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '0 2px', alignItems: 'center' }}>
+                                                                                    <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', fontSize: '0.75rem', cursor: 'pointer', color: 'var(--text-main)' }}>
+                                                                                        <input
+                                                                                            type="checkbox"
+                                                                                            style={{ width: '20px', height: '20px', accentColor: 'var(--primary)' }}
+                                                                                            checked={img.includeInReport !== false}
+                                                                                            onChange={(e) => {
+                                                                                                const isChecked = e.target.checked;
+                                                                                                setFormData(prev => ({
+                                                                                                    ...prev,
+                                                                                                    images: prev.images.map(i => i === img ? { ...i, includeInReport: isChecked } : i)
+                                                                                                }));
+                                                                                            }}
+                                                                                        />
+                                                                                        <span style={{ fontWeight: 600 }}>Bericht</span>
+                                                                                    </label>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        title="Bearbeiten"
+                                                                                        style={{
+                                                                                            border: '1px solid var(--border)',
+                                                                                            backgroundColor: '#1E293B',
+                                                                                            color: 'white',
+                                                                                            cursor: 'pointer',
+                                                                                            padding: '8px',
+                                                                                            borderRadius: '8px',
+                                                                                            display: 'flex',
+                                                                                            alignItems: 'center',
+                                                                                            justifyContent: 'center',
+                                                                                            boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                                                                        }}
+                                                                                        onClick={() => setActiveImageMeta(img)}
+                                                                                    >
+                                                                                        <Edit3 size={22} />
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            {/* File Info & Description */}
+                                                                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                                                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                                                                                    <textarea
+                                                                                        placeholder="Beschreibung..."
+                                                                                        className="form-input"
+                                                                                        rows={3}
+                                                                                        style={{
+                                                                                            fontSize: '0.9rem',
+                                                                                            padding: '0.5rem',
+                                                                                            flex: 1,
+                                                                                            width: 'auto',
+                                                                                            resize: 'none',
+                                                                                            backgroundColor: isRecording === img.preview ? '#450a0a' : '#0F172A',
+                                                                                            borderColor: isRecording === img.preview ? '#EF4444' : '#334155',
+                                                                                            color: 'white'
+                                                                                        }}
+                                                                                        value={img.description || ''}
+                                                                                        onChange={(e) => {
+                                                                                            const newDesc = e.target.value;
+                                                                                            setFormData(prev => ({
+                                                                                                ...prev,
+                                                                                                images: prev.images.map(i => i === img ? { ...i, description: newDesc } : i)
+                                                                                            }));
+                                                                                        }}
+                                                                                    />
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => isRecording === img.preview ? stopRecording() : startRecording(img.preview)}
+                                                                                        title={isRecording === img.preview ? "Aufnahme stoppen" : "Spracheingabe starten"}
+                                                                                        style={{
+                                                                                            border: isRecording === img.preview ? 'none' : '1px solid var(--border)',
+                                                                                            backgroundColor: isRecording === img.preview ? '#EF4444' : '#1E293B',
+                                                                                            color: isRecording === img.preview ? 'white' : '#94A3B8',
+                                                                                            width: '36px',
+                                                                                            height: '36px',
+                                                                                            borderRadius: '50%',
+                                                                                            cursor: 'pointer',
+                                                                                            display: 'flex',
+                                                                                            alignItems: 'center',
+                                                                                            justifyContent: 'center',
+                                                                                            transition: 'all 0.2s',
+                                                                                            boxShadow: isRecording === img.preview ? '0 0 0 4px rgba(239, 68, 68, 0.2)' : '0 1px 2px rgba(0,0,0,0.1)',
+                                                                                            flexShrink: 0
+                                                                                        }}
+                                                                                    >
+                                                                                        <Mic size={20} className={isRecording === img.preview ? 'animate-pulse' : ''} />
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            {/* Actions: Delete */}
+                                                                            <div>
+                                                                                {mode !== 'technician' && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        className="btn btn-ghost"
+                                                                                        title="Bild löschen" // Added title for clarity
+                                                                                        style={{
+                                                                                            color: '#EF4444',
+                                                                                            padding: '0',
+                                                                                            backgroundColor: '#1E293B',
+                                                                                            border: '1px solid var(--border)',
+                                                                                            borderRadius: '50%',
+                                                                                            width: '36px',
+                                                                                            height: '36px',
+                                                                                            display: 'flex',
+                                                                                            alignItems: 'center',
+                                                                                            justifyContent: 'center',
+                                                                                            boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                                                                                            cursor: 'pointer'
+                                                                                        }}
+                                                                                        onClick={() => {
+                                                                                            if (window.confirm('Bild wirklich löschen?')) {
+                                                                                                setFormData(prev => ({
+                                                                                                    ...prev,
+                                                                                                    images: prev.images.filter(i => i !== img)
+                                                                                                }));
+                                                                                            }
+                                                                                        }}
+                                                                                    >
+                                                                                        <Trash size={16} />
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+
+                                                                        </div>
+                                                                    ))}
+                                                                    {roomImages.length === 0 && (
+                                                                        <div style={{ fontSize: '0.85rem', color: '#9CA3AF', fontStyle: 'italic', marginBottom: '0.5rem' }}>Keine Bilder</div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    );
+                                                })()}
+
+                                                <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                                                    {/* Camera Button */}
+                                                    <label
+                                                        style={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            gap: '0.5rem',
+                                                            flex: 1,
+                                                            padding: '0.75rem',
+                                                            backgroundColor: 'var(--primary)',
+                                                            color: 'white',
+                                                            borderRadius: '8px',
+                                                            cursor: 'pointer',
+                                                            fontWeight: 600,
+                                                            boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                                        }}
+                                                        onClick={(e) => {
+                                                            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+                                                            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
+                                                                (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/.test(navigator.platform));
+
+                                                            if (!isMobile) {
+                                                                e.preventDefault();
+                                                                setCameraContext({ roomId: room.id, assignedTo: room.name });
+                                                                setShowCameraModal(true);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Camera size={20} />
+                                                        Kamera
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            capture="environment"
+                                                            onChange={(e) => {
+                                                                if (e.target.files && e.target.files.length > 0) {
+                                                                    handleImageUpload(Array.from(e.target.files), { roomId: room.id, assignedTo: room.name });
+                                                                }
+                                                            }}
+                                                            style={{ display: 'none' }}
+                                                        />
+                                                    </label>
+
+                                                    {/* Gallery Button */}
+                                                    <label style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        gap: '0.5rem',
+                                                        flex: 1,
+                                                        padding: '0.75rem',
+                                                        backgroundColor: '#1E293B',
+                                                        border: '1px solid var(--border)',
+                                                        color: 'white',
+                                                        borderRadius: '8px',
+                                                        cursor: 'pointer',
+                                                        fontWeight: 600,
+                                                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                                    }}>
+                                                        <Image size={20} />
+                                                        Galerie
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            multiple
+                                                            onChange={(e) => {
+                                                                if (e.target.files && e.target.files.length > 0) {
+                                                                    handleImageUpload(Array.from(e.target.files), { roomId: room.id, assignedTo: room.name });
+                                                                }
+                                                            }}
+                                                            style={{ display: 'none' }}
+                                                        />
+                                                    </label>
+                                                </div>
+                                            </>
+                                        </div>
+                                    </div>
+                                ))}
+                                {formData.rooms.length === 0 && (
+                                    <div style={{ padding: '2rem', textAlign: 'center', color: '#9CA3AF', border: '2px dashed #E5E7EB', borderRadius: '8px' }}>
+                                        Noch keine Räume angelegt.
+                                    </div>
+                                )}
+                            </div>
+                        )
+                        }
                     </div>
 
+                    {/* Massnahmen & Feststellungen */}
+                    {(formData.status === 'Schadenaufnahme' || formData.status === 'Leckortung' || true) && (
+                        <div className="form-group" style={{ marginTop: '2rem', marginBottom: '2rem' }}>
+                            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                <Eye size={18} />
+                                Feststellungen
+                            </label>
+                            <textarea
+                                className="form-input"
+                                style={{ minHeight: '100px', resize: 'vertical', marginBottom: '2rem' }}
+                                placeholder="Feststellungen eingeben"
+                                value={formData.findings || ''}
+                                onChange={(e) => setFormData(prev => ({ ...prev, findings: e.target.value }))}
+                            />
 
-                    {/* Schadenursache - Cause & Photos (Desktop Only) */}
-                    {mode === 'desktop' && (
-                        <div className="card" style={{ marginBottom: '2rem', border: '1px solid var(--border)', padding: '1.5rem', backgroundColor: 'var(--surface)' }}>
-                            <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem', color: 'var(--text-main)' }}>Schadenursache</h3>
+                            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <ClipboardList size={18} />
+                                Massnahmen
+                            </label>
 
-                            {/* Cause / Description */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginBottom: '2rem' }}>
-                                <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Schadenursache</span>
-                                    <textarea
-                                        className="form-input"
-                                        rows={3}
-                                        value={formData.cause || ''}
-                                        onChange={e => setFormData({ ...formData, cause: e.target.value })}
-                                        placeholder="Beschreibung der Ursache..."
-                                    />
-                                </label>
+                            <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                                {[
+                                    "Trocknung",
+                                    "Schimmelbehandlung",
+                                    "Organisation externer Handwerker",
+                                    "Instandstellung"
+                                ].map(measure => {
+                                    const isActive = (formData.measures || '').includes(measure);
+                                    return (
+                                        <button
+                                            key={measure}
+                                            type="button"
+                                            onClick={() => {
+                                                let current = formData.measures || '';
+                                                let newValue = '';
+                                                if (current.includes(measure)) {
+                                                    // Remove
+                                                    newValue = current.replace(measure, '').replace(/\n\n/g, '\n').trim();
+                                                } else {
+                                                    // Add
+                                                    newValue = current ? (current + '\n' + measure) : measure;
+                                                }
+                                                setFormData(prev => ({ ...prev, measures: newValue }));
+                                            }}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '1rem',
+                                                padding: '1rem',
+                                                backgroundColor: 'rgba(255,255,255,0.03)',
+                                                border: isActive ? '1px solid #0F6EA3' : '1px solid var(--border)',
+                                                borderRadius: '8px',
+                                                color: 'var(--text-main)',
+                                                cursor: 'pointer',
+                                                textAlign: 'left',
+                                                fontSize: '1rem',
+                                                fontWeight: 500,
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            <div style={{
+                                                width: '24px',
+                                                height: '24px',
+                                                borderRadius: '4px',
+                                                border: isActive ? 'none' : '2px solid var(--text-muted)',
+                                                backgroundColor: isActive ? 'white' : 'transparent',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                flexShrink: 0
+                                            }}>
+                                                {isActive && <Check size={16} color="#0F172A" strokeWidth={3} />}
+                                            </div>
+                                            {measure}
+                                        </button>
+                                    );
+                                })}
                             </div>
 
-                            {/* Photos (Schadenfotos) */}
-                            <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                <label className="form-label" style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                                    Eigener Text / Ergänzungen
+                                </label>
+                                <button
+                                    type="button"
+                                    className={`btn btn-ghost ${isListeningMeasures ? 'listening' : ''}`}
+                                    style={{
+                                        color: isListeningMeasures ? '#ef4444' : 'var(--text-muted)',
+                                        padding: '4px 8px',
+                                        fontSize: '0.85rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '4px'
+                                    }}
+                                    onClick={toggleMeasuresListening}
+                                    title="Diktieren"
+                                >
+                                    {isListeningMeasures ? <MicOff size={14} /> : <Mic size={14} />}
+                                    <span>Diktieren</span>
+                                </button>
+                            </div>
 
+                            <textarea
+                                id="measures"
+                                name="measures"
+                                className="form-input"
+                                style={{ minHeight: '100px', resize: 'vertical' }}
+                                placeholder="Eigenen Text eingeben"
+                                value={formData.measures || ''}
+                                onChange={(e) => {
+                                    setFormData(prev => ({ ...prev, measures: e.target.value }));
+                                }}
+                            />
+                        </div>
+                    )}
 
-                                <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-main)' }}>Fotos zur Ursache</h4>
+                    {/* EMAILS & PLANS (Final for User) */}
+                    {mode === 'desktop' && (
+                        <div style={{ display: 'block', marginBottom: '2rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                                    <Mail size={24} />
+                                    Emails & Kommunikation
+                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowEmailImport(true)}
+                                    className="btn btn-primary"
+                                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', gap: '0.25rem' }}
+                                >
+                                    <FileText size={14} />
+                                    Email-Import (KI)
+                                </button>
+                            </div>
+                            <div
+                                className="card"
+                                style={{ border: '1px solid var(--border)', position: 'relative' }}
+                                onDragOver={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    e.currentTarget.style.borderColor = 'var(--primary)';
+                                    e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.05)';
+                                }}
+                                onDragLeave={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    e.currentTarget.style.borderColor = 'var(--border)';
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                }}
+                                onDrop={(e) => handleCategoryDrop(e, 'Emails')}
+                            >
 
-                                {/* Upload Zone */}
                                 <div
                                     style={{
                                         border: '2px dashed var(--border)',
@@ -2714,672 +3460,166 @@ END:VCARD`;
                                         justifyContent: 'center',
                                         color: 'var(--text-muted)'
                                     }}
-                                    onClick={() => document.getElementById('file-upload-Schadenfotos-desktop').click()}
-                                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)'; e.currentTarget.style.color = 'var(--primary)'; }}
-                                    onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
-                                    onDrop={(e) => handleCategoryDrop(e, 'Schadenfotos')}
+                                    onClick={() => document.getElementById('file-upload-emails').click()}
+                                    onDragOver={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                    }}
+                                    onDrop={(e) => handleCategoryDrop(e, 'Emails')}
                                 >
                                     <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
-                                    <span style={{ fontSize: '0.85rem' }}>Schadenfoto hochladen / Drop</span>
-                                    <input id="file-upload-Schadenfotos-desktop" type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={(e) => handleCategorySelect(e, 'Schadenfotos')} />
+                                    <span style={{ fontSize: '0.85rem' }}>Emails / PDF Upload</span>
+
+                                    <input
+                                        id="file-upload-emails"
+                                        type="file"
+                                        multiple
+                                        accept="image/*,application/pdf,.msg,.txt"
+                                        style={{ display: 'none' }}
+                                        onChange={(e) => handleCategorySelect(e, 'Emails')}
+                                    />
                                 </div>
 
-                                {/* List */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    {formData.images.filter(img => img.assignedTo === 'Schadenfotos').map((item, idx) => (
-                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
-                                            <div style={{ width: '80px', height: '80px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px', border: formData.damageTypeImage === item.preview ? '2px solid #10B981' : 'none' }}>
-                                                <img src={item.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
-                                            </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+                                    onDragOver={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                    }}
+                                    onDrop={(e) => handleCategoryDrop(e, 'Emails')}
+                                >
+                                    {formData.images.filter(img => img.assignedTo === 'Emails').map((item, idx) => {
+                                        const isDoc = (item.file && item.file.type === 'application/pdf') ||
+                                            (item.name && item.name.toLowerCase().endsWith('.pdf')) ||
+                                            (item.name && item.name.toLowerCase().endsWith('.msg')) ||
+                                            (item.name && item.name.toLowerCase().endsWith('.txt')) ||
+                                            item.type === 'document';
 
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0 0.5rem', cursor: 'pointer' }} onClick={() => setFormData(prev => ({ ...prev, damageTypeImage: prev.damageTypeImage === item.preview ? null : item.preview, damageTypeImageInReport: false }))}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.damageTypeImage === item.preview}
-                                                    readOnly
-                                                    style={{ width: '1.25rem', height: '1.25rem', cursor: 'pointer' }}
-                                                />
-                                            </div>
-
-                                            <div style={{ flex: 1, fontWeight: 500, color: 'var(--text-main)' }}>
-                                                {item.name}
-                                                {formData.damageTypeImage === item.preview && (
-                                                    <div style={{ fontSize: '0.8rem', color: '#10B981', fontWeight: 600 }}>Ausgewählt</div>
+                                        return (
+                                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                                                {isDoc ? (
+                                                    <div style={{ color: item.name?.toLowerCase().endsWith('.pdf') ? '#F87171' : '#60A5FA', display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                                                        {(item.name?.toLowerCase().endsWith('.msg')) ? <Mail size={18} /> : <FileText size={18} />}
+                                                        <span style={{ fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-ghost"
+                                                            style={{ marginLeft: 'auto', padding: '0.25rem', fontSize: '0.8rem' }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const url = item.file ? URL.createObjectURL(item.file) : item.preview;
+                                                                if (url) window.open(url, '_blank');
+                                                            }}
+                                                        >
+                                                            Öffnen
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <img
+                                                            src={item.preview}
+                                                            alt="Vorschau"
+                                                            style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }}
+                                                            onError={(e) => { e.target.style.display = 'none'; }}
+                                                        />
+                                                        <div style={{ flex: 1, overflow: 'hidden' }}>
+                                                            <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{item.assignedTo}</div>
+                                                            {item.description && (
+                                                                <div style={{ fontSize: '0.85rem', color: '#94A3B8' }}>{item.description.substring(0, 30)}...</div>
+                                                            )}
+                                                        </div>
+                                                    </>
                                                 )}
-                                            </div>
 
-                                            <button type="button" className="btn btn-ghost" onClick={() => setFormData(prev => ({ ...prev, images: prev.images.filter(i => i !== item) }))} style={{ color: '#EF4444', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}><Trash size={18} /></button>
-                                        </div>
-                                    ))}
-                                    {formData.images.filter(img => img.assignedTo === 'Schadenfotos').length === 0 && (
-                                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Keine Schadenfotos vorhanden.</div>
+                                                <button type="button" onClick={() => { if (window.confirm('Löschen?')) setFormData(prev => ({ ...prev, images: prev.images.filter(img => img !== item) })); }} style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '4px' }}><X size={16} /></button>
+                                            </div>
+                                        )
+                                    })}
+                                    {formData.images.filter(img => img.assignedTo === 'Emails').length === 0 && (
+                                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic', padding: '1rem' }}>Keine Emails vorhanden.</div>
                                     )}
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {mode === 'desktop' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
-                            <button
-                                type="button"
-                                className={`btn ${showAddRoomForm ? 'btn-ghost' : 'btn-primary'}`}
-                                onClick={() => setShowAddRoomForm(!showAddRoomForm)}
-                                style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', color: showAddRoomForm ? '#EF4444' : undefined, borderColor: showAddRoomForm ? '#EF4444' : undefined }}
-                            >
-                                {showAddRoomForm ? <X size={16} /> : <Plus size={16} />}
-                                {showAddRoomForm ? " Abbrechen" : " Raum hinzufügen"}
-                            </button>
+                    {/* 2b. Massnahmen (Measures) - Technician Only (Schadenaufnahme/Leckortung) */}
+                    {mode === 'technician' && (formData.status === 'Schadenaufnahme' || formData.status === 'Leckortung') && (
+                        <div style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <ClipboardList size={18} /> Massnahmen
+                            </h3>
 
-                            {showAddRoomForm && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                        <select
-                                            className="form-input"
-                                            value={newRoom.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().includes(newRoom.apartment) ? 'Sonstiges' : newRoom.apartment}
-                                            onChange={(e) => {
-                                                const val = e.target.value;
-                                                if (val === 'Sonstiges') {
-                                                    setNewRoom(prev => ({ ...prev, apartment: '' }));
-                                                } else {
-                                                    let relatedStockwerk = '';
-                                                    const matchingContact = (formData.contacts || []).find(c => c.name && c.name.trim().split(/\s+/).pop() === val);
-                                                    if (matchingContact) {
-                                                        relatedStockwerk = matchingContact.floor || matchingContact.apartment || '';
-                                                    } else {
-                                                        const existingRoom = formData.rooms.find(r => r.apartment === val);
-                                                        if (existingRoom) {
-                                                            relatedStockwerk = existingRoom.stockwerk || '';
-                                                        }
-                                                    }
-                                                    setNewRoom(prev => ({ ...prev, apartment: val, stockwerk: relatedStockwerk || prev.stockwerk }));
-                                                }
-                                            }}
-                                            style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                        >
-                                            <option value="">Wohnung wählen... (Pflicht)</option>
-                                            {[...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().map(apt => (
-                                                <option key={apt} value={apt}>{apt}</option>
-                                            ))}
-                                            <option value="Sonstiges">Neue Wohnung eingeben...</option>
-                                        </select>
-
-                                        {/* Custom Apartment Input */}
-                                        {(!newRoom.apartment || (newRoom.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().includes(newRoom.apartment))) && (
-                                            <input
-                                                type="text"
-                                                placeholder="Wohnung eingeben"
-                                                value={newRoom.apartment}
-                                                onChange={(e) => setNewRoom(prev => ({ ...prev, apartment: e.target.value }))}
-                                                className="form-input"
-                                                style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                            />
-                                        )}
-                                    </div>
-
-                                    <input
-                                        type="text"
-                                        placeholder="Stockwerk"
-                                        value={newRoom.stockwerk}
-                                        onChange={(e) => setNewRoom(prev => ({ ...prev, stockwerk: e.target.value }))}
-                                        className="form-input"
-                                        style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                    />
-
-                                    <select
-                                        value={newRoom.name}
-                                        onChange={(e) => setNewRoom(prev => ({ ...prev, name: e.target.value }))}
-                                        className="form-input"
-                                        style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                    >
-                                        <option value="">Raum wählen...</option>
-                                        {ROOM_OPTIONS.map(opt => (
-                                            <option key={opt} value={opt}>{opt}</option>
-                                        ))}
-                                        <option value="Sonstiges">Sonstiges / Eigener Name</option>
-                                    </select>
-
-                                    {/* Custom Room Input if 'Sonstiges' or not in list */}
-                                    {((newRoom.name === 'Sonstiges') || (newRoom.name === 'Sonstiges / Eigener Name') || (newRoom.name && !ROOM_OPTIONS.includes(newRoom.name))) && (
+                            {/* Checkbox Liste */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+                                {[
+                                    "Trocknung",
+                                    "Schimmelbehandlung",
+                                    "Organisation externer Handwerker",
+                                    "Instandstellung"
+                                ].map((item) => (
+                                    <label key={item} style={{
+                                        display: 'flex', alignItems: 'center', gap: '0.75rem',
+                                        padding: '0.75rem',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '8px',
+                                        cursor: 'pointer',
+                                        backgroundColor: (formData.selectedMeasures?.includes(item)) ? 'rgba(56, 189, 248, 0.1)' : 'transparent',
+                                        borderColor: (formData.selectedMeasures?.includes(item)) ? 'var(--primary)' : 'var(--border)'
+                                    }}>
                                         <input
-                                            type="text"
-                                            placeholder="Raum-Name eingeben"
-                                            value={newRoom.name === 'Sonstiges' || newRoom.name === 'Sonstiges / Eigener Name' ? '' : newRoom.name}
-                                            onChange={(e) => setNewRoom(prev => ({ ...prev, name: e.target.value }))}
-                                            className="form-input"
-                                            style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                            autoFocus
+                                            type="checkbox"
+                                            checked={formData.selectedMeasures?.includes(item) || false}
+                                            onChange={() => {
+                                                setFormData(prev => {
+                                                    const current = prev.selectedMeasures || [];
+                                                    if (current.includes(item)) {
+                                                        return { ...prev, selectedMeasures: current.filter(i => i !== item) };
+                                                    } else {
+                                                        return { ...prev, selectedMeasures: [...current, item] };
+                                                    }
+                                                });
+                                            }}
+                                            style={{ width: '20px', height: '20px', accentColor: 'var(--primary)' }}
                                         />
-                                    )}
+                                        <span style={{ fontSize: '1rem', fontWeight: 500 }}>{item}</span>
+                                    </label>
+                                ))}
+                            </div>
 
+                            {/* Freitext & Mikrofon */}
+                            <div style={{ position: 'relative' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Eigener Text / Ergänzungen</label>
                                     <button
                                         type="button"
-                                        className="btn btn-primary"
-                                        onClick={() => {
-                                            handleAddRoom();
-                                            setShowAddRoomForm(false); // Auto-close after add
-                                        }}
-                                        disabled={!newRoom.name || newRoom.name === 'Sonstiges' || !newRoom.apartment}
-                                        style={{ marginTop: '0.5rem' }}
+                                        className={`btn ${isListeningMeasures ? 'btn-danger' : 'btn-outline'}`}
+                                        onClick={toggleMeasuresListening}
+                                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
                                     >
-                                        <Check size={16} /> Speichern
+                                        {isListeningMeasures ? <MicOff size={14} /> : <Mic size={14} />}
+                                        {isListeningMeasures ? 'Stop' : 'Diktieren'}
                                     </button>
                                 </div>
-                            )}
+                                <textarea
+                                    className="form-input"
+                                    value={formData.measures || ''}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, measures: e.target.value }))}
+                                    placeholder="Eigenen Text eingeben"
+                                    style={{ width: '100%', minHeight: '80px', fontFamily: 'inherit' }}
+                                />
+                            </div>
                         </div>
                     )}
 
-                    {(
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {formData.rooms.map(room => (
-                                <div key={room.id} style={{ border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--surface)' }}>
-                                    <div style={{ backgroundColor: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-main)' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <span style={{ fontWeight: 700, fontSize: '1.1rem', color: '#0EA5E9' }}>{room.name}</span>
-                                            {room.apartment && <span style={{ fontSize: '0.9rem', color: '#94A3B8', fontWeight: 500 }}>{room.apartment}</span>}
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                            <>
-                                                <button
-                                                    type="button"
-                                                    disabled={!room.measurementData}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        if (room.measurementData) {
-                                                            setActiveRoomForMeasurement(room);
-                                                            setIsNewMeasurement(false);
-                                                            setIsMeasurementReadOnly(true);
-                                                            setShowMeasurementModal(true);
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        padding: '0.4rem 0.6rem',
-                                                        borderRadius: '6px',
-                                                        border: '1px solid var(--border)',
-                                                        backgroundColor: 'rgba(255,255,255,0.05)',
-                                                        color: 'var(--text-muted)',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '0.25rem',
-                                                        fontSize: '0.75rem',
-                                                        cursor: room.measurementData ? 'pointer' : 'not-allowed',
-                                                        opacity: room.measurementData ? 1 : 0.5
-                                                    }}
-                                                >
-                                                    <FileText size={14} />
-                                                    Messung ansehen
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setActiveRoomForMeasurement(room);
-                                                        setIsNewMeasurement(true);
-                                                        setIsMeasurementReadOnly(false);
-                                                        setShowMeasurementModal(true);
-                                                    }}
-                                                    style={{
-                                                        padding: '0.4rem 0.6rem',
-                                                        borderRadius: '6px',
-                                                        border: '1px solid #10B981',
-                                                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                                        color: '#10B981',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '0.25rem',
-                                                        fontSize: '0.75rem',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                >
-                                                    <Plus size={14} />
-                                                    Messung beginnen
-                                                </button>
-                                            </>
-                                            {mode !== 'technician' && (
-                                                <button
-                                                    type="button"
-                                                    title="Raum löschen"
-                                                    onClick={() => {
-                                                        if (window.confirm('Raum wirklich löschen?')) handleRemoveRoom(room.id);
-                                                    }}
-                                                    style={{
-                                                        padding: '0.4rem',
-                                                        borderRadius: '6px',
-                                                        border: '1px solid #EF4444',
-                                                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                                        color: '#EF4444',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                >
-                                                    <Trash size={16} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div style={{ padding: '0.75rem' }}>
-                                        <>
-                                            {(() => {
-                                                const roomImages = formData.images.filter(img => img.roomId === room.id);
-                                                const shouldCollapse = mode === 'technician' && formData.status === 'Trocknung';
-                                                const isVisible = !shouldCollapse || visibleRoomImages[room.id];
-
-                                                return (
-                                                    <>
-                                                        {shouldCollapse && roomImages.length > 0 && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setVisibleRoomImages(prev => ({ ...prev, [room.id]: !prev[room.id] }))}
-                                                                style={{
-                                                                    width: '100%',
-                                                                    padding: '8px',
-                                                                    marginBottom: '12px',
-                                                                    backgroundColor: '#1E293B',
-                                                                    border: '1px solid var(--border)',
-                                                                    color: 'white',
-                                                                    borderRadius: '6px',
-                                                                    cursor: 'pointer',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    gap: '8px',
-                                                                    fontWeight: 500,
-                                                                    fontSize: '0.9rem'
-                                                                }}
-                                                            >
-                                                                {isVisible ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                                                {isVisible ? 'Bilder verbergen' : `Bilder anzeigen (${roomImages.length})`}
-                                                            </button>
-                                                        )}
-
-                                                        {isVisible && (
-                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
-                                                                {roomImages.map((img, idx) => (
-                                                                    <div key={idx} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', border: '1px solid var(--border)', padding: '0.5rem', borderRadius: '6px', backgroundColor: 'var(--background)' }}>
-                                                                        {/* Thumbnail check */}
-                                                                        <div style={{ flex: '0 0 100px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-                                                                            <div style={{ width: '100px', height: '100px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                                                                                <img src={img.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onClick={() => window.open(img.preview, '_blank')} />
-                                                                            </div>
-                                                                            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '0 2px', alignItems: 'center' }}>
-                                                                                <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', fontSize: '0.75rem', cursor: 'pointer', color: 'var(--text-main)' }}>
-                                                                                    <input
-                                                                                        type="checkbox"
-                                                                                        style={{ width: '20px', height: '20px', accentColor: 'var(--primary)' }}
-                                                                                        checked={img.includeInReport !== false}
-                                                                                        onChange={(e) => {
-                                                                                            const isChecked = e.target.checked;
-                                                                                            setFormData(prev => ({
-                                                                                                ...prev,
-                                                                                                images: prev.images.map(i => i === img ? { ...i, includeInReport: isChecked } : i)
-                                                                                            }));
-                                                                                        }}
-                                                                                    />
-                                                                                    <span style={{ fontWeight: 600 }}>Bericht</span>
-                                                                                </label>
-                                                                                <button
-                                                                                    type="button"
-                                                                                    title="Bearbeiten"
-                                                                                    style={{
-                                                                                        border: '1px solid var(--border)',
-                                                                                        backgroundColor: '#1E293B',
-                                                                                        color: 'white',
-                                                                                        cursor: 'pointer',
-                                                                                        padding: '8px',
-                                                                                        borderRadius: '8px',
-                                                                                        display: 'flex',
-                                                                                        alignItems: 'center',
-                                                                                        justifyContent: 'center',
-                                                                                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                                                                                    }}
-                                                                                    onClick={() => setActiveImageMeta(img)}
-                                                                                >
-                                                                                    <Edit3 size={22} />
-                                                                                </button>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        {/* File Info & Description */}
-                                                                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                                                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-                                                                                <textarea
-                                                                                    placeholder="Beschreibung..."
-                                                                                    className="form-input"
-                                                                                    rows={3}
-                                                                                    style={{
-                                                                                        fontSize: '0.9rem',
-                                                                                        padding: '0.5rem',
-                                                                                        flex: 1,
-                                                                                        width: 'auto',
-                                                                                        resize: 'none',
-                                                                                        backgroundColor: isRecording === img.preview ? '#450a0a' : '#0F172A',
-                                                                                        borderColor: isRecording === img.preview ? '#EF4444' : '#334155',
-                                                                                        color: 'white'
-                                                                                    }}
-                                                                                    value={img.description || ''}
-                                                                                    onChange={(e) => {
-                                                                                        const newDesc = e.target.value;
-                                                                                        setFormData(prev => ({
-                                                                                            ...prev,
-                                                                                            images: prev.images.map(i => i === img ? { ...i, description: newDesc } : i)
-                                                                                        }));
-                                                                                    }}
-                                                                                />
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => isRecording === img.preview ? stopRecording() : startRecording(img.preview)}
-                                                                                    title={isRecording === img.preview ? "Aufnahme stoppen" : "Spracheingabe starten"}
-                                                                                    style={{
-                                                                                        border: isRecording === img.preview ? 'none' : '1px solid var(--border)',
-                                                                                        backgroundColor: isRecording === img.preview ? '#EF4444' : '#1E293B',
-                                                                                        color: isRecording === img.preview ? 'white' : '#94A3B8',
-                                                                                        width: '36px',
-                                                                                        height: '36px',
-                                                                                        borderRadius: '50%',
-                                                                                        cursor: 'pointer',
-                                                                                        display: 'flex',
-                                                                                        alignItems: 'center',
-                                                                                        justifyContent: 'center',
-                                                                                        transition: 'all 0.2s',
-                                                                                        boxShadow: isRecording === img.preview ? '0 0 0 4px rgba(239, 68, 68, 0.2)' : '0 1px 2px rgba(0,0,0,0.1)',
-                                                                                        flexShrink: 0
-                                                                                    }}
-                                                                                >
-                                                                                    <Mic size={20} className={isRecording === img.preview ? 'animate-pulse' : ''} />
-                                                                                </button>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        {/* Actions: Delete */}
-                                                                        <div>
-                                                                            {mode !== 'technician' && (
-                                                                                <button
-                                                                                    type="button"
-                                                                                    className="btn btn-ghost"
-                                                                                    title="Bild löschen" // Added title for clarity
-                                                                                    style={{
-                                                                                        color: '#EF4444',
-                                                                                        padding: '0',
-                                                                                        backgroundColor: '#1E293B',
-                                                                                        border: '1px solid var(--border)',
-                                                                                        borderRadius: '50%',
-                                                                                        width: '36px',
-                                                                                        height: '36px',
-                                                                                        display: 'flex',
-                                                                                        alignItems: 'center',
-                                                                                        justifyContent: 'center',
-                                                                                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                                                                                        cursor: 'pointer'
-                                                                                    }}
-                                                                                    onClick={() => {
-                                                                                        if (window.confirm('Bild wirklich löschen?')) {
-                                                                                            setFormData(prev => ({
-                                                                                                ...prev,
-                                                                                                images: prev.images.filter(i => i !== img)
-                                                                                            }));
-                                                                                        }
-                                                                                    }}
-                                                                                >
-                                                                                    <Trash size={16} />
-                                                                                </button>
-                                                                            )}
-                                                                        </div>
-
-                                                                    </div>
-                                                                ))}
-                                                                {roomImages.length === 0 && (
-                                                                    <div style={{ fontSize: '0.85rem', color: '#9CA3AF', fontStyle: 'italic', marginBottom: '0.5rem' }}>Keine Bilder</div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </>
-                                                );
-                                            })()}
-
-                                            <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
-                                                {/* Camera Button */}
-                                                <label
-                                                    style={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        gap: '0.5rem',
-                                                        flex: 1,
-                                                        padding: '0.75rem',
-                                                        backgroundColor: 'var(--primary)',
-                                                        color: 'white',
-                                                        borderRadius: '8px',
-                                                        cursor: 'pointer',
-                                                        fontWeight: 600,
-                                                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                                                    }}
-                                                    onClick={(e) => {
-                                                        const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-                                                        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
-                                                            (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/.test(navigator.platform));
-
-                                                        if (!isMobile) {
-                                                            e.preventDefault();
-                                                            setCameraContext({ roomId: room.id, assignedTo: room.name });
-                                                            setShowCameraModal(true);
-                                                        }
-                                                    }}
-                                                >
-                                                    <Camera size={20} />
-                                                    Kamera
-                                                    <input
-                                                        type="file"
-                                                        accept="image/*"
-                                                        capture="environment"
-                                                        onChange={(e) => {
-                                                            if (e.target.files && e.target.files.length > 0) {
-                                                                handleImageUpload(Array.from(e.target.files), { roomId: room.id, assignedTo: room.name });
-                                                            }
-                                                        }}
-                                                        style={{ display: 'none' }}
-                                                    />
-                                                </label>
-
-                                                {/* Gallery Button */}
-                                                <label style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    gap: '0.5rem',
-                                                    flex: 1,
-                                                    padding: '0.75rem',
-                                                    backgroundColor: '#1E293B',
-                                                    border: '1px solid var(--border)',
-                                                    color: 'white',
-                                                    borderRadius: '8px',
-                                                    cursor: 'pointer',
-                                                    fontWeight: 600,
-                                                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                                                }}>
-                                                    <Image size={20} />
-                                                    Galerie
-                                                    <input
-                                                        type="file"
-                                                        accept="image/*"
-                                                        multiple
-                                                        onChange={(e) => {
-                                                            if (e.target.files && e.target.files.length > 0) {
-                                                                handleImageUpload(Array.from(e.target.files), { roomId: room.id, assignedTo: room.name });
-                                                            }
-                                                        }}
-                                                        style={{ display: 'none' }}
-                                                    />
-                                                </label>
-                                            </div>
-                                        </>
-                                    </div>
-                                </div>
-                            ))}
-                            {formData.rooms.length === 0 && (
-                                <div style={{ padding: '2rem', textAlign: 'center', color: '#9CA3AF', border: '2px dashed #E5E7EB', borderRadius: '8px' }}>
-                                    Noch keine Räume angelegt.
-                                </div>
-                            )}
-                        </div>
-                    )
-                    }
-                </div >
-
-                {/* Massnahmen & Feststellungen */}
-                {(formData.status === 'Schadenaufnahme' || formData.status === 'Leckortung' || true) && (
-                    <div className="form-group" style={{ marginTop: '2rem', marginBottom: '2rem' }}>
-                        <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                            <Eye size={18} />
-                            Feststellungen
-                        </label>
-                        <textarea
-                            className="form-input"
-                            style={{ minHeight: '100px', resize: 'vertical', marginBottom: '2rem' }}
-                            placeholder="Feststellungen eingeben"
-                            value={formData.findings || ''}
-                            onChange={(e) => setFormData(prev => ({ ...prev, findings: e.target.value }))}
-                        />
-
-                        <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <ClipboardList size={18} />
-                            Massnahmen
-                        </label>
-
-                        <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                            {[
-                                "Trocknung",
-                                "Schimmelbehandlung",
-                                "Organisation externer Handwerker",
-                                "Instandstellung"
-                            ].map(measure => {
-                                const isActive = (formData.measures || '').includes(measure);
-                                return (
-                                    <button
-                                        key={measure}
-                                        type="button"
-                                        onClick={() => {
-                                            let current = formData.measures || '';
-                                            let newValue = '';
-                                            if (current.includes(measure)) {
-                                                // Remove
-                                                newValue = current.replace(measure, '').replace(/\n\n/g, '\n').trim();
-                                            } else {
-                                                // Add
-                                                newValue = current ? (current + '\n' + measure) : measure;
-                                            }
-                                            setFormData(prev => ({ ...prev, measures: newValue }));
-                                        }}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '1rem',
-                                            padding: '1rem',
-                                            backgroundColor: 'rgba(255,255,255,0.03)',
-                                            border: isActive ? '1px solid #0EA5E9' : '1px solid var(--border)',
-                                            borderRadius: '8px',
-                                            color: 'var(--text-main)',
-                                            cursor: 'pointer',
-                                            textAlign: 'left',
-                                            fontSize: '1rem',
-                                            fontWeight: 500,
-                                            transition: 'all 0.2s'
-                                        }}
-                                    >
-                                        <div style={{
-                                            width: '24px',
-                                            height: '24px',
-                                            borderRadius: '4px',
-                                            border: isActive ? 'none' : '2px solid var(--text-muted)',
-                                            backgroundColor: isActive ? 'white' : 'transparent',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            flexShrink: 0
-                                        }}>
-                                            {isActive && <Check size={16} color="#0F172A" strokeWidth={3} />}
-                                        </div>
-                                        {measure}
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                            <label className="form-label" style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                                Eigener Text / Ergänzungen
-                            </label>
-                            <button
-                                type="button"
-                                className={`btn btn-ghost ${isListeningMeasures ? 'listening' : ''}`}
-                                style={{
-                                    color: isListeningMeasures ? '#ef4444' : 'var(--text-muted)',
-                                    padding: '4px 8px',
-                                    fontSize: '0.85rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    border: '1px solid var(--border)',
-                                    borderRadius: '4px'
-                                }}
-                                onClick={toggleMeasuresListening}
-                                title="Diktieren"
-                            >
-                                {isListeningMeasures ? <MicOff size={14} /> : <Mic size={14} />}
-                                <span>Diktieren</span>
-                            </button>
-                        </div>
-
-                        <textarea
-                            id="measures"
-                            name="measures"
-                            className="form-input"
-                            style={{ minHeight: '100px', resize: 'vertical' }}
-                            placeholder="Eigenen Text eingeben"
-                            value={formData.measures || ''}
-                            onChange={(e) => {
-                                setFormData(prev => ({ ...prev, measures: e.target.value }));
-                            }}
-                        />
-                    </div>
-                )}
-
-                {/* EMAILS & PLANS (Final for User) */}
-                {mode === 'desktop' && (
+                    {/* Pläne & Grundrisse Section */}
                     <div style={{ display: 'block', marginBottom: '2rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
                             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                                <Mail size={24} />
-                                Emails & Kommunikation
+                                <FileText size={24} />
+                                Pläne & Grundrisse
                             </h2>
-                            <button
-                                type="button"
-                                onClick={() => setShowEmailImport(true)}
-                                className="btn btn-primary"
-                                style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', gap: '0.25rem' }}
-                            >
-                                <FileText size={14} />
-                                Email-Import (KI)
-                            </button>
                         </div>
-                        <div
-                            className="card"
-                            style={{ border: '1px solid var(--border)', position: 'relative' }}
-                            onDragOver={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                e.currentTarget.style.borderColor = 'var(--primary)';
-                                e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.05)';
-                            }}
-                            onDragLeave={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                e.currentTarget.style.borderColor = 'var(--border)';
-                                e.currentTarget.style.backgroundColor = 'transparent';
-                            }}
-                            onDrop={(e) => handleCategoryDrop(e, 'Emails')}
-                        >
+                        <div className="card" style={{ border: '1px solid var(--border)' }}>
 
                             <div
                                 style={{
@@ -3397,1260 +3637,1084 @@ END:VCARD`;
                                     justifyContent: 'center',
                                     color: 'var(--text-muted)'
                                 }}
-                                onClick={() => document.getElementById('file-upload-emails').click()}
+                                onClick={() => document.getElementById('file-upload-pläne').click()}
                                 onDragOver={(e) => {
                                     e.preventDefault();
-                                    e.stopPropagation();
+                                    e.currentTarget.style.borderColor = 'var(--primary)';
+                                    e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)';
+                                    e.currentTarget.style.color = 'var(--primary)';
                                 }}
-                                onDrop={(e) => handleCategoryDrop(e, 'Emails')}
+                                onDragLeave={(e) => {
+                                    e.preventDefault();
+                                    e.currentTarget.style.borderColor = 'var(--border)';
+                                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)';
+                                    e.currentTarget.style.color = 'var(--text-muted)';
+                                }}
+                                onDrop={(e) => handleCategoryDrop(e, 'Pläne')}
                             >
                                 <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
-                                <span style={{ fontSize: '0.85rem' }}>Emails / PDF Upload</span>
+                                <span style={{ fontSize: '0.85rem' }}>Plan / Grundriss hochladen (PDF / Bild)</span>
 
                                 <input
-                                    id="file-upload-emails"
+                                    id="file-upload-pläne"
                                     type="file"
                                     multiple
-                                    accept="image/*,application/pdf,.msg,.txt"
+                                    accept="image/*,application/pdf"
                                     style={{ display: 'none' }}
-                                    onChange={(e) => handleCategorySelect(e, 'Emails')}
+                                    onChange={(e) => handleCategorySelect(e, 'Pläne')}
                                 />
                             </div>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
-                                onDragOver={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                }}
-                                onDrop={(e) => handleCategoryDrop(e, 'Emails')}
-                            >
-                                {formData.images.filter(img => img.assignedTo === 'Emails').map((item, idx) => {
-                                    const isDoc = (item.file && item.file.type === 'application/pdf') ||
-                                        (item.name && item.name.toLowerCase().endsWith('.pdf')) ||
-                                        (item.name && item.name.toLowerCase().endsWith('.msg')) ||
-                                        (item.name && item.name.toLowerCase().endsWith('.txt')) ||
-                                        item.type === 'document';
-
-                                    return (
-                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
-                                            {isDoc ? (
-                                                <div style={{ color: item.name?.toLowerCase().endsWith('.pdf') ? '#F87171' : '#60A5FA', display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                                                    {(item.name?.toLowerCase().endsWith('.msg')) ? <Mail size={18} /> : <FileText size={18} />}
-                                                    <span style={{ fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-ghost"
-                                                        style={{ marginLeft: 'auto', padding: '0.25rem', fontSize: '0.8rem' }}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            const url = item.file ? URL.createObjectURL(item.file) : item.preview;
-                                                            if (url) window.open(url, '_blank');
-                                                        }}
-                                                    >
-                                                        Öffnen
-                                                    </button>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                {formData.images.filter(img => img.assignedTo === 'Pläne').map((item, idx) => (
+                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                                        {(item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf')) ? (
+                                            <div style={{ color: '#F87171', display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                                                <FileText size={18} />
+                                                <span style={{ fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-ghost"
+                                                    style={{ marginLeft: 'auto', padding: '0.25rem', fontSize: '0.8rem' }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const url = item.file ? URL.createObjectURL(item.file) : item.preview; if (url) window.open(url, '_blank');
+                                                    }}
+                                                >
+                                                    Öffnen
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <img src={item.preview} alt="Vorschau" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />
+                                                <div style={{ flex: 1, overflow: 'hidden' }}>
+                                                    <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{item.assignedTo}</div>
+                                                    {item.description && (
+                                                        <div style={{ fontSize: '0.85rem', color: '#94A3B8' }}>{item.description.substring(0, 30)}...</div>
+                                                    )}
                                                 </div>
-                                            ) : (
-                                                <>
-                                                    <img
-                                                        src={item.preview}
-                                                        alt="Vorschau"
-                                                        style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }}
-                                                        onError={(e) => { e.target.style.display = 'none'; }}
-                                                    />
-                                                    <div style={{ flex: 1, overflow: 'hidden' }}>
-                                                        <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{item.assignedTo}</div>
-                                                        {item.description && (
-                                                            <div style={{ fontSize: '0.85rem', color: '#94A3B8' }}>{item.description.substring(0, 30)}...</div>
-                                                        )}
-                                                    </div>
-                                                </>
-                                            )}
+                                            </>
+                                        )}
 
-                                            <button type="button" onClick={() => { if (window.confirm('Löschen?')) setFormData(prev => ({ ...prev, images: prev.images.filter(img => img !== item) })); }} style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '4px' }}><X size={16} /></button>
-                                        </div>
-                                    )
-                                })}
-                                {formData.images.filter(img => img.assignedTo === 'Emails').length === 0 && (
-                                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic', padding: '1rem' }}>Keine Emails vorhanden.</div>
+                                        <button type="button" onClick={() => { if (window.confirm('Löschen?')) setFormData(prev => ({ ...prev, images: prev.images.filter(img => img !== item) })); }} style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '4px' }}><X size={16} /></button>
+                                    </div>
+                                ))}
+                                {formData.images.filter(img => img.assignedTo === 'Pläne').length === 0 && (
+                                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic', padding: '1rem' }}>Keine Pläne vorhanden.</div>
                                 )}
                             </div>
                         </div>
                     </div>
-                )}
 
-                {/* 2b. Massnahmen (Measures) - Technician Only (Schadenaufnahme/Leckortung) */}
-                {mode === 'technician' && (formData.status === 'Schadenaufnahme' || formData.status === 'Leckortung') && (
-                    <div style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.02)' }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <ClipboardList size={18} /> Massnahmen
-                        </h3>
 
-                        {/* Checkbox Liste */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
-                            {[
-                                "Trocknung",
-                                "Schimmelbehandlung",
-                                "Organisation externer Handwerker",
-                                "Instandstellung"
-                            ].map((item) => (
-                                <label key={item} style={{
-                                    display: 'flex', alignItems: 'center', gap: '0.75rem',
-                                    padding: '0.75rem',
-                                    border: '1px solid var(--border)',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    backgroundColor: (formData.selectedMeasures?.includes(item)) ? 'rgba(56, 189, 248, 0.1)' : 'transparent',
-                                    borderColor: (formData.selectedMeasures?.includes(item)) ? 'var(--primary)' : 'var(--border)'
-                                }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.selectedMeasures?.includes(item) || false}
-                                        onChange={() => {
-                                            setFormData(prev => {
-                                                const current = prev.selectedMeasures || [];
-                                                if (current.includes(item)) {
-                                                    return { ...prev, selectedMeasures: current.filter(i => i !== item) };
-                                                } else {
-                                                    return { ...prev, selectedMeasures: [...current, item] };
-                                                }
-                                            });
-                                        }}
-                                        style={{ width: '20px', height: '20px', accentColor: 'var(--primary)' }}
-                                    />
-                                    <span style={{ fontSize: '1rem', fontWeight: 500 }}>{item}</span>
-                                </label>
-                            ))}
-                        </div>
 
-                        {/* Freitext & Mikrofon */}
-                        <div style={{ position: 'relative' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Eigener Text / Ergänzungen</label>
-                                <button
-                                    type="button"
-                                    className={`btn ${isListeningMeasures ? 'btn-danger' : 'btn-outline'}`}
-                                    onClick={toggleMeasuresListening}
-                                    style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                                >
-                                    {isListeningMeasures ? <MicOff size={14} /> : <Mic size={14} />}
-                                    {isListeningMeasures ? 'Stop' : 'Diktieren'}
-                                </button>
-                            </div>
-                            <textarea
-                                className="form-input"
-                                value={formData.measures || ''}
-                                onChange={(e) => setFormData(prev => ({ ...prev, measures: e.target.value }))}
-                                placeholder="Eigenen Text eingeben"
-                                style={{ width: '100%', minHeight: '80px', fontFamily: 'inherit' }}
-                            />
-                        </div>
-                    </div>
-                )}
+                    {mode === 'desktop' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem', marginBottom: '3rem' }}>
 
-                {/* Pläne & Grundrisse Section */}
-                <div style={{ display: 'block', marginBottom: '2rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                            <FileText size={24} />
-                            Pläne & Grundrisse
-                        </h2>
-                    </div>
-                    <div className="card" style={{ border: '1px solid var(--border)' }}>
-
-                        <div
-                            style={{
-                                border: '2px dashed var(--border)',
-                                borderRadius: 'var(--radius)',
-                                padding: '2rem 1rem',
-                                textAlign: 'center',
-                                cursor: 'pointer',
-                                backgroundColor: 'rgba(255,255,255,0.02)',
-                                transition: 'all 0.2s',
-                                marginBottom: '1rem',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'var(--text-muted)'
-                            }}
-                            onClick={() => document.getElementById('file-upload-pläne').click()}
-                            onDragOver={(e) => {
-                                e.preventDefault();
-                                e.currentTarget.style.borderColor = 'var(--primary)';
-                                e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)';
-                                e.currentTarget.style.color = 'var(--primary)';
-                            }}
-                            onDragLeave={(e) => {
-                                e.preventDefault();
-                                e.currentTarget.style.borderColor = 'var(--border)';
-                                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)';
-                                e.currentTarget.style.color = 'var(--text-muted)';
-                            }}
-                            onDrop={(e) => handleCategoryDrop(e, 'Pläne')}
-                        >
-                            <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
-                            <span style={{ fontSize: '0.85rem' }}>Plan / Grundriss hochladen (PDF / Bild)</span>
-
-                            <input
-                                id="file-upload-pläne"
-                                type="file"
-                                multiple
-                                accept="image/*,application/pdf"
-                                style={{ display: 'none' }}
-                                onChange={(e) => handleCategorySelect(e, 'Pläne')}
-                            />
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {formData.images.filter(img => img.assignedTo === 'Pläne').map((item, idx) => (
-                                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
-                                    {(item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf')) ? (
-                                        <div style={{ color: '#F87171', display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                                            <FileText size={18} />
-                                            <span style={{ fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
-                                            <button
-                                                type="button"
-                                                className="btn btn-ghost"
-                                                style={{ marginLeft: 'auto', padding: '0.25rem', fontSize: '0.8rem' }}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    const url = item.file ? URL.createObjectURL(item.file) : item.preview; if (url) window.open(url, '_blank');
-                                                }}
-                                            >
-                                                Öffnen
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <img src={item.preview} alt="Vorschau" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />
-                                            <div style={{ flex: 1, overflow: 'hidden' }}>
-                                                <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{item.assignedTo}</div>
-                                                {item.description && (
-                                                    <div style={{ fontSize: '0.85rem', color: '#94A3B8' }}>{item.description.substring(0, 30)}...</div>
-                                                )}
-                                            </div>
-                                        </>
-                                    )}
-
-                                    <button type="button" onClick={() => { if (window.confirm('Löschen?')) setFormData(prev => ({ ...prev, images: prev.images.filter(img => img !== item) })); }} style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '4px' }}><X size={16} /></button>
+                            {/* Button for PDF Creation (Desktop Only) - Placed above Arbeitsrapporte */}
+                            {/* 1. Arbeitsrapporte (Duplicate for Desktop) */}
+                            <div style={{ marginTop: '2rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                                        <Hammer size={24} />
+                                        Arbeitsrapporte
+                                    </h2>
                                 </div>
-                            ))}
-                            {formData.images.filter(img => img.assignedTo === 'Pläne').length === 0 && (
-                                <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic', padding: '1rem' }}>Keine Pläne vorhanden.</div>
-                            )}
-                        </div>
-                    </div>
-                </div>
+                                <div className="card" style={{ border: '1px solid var(--border)', padding: '1.5rem' }}>
+                                    <div
+                                        style={{
+                                            border: '2px dashed var(--border)',
+                                            borderRadius: 'var(--radius)',
+                                            padding: '2rem 1rem',
+                                            textAlign: 'center',
+                                            cursor: 'pointer',
+                                            backgroundColor: 'rgba(255,255,255,0.02)',
+                                            transition: 'all 0.2s',
+                                            marginBottom: '1rem',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: 'var(--text-muted)'
+                                        }}
+                                        onClick={() => document.getElementById('file-upload-Arbeitsrappporte-desktop').click()}
+                                        onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)'; e.currentTarget.style.color = 'var(--primary)'; }}
+                                        onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                                        onDrop={(e) => handleCategoryDrop(e, 'Arbeitsrappporte')}
+                                    >
+                                        <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                                        <span style={{ fontSize: '0.85rem' }}>Arbeitsrapport hochladen / Drop</span>
+                                        <input id="file-upload-Arbeitsrappporte-desktop" type="file" multiple accept="image/*,application/pdf" style={{ display: 'none' }} onChange={(e) => handleCategorySelect(e, 'Arbeitsrappporte')} />
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        {formData.images.filter(img => img.assignedTo === 'Arbeitsrappporte').map((item, idx) => (
+                                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                                                {(item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf')) ? (
+                                                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }} onClick={() => { if (item.file) { const pdfUrl = URL.createObjectURL(item.file); window.open(pdfUrl, '_blank'); } else if (item.preview) { window.open(item.preview, '_blank'); } else { alert("PDF Vorschau nicht verfügbar."); } }}>
+                                                        <div style={{ padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}><FileText size={24} color="var(--text-main)" /></div>
+                                                        <div style={{ fontSize: '1rem', color: 'var(--text-main)', fontWeight: 500, textDecoration: 'underline' }}>{item.name}</div>
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ width: '80px', height: '80px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
+                                                        <img src={item.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
+                                                    </div>
+                                                )}
+                                                {!((item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf'))) && <div style={{ flex: 1, fontWeight: 500, color: 'var(--text-main)' }}>{item.name}</div>}
+                                                <button type="button" className="btn btn-ghost" onClick={() => setFormData(prev => ({ ...prev, images: prev.images.filter(i => i !== item) }))} style={{ color: '#EF4444', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}><Trash size={18} /></button>
+                                            </div>
+                                        ))}
+                                        {formData.images.filter(img => img.assignedTo === 'Arbeitsrappporte').length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Keine Arbeitsrapporte vorhanden.</div>}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 2. Sonstiges (Duplicate of Reports, mapped to 'Sonstiges') */}
+                            <div style={{ marginTop: '2rem' }}>
+                                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <FileText size={24} />
+                                    Sonstiges
+                                </h2>
+                                <div className="card" style={{ border: '1px solid var(--border)', padding: '1.5rem' }}>
+                                    <div
+                                        style={{
+                                            border: '2px dashed var(--border)',
+                                            borderRadius: 'var(--radius)',
+                                            padding: '2rem 1rem',
+                                            textAlign: 'center',
+                                            cursor: 'pointer',
+                                            backgroundColor: 'rgba(255,255,255,0.02)',
+                                            transition: 'all 0.2s',
+                                            marginBottom: '1rem',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: 'var(--text-muted)'
+                                        }}
+                                        onClick={() => document.getElementById('file-upload-Sonstiges-desktop').click()}
+                                        onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)'; e.currentTarget.style.color = 'var(--primary)'; }}
+                                        onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                                        onDrop={(e) => handleCategoryDrop(e, 'Sonstiges')}
+                                    >
+                                        <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                                        <span style={{ fontSize: '0.85rem' }}>Sonstiges Dokument hochladen / Drop</span>
+                                        <input id="file-upload-Sonstiges-desktop" type="file" multiple accept="image/*,application/pdf" style={{ display: 'none' }} onChange={(e) => handleCategorySelect(e, 'Sonstiges')} />
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        {formData.images.filter(img => img.assignedTo === 'Sonstiges').map((item, idx) => (
+                                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                                                {(item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf')) ? (
+                                                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }} onClick={() => { if (item.file) { const pdfUrl = URL.createObjectURL(item.file); window.open(pdfUrl, '_blank'); } else if (item.preview) { window.open(item.preview, '_blank'); } }}>
+                                                        <div style={{ padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}><FileText size={24} color="var(--text-main)" /></div>
+                                                        <div style={{ fontSize: '1rem', color: 'var(--text-main)', fontWeight: 500, textDecoration: 'underline' }}>{item.name}</div>
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ width: '80px', height: '80px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
+                                                        <img src={item.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
+                                                    </div>
+                                                )}
+                                                {!((item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf'))) && <div style={{ flex: 1, fontWeight: 500, color: 'var(--text-main)' }}>{item.name}</div>}
+                                                <button type="button" className="btn btn-ghost" onClick={() => setFormData(prev => ({ ...prev, images: prev.images.filter(i => i !== item) }))} style={{ color: '#EF4444', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}><Trash size={18} /></button>
+                                            </div>
+                                        ))}
+                                        {formData.images.filter(img => img.assignedTo === 'Sonstiges').length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Keine sonstigen Dokumente.</div>}
+                                    </div>
+                                </div>
+                            </div>
 
 
 
-                {mode === 'desktop' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem', marginBottom: '3rem' }}>
-
-                        {/* Button for PDF Creation (Desktop Only) - Placed above Arbeitsrapporte */}
-                        {/* 1. Arbeitsrapporte (Duplicate for Desktop) */}
-                        <div style={{ marginTop: '2rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
-                                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                                    <Hammer size={24} />
-                                    Arbeitsrapporte
+                            {/* 4. Messprotokolle (Duplicate for Desktop) - Reusing logic by referencing existing or duplicating UI */}
+                            <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+                                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)', margin: 0 }}>
+                                    <FileText size={24} />
+                                    Messprotokolle
                                 </h2>
                             </div>
-                            <div className="card" style={{ border: '1px solid var(--border)', padding: '1.5rem' }}>
-                                <div
-                                    style={{
-                                        border: '2px dashed var(--border)',
-                                        borderRadius: 'var(--radius)',
-                                        padding: '2rem 1rem',
-                                        textAlign: 'center',
-                                        cursor: 'pointer',
-                                        backgroundColor: 'rgba(255,255,255,0.02)',
-                                        transition: 'all 0.2s',
-                                        marginBottom: '1rem',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        color: 'var(--text-muted)'
-                                    }}
-                                    onClick={() => document.getElementById('file-upload-Arbeitsrappporte-desktop').click()}
-                                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)'; e.currentTarget.style.color = 'var(--primary)'; }}
-                                    onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
-                                    onDrop={(e) => handleCategoryDrop(e, 'Arbeitsrappporte')}
-                                >
-                                    <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
-                                    <span style={{ fontSize: '0.85rem' }}>Arbeitsrapport hochladen / Drop</span>
-                                    <input id="file-upload-Arbeitsrappporte-desktop" type="file" multiple accept="image/*,application/pdf" style={{ display: 'none' }} onChange={(e) => handleCategorySelect(e, 'Arbeitsrappporte')} />
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    {formData.images.filter(img => img.assignedTo === 'Arbeitsrappporte').map((item, idx) => (
-                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
-                                            {(item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf')) ? (
-                                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }} onClick={() => { if (item.file) { const pdfUrl = URL.createObjectURL(item.file); window.open(pdfUrl, '_blank'); } else if (item.preview) { window.open(item.preview, '_blank'); } else { alert("PDF Vorschau nicht verfügbar."); } }}>
-                                                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}><FileText size={24} color="var(--text-main)" /></div>
-                                                    <div style={{ fontSize: '1rem', color: 'var(--text-main)', fontWeight: 500, textDecoration: 'underline' }}>{item.name}</div>
+                            <div className="card" style={{ border: '1px solid var(--border)' }}>
+                                <div style={{ marginBottom: '2rem' }}>
+                                    <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--primary)' }}>Messen</h4>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        {formData.rooms.map(room => {
+                                            const hasMeasurement = !!room.measurementData;
+                                            const date = hasMeasurement ? (room.measurementData.globalSettings?.date ? new Date(room.measurementData.globalSettings.date).toLocaleDateString('de-CH') : 'Kein Datum') : '-';
+                                            return (
+                                                <div key={room.id} style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', gap: '0.5rem' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: '200px', flex: '1 1 auto' }}>
+                                                        <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{room.name}</div>
+                                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{hasMeasurement ? `Letzte Messung: ${date}` : 'Keine Messdaten'}</div>
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                                        {hasMeasurement ? (
+                                                            <>
+                                                                <button type="button" className="btn btn-outline" onClick={() => { setActiveRoomForMeasurement(room); setIsNewMeasurement(false); setShowMeasurementModal(true); }}>Ansehen</button>
+                                                                <button type="button" className="btn btn-outline" onClick={() => { setActiveRoomForMeasurement(room); setIsNewMeasurement(true); setShowMeasurementModal(true); }}>Neu</button>
+                                                            </>
+                                                        ) : (
+                                                            <button type="button" className="btn btn-outline" onClick={() => { setActiveRoomForMeasurement(room); setIsNewMeasurement(false); setShowMeasurementModal(true); }}>Messung starten</button>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            ) : (
-                                                <div style={{ width: '80px', height: '80px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
-                                                    <img src={item.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
-                                                </div>
-                                            )}
-                                            {!((item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf'))) && <div style={{ flex: 1, fontWeight: 500, color: 'var(--text-main)' }}>{item.name}</div>}
-                                            <button type="button" className="btn btn-ghost" onClick={() => setFormData(prev => ({ ...prev, images: prev.images.filter(i => i !== item) }))} style={{ color: '#EF4444', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}><Trash size={18} /></button>
-                                        </div>
-                                    ))}
-                                    {formData.images.filter(img => img.assignedTo === 'Arbeitsrappporte').length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Keine Arbeitsrapporte vorhanden.</div>}
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
 
-                        {/* 2. Sonstiges (Duplicate of Reports, mapped to 'Sonstiges') */}
-                        <div style={{ marginTop: '2rem' }}>
-                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <FileText size={24} />
-                                Sonstiges
-                            </h2>
-                            <div className="card" style={{ border: '1px solid var(--border)', padding: '1.5rem' }}>
-                                <div
-                                    style={{
-                                        border: '2px dashed var(--border)',
-                                        borderRadius: 'var(--radius)',
-                                        padding: '2rem 1rem',
-                                        textAlign: 'center',
-                                        cursor: 'pointer',
-                                        backgroundColor: 'rgba(255,255,255,0.02)',
-                                        transition: 'all 0.2s',
-                                        marginBottom: '1rem',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        color: 'var(--text-muted)'
-                                    }}
-                                    onClick={() => document.getElementById('file-upload-Sonstiges-desktop').click()}
-                                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)'; e.currentTarget.style.color = 'var(--primary)'; }}
-                                    onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
-                                    onDrop={(e) => handleCategoryDrop(e, 'Sonstiges')}
-                                >
-                                    <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
-                                    <span style={{ fontSize: '0.85rem' }}>Sonstiges Dokument hochladen / Drop</span>
-                                    <input id="file-upload-Sonstiges-desktop" type="file" multiple accept="image/*,application/pdf" style={{ display: 'none' }} onChange={(e) => handleCategorySelect(e, 'Sonstiges')} />
+                                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', marginBottom: '2rem' }}>
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline"
+                                        onClick={async () => {
+                                            try {
+                                                await generateMeasurementExcel(formData);
+                                            } catch (error) {
+                                                console.error("Excel Export failed:", error);
+                                                alert("Fehler beim Erstellen des Excel-Protokolls.");
+                                            }
+                                        }}
+                                        style={{ fontSize: '0.85rem', padding: '0.5rem 1rem', gap: '0.4rem', borderColor: '#10B981', color: '#10B981', display: 'flex', alignItems: 'center' }}
+                                        title="Excel Export aller Messräume (Download)"
+                                    >
+                                        <Table size={16} />
+                                        Excel Export
+                                    </button>
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    {formData.images.filter(img => img.assignedTo === 'Sonstiges').map((item, idx) => (
-                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
-                                            {(item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf')) ? (
-                                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }} onClick={() => { if (item.file) { const pdfUrl = URL.createObjectURL(item.file); window.open(pdfUrl, '_blank'); } else if (item.preview) { window.open(item.preview, '_blank'); } }}>
-                                                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}><FileText size={24} color="var(--text-main)" /></div>
-                                                    <div style={{ fontSize: '1rem', color: 'var(--text-main)', fontWeight: 500, textDecoration: 'underline' }}>{item.name}</div>
-                                                </div>
-                                            ) : (
-                                                <div style={{ width: '80px', height: '80px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
-                                                    <img src={item.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
-                                                </div>
-                                            )}
-                                            {!((item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf'))) && <div style={{ flex: 1, fontWeight: 500, color: 'var(--text-main)' }}>{item.name}</div>}
-                                            <button type="button" className="btn btn-ghost" onClick={() => setFormData(prev => ({ ...prev, images: prev.images.filter(i => i !== item) }))} style={{ color: '#EF4444', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}><Trash size={18} /></button>
-                                        </div>
-                                    ))}
-                                    {formData.images.filter(img => img.assignedTo === 'Sonstiges').length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Keine sonstigen Dokumente.</div>}
-                                </div>
-                            </div>
-                        </div>
 
+                                {/* Measurement Excel List */}
 
-
-                        {/* 4. Messprotokolle (Duplicate for Desktop) - Reusing logic by referencing existing or duplicating UI */}
-                        <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
-                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)', margin: 0 }}>
-                                <FileText size={24} />
-                                Messprotokolle
-                            </h2>
-                        </div>
-                        <div className="card" style={{ border: '1px solid var(--border)' }}>
-                            <div style={{ marginBottom: '2rem' }}>
-                                <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--primary)' }}>Messen</h4>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    {formData.rooms.map(room => {
-                                        const hasMeasurement = !!room.measurementData;
-                                        const date = hasMeasurement ? (room.measurementData.globalSettings?.date ? new Date(room.measurementData.globalSettings.date).toLocaleDateString('de-CH') : 'Kein Datum') : '-';
-                                        return (
-                                            <div key={room.id} style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', gap: '0.5rem' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: '200px', flex: '1 1 auto' }}>
-                                                    <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{room.name}</div>
-                                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{hasMeasurement ? `Letzte Messung: ${date}` : 'Keine Messdaten'}</div>
-                                                </div>
-                                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                                    {hasMeasurement ? (
-                                                        <>
-                                                            <button type="button" className="btn btn-outline" onClick={() => { setActiveRoomForMeasurement(room); setIsNewMeasurement(false); setShowMeasurementModal(true); }}>Ansehen</button>
-                                                            <button type="button" className="btn btn-outline" onClick={() => { setActiveRoomForMeasurement(room); setIsNewMeasurement(true); setShowMeasurementModal(true); }}>Neu</button>
-                                                        </>
-                                                    ) : (
-                                                        <button type="button" className="btn btn-outline" onClick={() => { setActiveRoomForMeasurement(room); setIsNewMeasurement(false); setShowMeasurementModal(true); }}>Messung starten</button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
                             </div>
 
-                            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', marginBottom: '2rem' }}>
-                                <button
-                                    type="button"
-                                    className="btn btn-outline"
-                                    onClick={async () => {
-                                        try {
-                                            await generateMeasurementExcel(formData);
-                                        } catch (error) {
-                                            console.error("Excel Export failed:", error);
-                                            alert("Fehler beim Erstellen des Excel-Protokolls.");
-                                        }
-                                    }}
-                                    style={{ fontSize: '0.85rem', padding: '0.5rem 1rem', gap: '0.4rem', borderColor: '#10B981', color: '#10B981', display: 'flex', alignItems: 'center' }}
-                                    title="Excel Export aller Messräume (Download)"
-                                >
-                                    <Table size={16} />
-                                    Excel Export
-                                </button>
-                            </div>
-
-                            {/* Measurement Excel List */}
-
                         </div>
-
-                    </div>
-                )
-                }
-                {/* 4. Drying Equipment (Only in Trocknung, hidden in Schadenaufnahme/Leckortung) */}
-                {
-                    (mode === 'desktop' || formData.status === 'Trocknung') && (
-                        <div style={{ marginBottom: '2rem', borderTop: '1px solid var(--border)', paddingTop: '1.5rem', ...(mode === 'desktop' ? { display: 'flex', flexDirection: 'column' } : {}) }}>
-                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: 'var(--primary)' }}>
-                                <Settings size={24} />
-                                Trocknungsgeräte
-                            </h2>
+                    )
+                    }
+                    {/* 4. Drying Equipment (Only in Trocknung, hidden in Schadenaufnahme/Leckortung) */}
+                    {
+                        (mode === 'desktop' || formData.status === 'Trocknung') && (
+                            <div style={{ marginBottom: '2rem', borderTop: '1px solid var(--border)', paddingTop: '1.5rem', ...(mode === 'desktop' ? { display: 'flex', flexDirection: 'column' } : {}) }}>
+                                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: 'var(--primary)' }}>
+                                    <Settings size={24} />
+                                    Trocknungsgeräte
+                                </h2>
 
 
 
 
 
-                            {/* Add Device Form */}
-                            <div style={{ backgroundColor: '#1E293B', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid var(--border)', ...(mode === 'desktop' ? { order: 3, marginTop: '2rem' } : {}) }}>
-                                <button
-                                    type="button"
-                                    className={`btn ${showAddDeviceForm ? 'btn-ghost' : 'btn-primary'}`}
-                                    onClick={() => setShowAddDeviceForm(!showAddDeviceForm)}
-                                    style={{ width: '100%', marginBottom: showAddDeviceForm ? '1rem' : '0', color: showAddDeviceForm ? '#EF4444' : 'white', borderColor: showAddDeviceForm ? '#EF4444' : 'transparent' }}
-                                >
-                                    {showAddDeviceForm ? <X size={16} /> : <Plus size={16} />}
-                                    {showAddDeviceForm ? " Abbrechen" : " Gerät hinzufügen"}
-                                </button>
+                                {/* Add Device Form */}
+                                <div style={{ backgroundColor: '#1E293B', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid var(--border)', ...(mode === 'desktop' ? { order: 3, marginTop: '2rem' } : {}) }}>
+                                    <button
+                                        type="button"
+                                        className={`btn ${showAddDeviceForm ? 'btn-ghost' : 'btn-primary'}`}
+                                        onClick={() => setShowAddDeviceForm(!showAddDeviceForm)}
+                                        style={{ width: '100%', marginBottom: showAddDeviceForm ? '1rem' : '0', color: showAddDeviceForm ? '#EF4444' : 'white', borderColor: showAddDeviceForm ? '#EF4444' : 'transparent' }}
+                                    >
+                                        {showAddDeviceForm ? <X size={16} /> : <Plus size={16} />}
+                                        {showAddDeviceForm ? " Abbrechen" : " Gerät hinzufügen"}
+                                    </button>
 
-                                {showAddDeviceForm && (
-                                    <>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                            {/* Inventory Selection (Matches Technician Mode) */}
-                                            {deviceFetchError ? (
-                                                <div style={{ color: '#EF4444', fontSize: '0.9rem', marginBottom: '0.5rem', padding: '0.5rem', border: '1px solid #EF4444', borderRadius: '4px' }}>
-                                                    Ladefehler: {deviceFetchError}
-                                                </div>
-                                            ) : (
+                                    {showAddDeviceForm && (
+                                        <>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                                {/* Inventory Selection (Matches Technician Mode) */}
+                                                {deviceFetchError ? (
+                                                    <div style={{ color: '#EF4444', fontSize: '0.9rem', marginBottom: '0.5rem', padding: '0.5rem', border: '1px solid #EF4444', borderRadius: '4px' }}>
+                                                        Ladefehler: {deviceFetchError}
+                                                    </div>
+                                                ) : (
+                                                    <select
+                                                        className="form-input"
+                                                        value={selectedDevice ? selectedDevice.id : ''}
+                                                        onChange={(e) => {
+                                                            const devId = e.target.value;
+                                                            if (!devId) {
+                                                                setSelectedDevice(null);
+                                                                setNewDevice(prev => ({ ...prev, deviceNumber: '' }));
+                                                            } else {
+                                                                const dev = availableDevices.find(d => d.id.toString() === devId);
+                                                                if (dev) {
+                                                                    setSelectedDevice(dev);
+                                                                    setNewDevice(prev => ({ ...prev, deviceNumber: dev.number }));
+                                                                }
+                                                            }
+                                                        }}
+                                                        style={{ marginBottom: '0.5rem' }} // Removed explicit colors to rely on class
+                                                    >
+                                                        <option value="">-- Gerät aus Lager wählen --</option>
+                                                        {Array.isArray(availableDevices) && availableDevices.length > 0 ? (
+                                                            availableDevices.map(device => (
+                                                                <option key={device.id} value={device.id}>
+                                                                    #{device.number} - {device.type} {device.model ? `(${device.model})` : ''}
+                                                                </option>
+                                                            ))
+                                                        ) : (
+                                                            <option disabled>Keine verfügbaren Geräte gefunden</option>
+                                                        )}
+                                                    </select>
+                                                )}
+
+                                                <input
+                                                    type="text"
+                                                    placeholder="Geräte-Nr. (oder oben wählen)"
+                                                    className="form-input"
+                                                    value={newDevice.deviceNumber}
+                                                    onChange={(e) => {
+                                                        setNewDevice(prev => ({ ...prev, deviceNumber: e.target.value }));
+                                                        setSelectedDevice(null); // Clear selection on manual edit
+                                                    }}
+                                                />
+
+                                                {/* Apartment Selection (Required) */}
                                                 <select
                                                     className="form-input"
-                                                    value={selectedDevice ? selectedDevice.id : ''}
+                                                    value={newDevice.apartment || ''}
                                                     onChange={(e) => {
-                                                        const devId = e.target.value;
-                                                        if (!devId) {
-                                                            setSelectedDevice(null);
-                                                            setNewDevice(prev => ({ ...prev, deviceNumber: '' }));
+                                                        const val = e.target.value;
+                                                        if (val === 'Sonstiges') {
+                                                            setNewDevice(prev => ({ ...prev, apartment: '' })); // Or handle as custom input
                                                         } else {
-                                                            const dev = availableDevices.find(d => d.id.toString() === devId);
-                                                            if (dev) {
-                                                                setSelectedDevice(dev);
-                                                                setNewDevice(prev => ({ ...prev, deviceNumber: dev.number }));
-                                                            }
+                                                            setNewDevice(prev => ({ ...prev, apartment: val }));
                                                         }
                                                     }}
-                                                    style={{ marginBottom: '0.5rem' }} // Removed explicit colors to rely on class
+                                                    style={{ borderColor: !newDevice.apartment ? '#F87171' : '' }}
                                                 >
-                                                    <option value="">-- Gerät aus Lager wählen --</option>
-                                                    {Array.isArray(availableDevices) && availableDevices.length > 0 ? (
-                                                        availableDevices.map(device => (
-                                                            <option key={device.id} value={device.id}>
-                                                                #{device.number} - {device.type} {device.model ? `(${device.model})` : ''}
-                                                            </option>
-                                                        ))
-                                                    ) : (
-                                                        <option disabled>Keine verfügbaren Geräte gefunden</option>
-                                                    )}
+                                                    <option value="">Wohnung wählen... (Pflicht)</option>
+                                                    {[...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().map(apt => (
+                                                        <option key={apt} value={apt}>{apt}</option>
+                                                    ))}
+                                                    <option value="Sonstiges">Neue Wohnung eingeben...</option>
                                                 </select>
-                                            )}
 
-                                            <input
-                                                type="text"
-                                                placeholder="Geräte-Nr. (oder oben wählen)"
-                                                className="form-input"
-                                                value={newDevice.deviceNumber}
-                                                onChange={(e) => {
-                                                    setNewDevice(prev => ({ ...prev, deviceNumber: e.target.value }));
-                                                    setSelectedDevice(null); // Clear selection on manual edit
-                                                }}
-                                            />
-
-                                            {/* Apartment Selection (Required) */}
-                                            <select
-                                                className="form-input"
-                                                value={newDevice.apartment || ''}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    if (val === 'Sonstiges') {
-                                                        setNewDevice(prev => ({ ...prev, apartment: '' })); // Or handle as custom input
-                                                    } else {
-                                                        setNewDevice(prev => ({ ...prev, apartment: val }));
-                                                    }
-                                                }}
-                                                style={{ borderColor: !newDevice.apartment ? '#F87171' : '' }}
-                                            >
-                                                <option value="">Wohnung wählen... (Pflicht)</option>
-                                                {[...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().map(apt => (
-                                                    <option key={apt} value={apt}>{apt}</option>
-                                                ))}
-                                                <option value="Sonstiges">Neue Wohnung eingeben...</option>
-                                            </select>
-
-                                            {/* Custom Apartment Input if 'Sonstiges' or not in list (implicit logic: if value not in list and not empty, it's custom. But simplified: if user picks Sonstiges, we clear and show input below? Or render input if value not in list? Let's keep it simple: Select or Input logic similar to Room) */}
-                                            {/* Actually, user might want to just type it if it's new. Use a datalist or similar? React doesn't do datalist easily with state. 
+                                                {/* Custom Apartment Input if 'Sonstiges' or not in list (implicit logic: if value not in list and not empty, it's custom. But simplified: if user picks Sonstiges, we clear and show input below? Or render input if value not in list? Let's keep it simple: Select or Input logic similar to Room) */}
+                                                {/* Actually, user might want to just type it if it's new. Use a datalist or similar? React doesn't do datalist easily with state. 
                                                 Let's stick to the pattern used for Rooms: Select + Conditional Input if "Sonstiges" or custom.
                                                 However, here we want to SUGGEST from existing rooms.
                                             */}
-                                            {((newDevice.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().includes(newDevice.apartment)) || !formData.rooms.some(r => r.apartment)) && (
-                                                <input
-                                                    type="text"
-                                                    placeholder="Wohnung eingeben (Pflicht)"
-                                                    className="form-input"
-                                                    value={newDevice.apartment || ''}
-                                                    onChange={(e) => setNewDevice(prev => ({ ...prev, apartment: e.target.value }))}
-                                                    style={{ marginTop: '0.25rem' }}
-                                                />
-                                            )}
+                                                {((newDevice.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().includes(newDevice.apartment)) || !formData.rooms.some(r => r.apartment)) && (
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Wohnung eingeben (Pflicht)"
+                                                        className="form-input"
+                                                        value={newDevice.apartment || ''}
+                                                        onChange={(e) => setNewDevice(prev => ({ ...prev, apartment: e.target.value }))}
+                                                        style={{ marginTop: '0.25rem' }}
+                                                    />
+                                                )}
 
-                                        </div>
-                                        <div style={{ marginBottom: '0.5rem' }}>
-                                            {/* Room Selection from Existing Rooms + Standard Options */}
-                                            {/* Room Selection from Existing Rooms + Standard Options */}
-                                            <select
-                                                className="form-input"
-                                                value={newDevice.isManualRoom ? 'Sonstiges' : newDevice.room}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    if (val === 'Sonstiges') {
-                                                        setNewDevice(prev => ({ ...prev, isManualRoom: true, room: '' }));
-                                                    } else {
-                                                        // Attempt to find matching apartment if room is from project
-                                                        const linkedRoom = formData.rooms.find(r => r.name === val);
-                                                        if (linkedRoom && linkedRoom.apartment) {
-                                                            setNewDevice(prev => ({
-                                                                ...prev,
-                                                                isManualRoom: false,
-                                                                room: val,
-                                                                apartment: linkedRoom.apartment,
-                                                                isManualApartment: false
-                                                            }));
+                                            </div>
+                                            <div style={{ marginBottom: '0.5rem' }}>
+                                                {/* Room Selection from Existing Rooms + Standard Options */}
+                                                {/* Room Selection from Existing Rooms + Standard Options */}
+                                                <select
+                                                    className="form-input"
+                                                    value={newDevice.isManualRoom ? 'Sonstiges' : newDevice.room}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        if (val === 'Sonstiges') {
+                                                            setNewDevice(prev => ({ ...prev, isManualRoom: true, room: '' }));
                                                         } else {
-                                                            setNewDevice(prev => ({ ...prev, isManualRoom: false, room: val }));
+                                                            // Attempt to find matching apartment if room is from project
+                                                            const linkedRoom = formData.rooms.find(r => r.name === val);
+                                                            if (linkedRoom && linkedRoom.apartment) {
+                                                                setNewDevice(prev => ({
+                                                                    ...prev,
+                                                                    isManualRoom: false,
+                                                                    room: val,
+                                                                    apartment: linkedRoom.apartment,
+                                                                    isManualApartment: false
+                                                                }));
+                                                            } else {
+                                                                setNewDevice(prev => ({ ...prev, isManualRoom: false, room: val }));
+                                                            }
                                                         }
+                                                    }}
+                                                >
+                                                    <option value="">Raum wählen...</option>
+                                                    <optgroup label="Projekträume">
+                                                        {[...new Set(formData.rooms.map(r => r.name))].map(rName => (
+                                                            <option key={rName} value={rName}>{rName}</option>
+                                                        ))}
+                                                    </optgroup>
+                                                    <optgroup label="Standard">
+                                                        {ROOM_OPTIONS.filter(opt => !formData.rooms.some(r => r.name === opt)).map(opt => (
+                                                            <option key={opt} value={opt}>{opt}</option>
+                                                        ))}
+                                                    </optgroup>
+                                                    <option value="Sonstiges">Manuelle Eingabe</option>
+                                                </select>
+
+                                                {/* Custom Room Input if 'Sonstiges' */}
+                                                {newDevice.isManualRoom && (
+                                                    <input
+                                                        type="text"
+                                                        className="form-input"
+                                                        style={{ marginTop: '0.5rem' }}
+                                                        placeholder="Raum eingeben..."
+                                                        value={newDevice.room}
+                                                        onChange={(e) => setNewDevice(prev => ({ ...prev, room: e.target.value }))}
+                                                        autoFocus
+                                                    />
+                                                )}
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                                <input
+                                                    type="date"
+                                                    className="form-input"
+                                                    value={newDevice.startDate}
+                                                    onChange={(e) => setNewDevice(prev => ({ ...prev, startDate: e.target.value }))}
+                                                />
+                                                <input
+                                                    type="number"
+                                                    placeholder="Zählerstand Start *"
+                                                    className="form-input"
+                                                    value={newDevice.counterStart}
+                                                    onChange={(e) => setNewDevice(prev => ({ ...prev, counterStart: e.target.value }))}
+                                                    style={{ borderColor: !newDevice.counterStart && newDevice.deviceNumber ? '#F87171' : '' }} // Subtle hint if other fields are filled
+                                                />
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className="btn btn-primary"
+                                                style={{ width: '100%', marginTop: '0.5rem' }}
+                                                disabled={!newDevice.deviceNumber || !newDevice.room || !newDevice.apartment || newDevice.counterStart === ''}
+                                                onClick={async (e) => {
+                                                    e.preventDefault();
+                                                    const success = await handleAddDevice();
+                                                    if (success) {
+                                                        // Do NOT close the form, allowing next entry
+                                                        // setShowAddDeviceForm(false); 
+
+                                                        // Optional: Clear specific fields to ready for next device
+                                                        setNewDevice(prev => ({
+                                                            ...prev,
+                                                            deviceNumber: '',
+                                                            counterStart: ''
+                                                            // Keep Room/Apartment/Date for easier batch entry
+                                                        }));
+
+                                                        // Show a small toast or visual feedback? 
+                                                        // For now, the user sees the new device appear in the list below.
                                                     }
                                                 }}
                                             >
-                                                <option value="">Raum wählen...</option>
-                                                <optgroup label="Projekträume">
-                                                    {[...new Set(formData.rooms.map(r => r.name))].map(rName => (
-                                                        <option key={rName} value={rName}>{rName}</option>
-                                                    ))}
-                                                </optgroup>
-                                                <optgroup label="Standard">
-                                                    {ROOM_OPTIONS.filter(opt => !formData.rooms.some(r => r.name === opt)).map(opt => (
-                                                        <option key={opt} value={opt}>{opt}</option>
-                                                    ))}
-                                                </optgroup>
-                                                <option value="Sonstiges">Manuelle Eingabe</option>
-                                            </select>
+                                                <Save size={16} /> Speichern
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
 
-                                            {/* Custom Room Input if 'Sonstiges' */}
-                                            {newDevice.isManualRoom && (
+
+                                {/* Energy Report Button (Inserted between form and list) */}
+                                {mode === 'desktop' && (
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem', position: 'relative', zIndex: 10, ...(mode === 'desktop' ? { order: 2 } : {}) }}>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                try {
+                                                    generateEnergyReport();
+                                                } catch (err) {
+                                                    alert("Fehler: " + err.message);
+                                                }
+                                            }}
+                                            style={{
+                                                backgroundColor: 'transparent',
+                                                border: '1px solid #10B981',
+                                                color: '#10B981',
+                                                padding: '8px 16px',
+                                                borderRadius: '6px',
+                                                fontSize: '14px',
+                                                fontWeight: '600',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px'
+                                            }}
+                                            title="Energieprotokoll erstellen"
+                                        >
+                                            <FileText size={18} />
+                                            <span>Energieprotokoll (PDF)</span>
+                                        </button>
+
+                                        {/* Moved PDF Button HERE */}
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                // console.log("Setting showReportModal to true"); // Debug log only
+                                                setShowReportModal(true);
+                                            }}
+                                            style={{
+                                                backgroundColor: 'transparent',
+                                                border: '1px solid #EF4444',
+                                                color: '#EF4444',
+                                                padding: '8px 16px',
+                                                borderRadius: '6px',
+                                                fontSize: '14px',
+                                                fontWeight: '600',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px',
+                                                marginLeft: '1rem' // Space between buttons
+                                            }}
+                                            title="Schadensbericht erstellen (PDF)"
+                                        >
+                                            <FileText size={16} />
+                                            PDF Erstellen
+                                        </button>
+                                    </div>
+                                )}
+
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', ...(mode === 'desktop' ? { order: 1 } : {}) }}>
+                                    {formData.equipment
+                                        .map((d, i) => ({ ...d, _originalIndex: i }))
+                                        .sort((a, b) => {
+                                            const aDone = !!a.endDate;
+                                            const bDone = !!b.endDate;
+                                            if (aDone === bDone) return 0;
+                                            return aDone ? 1 : -1;
+                                        })
+                                        .map((device) => {
+                                            const idx = device._originalIndex;
+                                            return (
+                                                <div key={idx} style={{ backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.75rem', color: 'white' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                                                        <span style={{ fontWeight: 600, color: 'var(--primary)', minWidth: '40px' }}>#{device.deviceNumber}</span>
+                                                        <div style={{ flex: 1, textAlign: 'center' }}>
+                                                            <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>
+                                                                {device.room}
+                                                                {device.apartment && <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 400, marginLeft: '4px' }}>({device.apartment})</span>}
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ minWidth: '40px' }}></div> {/* Spacer for balance */}
+                                                    </div>
+
+                                                    <div style={{ fontSize: '0.9rem', color: '#94A3B8', display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem', marginBottom: '0.5rem' }}>
+                                                        <span>Start: {device.startDate}</span>
+                                                        <span>Start-Zähler: {device.counterStart} kWh</span>
+                                                    </div>
+
+                                                    {/* Logic for Unsubscribe */}
+                                                    {(() => {
+                                                        const isUnsubscribing = !!unsubscribeStates[idx];
+                                                        const isAbgemeldet = !!device.endDate;
+                                                        const draft = unsubscribeStates[idx] || {};
+
+                                                        if (isAbgemeldet) {
+                                                            // ALREADY DONE STATE
+                                                            return (
+                                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+                                                                        <div style={{ gridColumn: 'span 3' }}>
+                                                                            <label style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Abmelde-Datum</label>
+                                                                            <input
+                                                                                type="date"
+                                                                                className="form-input"
+                                                                                style={{ fontSize: '0.9rem', padding: '0.4rem', width: '100%' }}
+                                                                                value={device.endDate}
+                                                                                onChange={(e) => {
+                                                                                    const newEquipment = [...formData.equipment];
+                                                                                    newEquipment[idx].endDate = e.target.value;
+                                                                                    setFormData(prev => ({ ...prev, equipment: newEquipment }));
+                                                                                }}
+                                                                            />
+                                                                        </div>
+                                                                        <div style={{ gridColumn: 'span 2' }}>
+                                                                            <label style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Zähler Ende</label>
+                                                                            <input
+                                                                                type="number"
+                                                                                className="form-input"
+                                                                                style={{ fontSize: '0.9rem', padding: '0.4rem' }}
+                                                                                value={device.counterEnd || ''}
+                                                                                onChange={(e) => {
+                                                                                    const newEquipment = [...formData.equipment];
+                                                                                    newEquipment[idx].counterEnd = e.target.value;
+                                                                                    setFormData(prev => ({ ...prev, equipment: newEquipment }));
+                                                                                }}
+                                                                            />
+                                                                        </div>
+                                                                        <div>
+                                                                            <label style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Laufzeit/Std.</label>
+                                                                            <input
+                                                                                type="number"
+                                                                                className="form-input"
+                                                                                style={{ fontSize: '0.9rem', padding: '0.4rem' }}
+                                                                                value={device.hours || ''}
+                                                                                onChange={(e) => {
+                                                                                    const newEquipment = [...formData.equipment];
+                                                                                    newEquipment[idx].hours = e.target.value;
+                                                                                    setFormData(prev => ({ ...prev, equipment: newEquipment }));
+                                                                                }}
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        style={{
+                                                                            flex: 1, fontSize: '0.9rem', padding: '0.5rem', fontWeight: 600,
+                                                                            color: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                                                                            border: '1px solid #10B981', borderRadius: '4px',
+                                                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', cursor: 'pointer', textTransform: 'uppercase'
+                                                                        }}
+                                                                        onClick={() => {
+                                                                            if (window.confirm("Abmeldung rückgängig machen?")) {
+                                                                                const newEquipment = [...formData.equipment];
+                                                                                newEquipment[idx].endDate = '';
+                                                                                newEquipment[idx].counterEnd = '';
+                                                                                newEquipment[idx].hours = '';
+                                                                                setFormData(prev => ({ ...prev, equipment: newEquipment }));
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        <Check size={16} /> Abgemeldet
+                                                                    </button>
+                                                                </div>
+                                                            );
+                                                        } else if (isUnsubscribing) {
+                                                            // EDITING STATE (Unsubscribing process)
+                                                            return (
+                                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+                                                                        <div style={{ gridColumn: 'span 3' }}>
+                                                                            <label style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Abmelde-Datum</label>
+                                                                            <input
+                                                                                type="date"
+                                                                                className="form-input"
+                                                                                style={{ fontSize: '0.9rem', padding: '0.4rem', width: '100%' }}
+                                                                                value={draft.endDate || ''}
+                                                                                onChange={(e) => setUnsubscribeStates(prev => ({ ...prev, [idx]: { ...prev[idx], endDate: e.target.value } }))}
+                                                                            />
+                                                                        </div>
+                                                                        <div style={{ gridColumn: 'span 2' }}>
+                                                                            <label style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Zähler Ende</label>
+                                                                            <input
+                                                                                type="number"
+                                                                                className="form-input"
+                                                                                placeholder="Endstand"
+                                                                                autoFocus
+                                                                                style={{ fontSize: '0.9rem', padding: '0.4rem' }}
+                                                                                value={draft.counterEnd || ''}
+                                                                                onChange={(e) => setUnsubscribeStates(prev => ({ ...prev, [idx]: { ...prev[idx], counterEnd: e.target.value } }))}
+                                                                            />
+                                                                        </div>
+                                                                        <div>
+                                                                            <label style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Laufzeit/Std.</label>
+                                                                            <input
+                                                                                type="number"
+                                                                                className="form-input"
+                                                                                placeholder="Std."
+                                                                                style={{ fontSize: '0.9rem', padding: '0.4rem' }}
+                                                                                value={draft.hours || ''}
+                                                                                onChange={(e) => setUnsubscribeStates(prev => ({ ...prev, [idx]: { ...prev[idx], hours: e.target.value } }))}
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="btn btn-ghost"
+                                                                            style={{ flex: 1, color: '#94A3B8', border: '1px solid var(--border)' }}
+                                                                            onClick={() => {
+                                                                                // Cancel
+                                                                                const newStates = { ...unsubscribeStates };
+                                                                                delete newStates[idx];
+                                                                                setUnsubscribeStates(newStates);
+                                                                            }}
+                                                                        >
+                                                                            Abbrechen
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="btn btn-primary"
+                                                                            style={{ flex: 1 }}
+                                                                            onClick={() => {
+                                                                                // Commit
+                                                                                const newEquipment = [...formData.equipment];
+                                                                                newEquipment[idx].endDate = draft.endDate;
+                                                                                newEquipment[idx].counterEnd = draft.counterEnd;
+                                                                                newEquipment[idx].hours = draft.hours;
+                                                                                setFormData(prev => ({ ...prev, equipment: newEquipment }));
+
+                                                                                // Clear state
+                                                                                const newStates = { ...unsubscribeStates };
+                                                                                delete newStates[idx];
+                                                                                setUnsubscribeStates(newStates);
+                                                                            }}
+                                                                        >
+                                                                            Speichern
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        } else {
+                                                            // IDLE STATE (Active)
+                                                            return (
+                                                                <div style={{ marginTop: '0.5rem' }}>
+                                                                    <button
+                                                                        type="button"
+                                                                        style={{
+                                                                            width: '100%', fontSize: '0.9rem', padding: '0.5rem', fontWeight: 600,
+                                                                            color: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                                                                            border: '1px solid #F59E0B', borderRadius: '4px',
+                                                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', cursor: 'pointer', textTransform: 'uppercase'
+                                                                        }}
+                                                                        onClick={() => {
+                                                                            // Start Unsubscribing
+                                                                            setUnsubscribeStates(prev => ({
+                                                                                ...prev,
+                                                                                [idx]: {
+                                                                                    endDate: new Date().toISOString().split('T')[0],
+                                                                                    counterEnd: '',
+                                                                                    hours: ''
+                                                                                }
+                                                                            }));
+                                                                        }}
+                                                                    >
+                                                                        Abmelden
+                                                                    </button>
+                                                                </div>
+                                                            );
+                                                        }
+                                                    })()}
+                                                </div>
+                                            );
+                                        })}
+                                    {formData.equipment.length === 0 && (
+                                        <div style={{ textAlign: 'center', color: '#9CA3AF', fontSize: '0.9rem' }}>Keine Geräte installiert.</div>
+                                    )}
+                                </div>
+
+
+                            </div>
+                        )
+                    }
+
+                    {/* Spacer to prevent overlap */}
+                    {/* Spacer to prevent overlap */}
+                    <div style={{ height: '80px', ...(mode === 'desktop' ? { order: 3 } : {}) }} />
+
+                    {/* Mobile / Technician Fixed Footer - AutoSave Version */}
+                    <div style={{
+                        position: 'fixed',
+                        bottom: 0,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: '100%',
+                        maxWidth: '600px',
+                        padding: '0.4rem 0.75rem',
+                        backgroundColor: '#0F172A',
+                        borderTop: '1px solid #334155',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '1rem',
+                        zIndex: 100,
+                        boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.5)'
+                    }}>
+                        {/* Status Indicator */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: isSaving ? '#fbbf24' : '#10B981', transition: 'color 0.3s' }}>
+                            {isSaving ? (
+                                <>
+                                    <RotateCcw size={12} className="spin" /> Speichert...
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle size={12} /> Gespeichert
+                                </>
+                            )}
+                        </div>
+
+                        <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={onCancel}
+                            style={{ padding: '0.35rem 1rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', borderRadius: '20px' }}
+                        >
+                            <CheckCircle size={14} />
+                            Fertig
+                        </button>
+                    </div>
+                    {
+                        editingImage && (
+                            <ImageEditor
+                                image={editingImage}
+                                onSave={(newPreview) => {
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        images: prev.images.map(img => img === editingImage ? { ...img, preview: newPreview } : img)
+                                    }));
+                                    setEditingImage(null);
+                                }}
+                                onCancel={() => setEditingImage(null)}
+                            />
+                        )
+                    }
+
+                    {/* New Image Metadata Modal */}
+                    {
+                        activeImageMeta && (
+                            <div style={{
+                                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                                backgroundColor: 'rgba(0,0,0,0.75)', zIndex: 10000,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}>
+                                <div style={{
+                                    backgroundColor: '#1E293B',
+                                    padding: '1rem',
+                                    borderRadius: '16px',
+                                    width: '95%',
+                                    maxWidth: '600px',
+                                    maxHeight: '90vh',
+                                    overflowY: 'auto',
+                                    color: 'white',
+                                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                                }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                        {/* Left Column: Fields */}
+                                        <div>
+                                            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                                                <label style={{ display: 'block', fontSize: '0.9rem', color: '#94A3B8', marginBottom: '0.5rem' }}>Zuständig</label>
                                                 <input
                                                     type="text"
                                                     className="form-input"
-                                                    style={{ marginTop: '0.5rem' }}
-                                                    placeholder="Raum eingeben..."
-                                                    value={newDevice.room}
-                                                    onChange={(e) => setNewDevice(prev => ({ ...prev, room: e.target.value }))}
-                                                    autoFocus
+                                                    style={{ backgroundColor: '#0F172A', borderColor: '#334155', color: 'white', width: '100%' }}
+                                                    value={activeImageMeta.technician || formData.assignedTo || ''}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setActiveImageMeta(prev => ({ ...prev, technician: val }));
+                                                    }}
+                                                    placeholder="Name des Techniker"
                                                 />
-                                            )}
+                                            </div>
+
+
+
+                                            <div style={{ marginTop: '2rem' }}>
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', userSelect: 'none' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={activeImageMeta.includeInReport !== false}
+                                                        onChange={(e) => setActiveImageMeta(prev => ({ ...prev, includeInReport: e.target.checked }))}
+                                                        style={{ width: '1.25rem', height: '1.25rem', accentColor: '#0F6EA3' }}
+                                                    />
+                                                    <span style={{ fontSize: '1rem', fontWeight: 500 }}>Bericht</span>
+                                                </label>
+                                            </div>
+
+                                            <div style={{ marginTop: '2rem' }}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        // Save activeImageMeta to formData first
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            images: prev.images.map(img => img.preview === activeImageMeta.preview ? activeImageMeta : img)
+                                                        }));
+                                                        setEditingImage(activeImageMeta);
+                                                        setActiveImageMeta(null);
+                                                    }}
+                                                    style={{ color: '#0F6EA3', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem' }}
+                                                >
+                                                    <Edit3 size={20} />
+                                                    Bild bearbeiten (Zeichnen)
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                            <input
-                                                type="date"
-                                                className="form-input"
-                                                value={newDevice.startDate}
-                                                onChange={(e) => setNewDevice(prev => ({ ...prev, startDate: e.target.value }))}
-                                            />
-                                            <input
-                                                type="number"
-                                                placeholder="Zählerstand Start *"
-                                                className="form-input"
-                                                value={newDevice.counterStart}
-                                                onChange={(e) => setNewDevice(prev => ({ ...prev, counterStart: e.target.value }))}
-                                                style={{ borderColor: !newDevice.counterStart && newDevice.deviceNumber ? '#F87171' : '' }} // Subtle hint if other fields are filled
-                                            />
+
+                                        {/* Right Column: Description & Preview */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                            <div style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                                    <span style={{ fontSize: '0.9rem', color: '#94A3B8' }}>Beschreibung</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={isRecording === 'modal' ? stopRecording : () => startRecording('modal')}
+                                                        className={`btn ${isRecording === 'modal' ? 'btn-danger' : 'btn-outline'}`}
+                                                        style={{
+                                                            padding: '0.25rem 0.75rem',
+                                                            fontSize: '0.8rem',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.5rem',
+                                                            borderColor: isRecording ? '#EF4444' : '#475569',
+                                                            color: isRecording ? 'white' : '#94A3B8',
+                                                            backgroundColor: isRecording ? '#EF4444' : 'transparent',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        <Mic size={14} className={isRecording === 'modal' ? 'animate-pulse' : ''} />
+                                                        {isRecording === 'modal' ? 'Aufnahme stoppen...' : 'Spracheingabe (KI)'}
+                                                    </button>
+                                                </div>
+                                                <textarea
+                                                    placeholder="Beschreibung hinzufügen..."
+                                                    style={{
+                                                        flex: 1,
+                                                        backgroundColor: '#0F172A',
+                                                        borderColor: isRecording ? '#EF4444' : '#334155',
+                                                        color: 'white',
+                                                        padding: '1rem',
+                                                        borderRadius: '8px',
+                                                        resize: 'none',
+                                                        minHeight: '150px',
+                                                        transition: 'border-color 0.3s'
+                                                    }}
+                                                    value={activeImageMeta.description || ''}
+                                                    onChange={(e) => setActiveImageMeta(prev => ({ ...prev, description: e.target.value }))}
+                                                />
+                                            </div>
+
+                                            <div style={{ height: '200px', backgroundColor: '#000', borderRadius: '8px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <img src={activeImageMeta.preview} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="" />
+                                            </div>
                                         </div>
+                                    </div>
+
+                                    <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                                        <button
+                                            type="button"
+                                            className="btn btn-ghost"
+                                            onClick={() => setActiveImageMeta(null)}
+                                            style={{ color: '#94A3B8' }}
+                                        >
+                                            Abbrechen
+                                        </button>
                                         <button
                                             type="button"
                                             className="btn btn-primary"
-                                            style={{ width: '100%', marginTop: '0.5rem' }}
-                                            disabled={!newDevice.deviceNumber || !newDevice.room || !newDevice.apartment || newDevice.counterStart === ''}
-                                            onClick={async (e) => {
-                                                e.preventDefault();
-                                                const success = await handleAddDevice();
-                                                if (success) {
-                                                    // Do NOT close the form, allowing next entry
-                                                    // setShowAddDeviceForm(false); 
-
-                                                    // Optional: Clear specific fields to ready for next device
-                                                    setNewDevice(prev => ({
-                                                        ...prev,
-                                                        deviceNumber: '',
-                                                        counterStart: ''
-                                                        // Keep Room/Apartment/Date for easier batch entry
-                                                    }));
-
-                                                    // Show a small toast or visual feedback? 
-                                                    // For now, the user sees the new device appear in the list below.
-                                                }
+                                            onClick={() => {
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    images: prev.images.map(img => img.preview === activeImageMeta.preview ? activeImageMeta : img)
+                                                }));
+                                                setActiveImageMeta(null);
                                             }}
+                                            style={{ padding: '0.75rem 2rem' }}
                                         >
-                                            <Save size={16} /> Speichern
+                                            <Save size={18} />
+                                            Speichern
                                         </button>
-                                    </>
-                                )}
-                            </div>
-
-
-                            {/* Energy Report Button (Inserted between form and list) */}
-                            {mode === 'desktop' && (
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem', position: 'relative', zIndex: 10, ...(mode === 'desktop' ? { order: 2 } : {}) }}>
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            try {
-                                                generateEnergyReport();
-                                            } catch (err) {
-                                                alert("Fehler: " + err.message);
-                                            }
-                                        }}
-                                        style={{
-                                            backgroundColor: 'transparent',
-                                            border: '1px solid #10B981',
-                                            color: '#10B981',
-                                            padding: '8px 16px',
-                                            borderRadius: '6px',
-                                            fontSize: '14px',
-                                            fontWeight: '600',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '6px'
-                                        }}
-                                        title="Energieprotokoll erstellen"
-                                    >
-                                        <FileText size={18} />
-                                        <span>Energieprotokoll (PDF)</span>
-                                    </button>
-
-                                    {/* Moved PDF Button HERE */}
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            // console.log("Setting showReportModal to true"); // Debug log only
-                                            setShowReportModal(true);
-                                        }}
-                                        style={{
-                                            backgroundColor: 'transparent',
-                                            border: '1px solid #EF4444',
-                                            color: '#EF4444',
-                                            padding: '8px 16px',
-                                            borderRadius: '6px',
-                                            fontSize: '14px',
-                                            fontWeight: '600',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '6px',
-                                            marginLeft: '1rem' // Space between buttons
-                                        }}
-                                        title="Schadensbericht erstellen (PDF)"
-                                    >
-                                        <FileText size={16} />
-                                        PDF Erstellen
-                                    </button>
+                                    </div>
                                 </div>
-                            )}
-
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', ...(mode === 'desktop' ? { order: 1 } : {}) }}>
-                                {formData.equipment
-                                    .map((d, i) => ({ ...d, _originalIndex: i }))
-                                    .sort((a, b) => {
-                                        const aDone = !!a.endDate;
-                                        const bDone = !!b.endDate;
-                                        if (aDone === bDone) return 0;
-                                        return aDone ? 1 : -1;
-                                    })
-                                    .map((device) => {
-                                        const idx = device._originalIndex;
-                                        return (
-                                            <div key={idx} style={{ backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.75rem', color: 'white' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                                                    <span style={{ fontWeight: 600, color: 'var(--primary)', minWidth: '40px' }}>#{device.deviceNumber}</span>
-                                                    <div style={{ flex: 1, textAlign: 'center' }}>
-                                                        <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>
-                                                            {device.room}
-                                                            {device.apartment && <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 400, marginLeft: '4px' }}>({device.apartment})</span>}
-                                                        </div>
-                                                    </div>
-                                                    <div style={{ minWidth: '40px' }}></div> {/* Spacer for balance */}
-                                                </div>
-
-                                                <div style={{ fontSize: '0.9rem', color: '#94A3B8', display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem', marginBottom: '0.5rem' }}>
-                                                    <span>Start: {device.startDate}</span>
-                                                    <span>Start-Zähler: {device.counterStart} kWh</span>
-                                                </div>
-
-                                                {/* Logic for Unsubscribe */}
-                                                {(() => {
-                                                    const isUnsubscribing = !!unsubscribeStates[idx];
-                                                    const isAbgemeldet = !!device.endDate;
-                                                    const draft = unsubscribeStates[idx] || {};
-
-                                                    if (isAbgemeldet) {
-                                                        // ALREADY DONE STATE
-                                                        return (
-                                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
-                                                                    <div style={{ gridColumn: 'span 3' }}>
-                                                                        <label style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Abmelde-Datum</label>
-                                                                        <input
-                                                                            type="date"
-                                                                            className="form-input"
-                                                                            style={{ fontSize: '0.9rem', padding: '0.4rem', width: '100%' }}
-                                                                            value={device.endDate}
-                                                                            onChange={(e) => {
-                                                                                const newEquipment = [...formData.equipment];
-                                                                                newEquipment[idx].endDate = e.target.value;
-                                                                                setFormData(prev => ({ ...prev, equipment: newEquipment }));
-                                                                            }}
-                                                                        />
-                                                                    </div>
-                                                                    <div style={{ gridColumn: 'span 2' }}>
-                                                                        <label style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Zähler Ende</label>
-                                                                        <input
-                                                                            type="number"
-                                                                            className="form-input"
-                                                                            style={{ fontSize: '0.9rem', padding: '0.4rem' }}
-                                                                            value={device.counterEnd || ''}
-                                                                            onChange={(e) => {
-                                                                                const newEquipment = [...formData.equipment];
-                                                                                newEquipment[idx].counterEnd = e.target.value;
-                                                                                setFormData(prev => ({ ...prev, equipment: newEquipment }));
-                                                                            }}
-                                                                        />
-                                                                    </div>
-                                                                    <div>
-                                                                        <label style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Laufzeit/Std.</label>
-                                                                        <input
-                                                                            type="number"
-                                                                            className="form-input"
-                                                                            style={{ fontSize: '0.9rem', padding: '0.4rem' }}
-                                                                            value={device.hours || ''}
-                                                                            onChange={(e) => {
-                                                                                const newEquipment = [...formData.equipment];
-                                                                                newEquipment[idx].hours = e.target.value;
-                                                                                setFormData(prev => ({ ...prev, equipment: newEquipment }));
-                                                                            }}
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                                <button
-                                                                    type="button"
-                                                                    style={{
-                                                                        flex: 1, fontSize: '0.9rem', padding: '0.5rem', fontWeight: 600,
-                                                                        color: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                                                                        border: '1px solid #10B981', borderRadius: '4px',
-                                                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', cursor: 'pointer', textTransform: 'uppercase'
-                                                                    }}
-                                                                    onClick={() => {
-                                                                        if (window.confirm("Abmeldung rückgängig machen?")) {
-                                                                            const newEquipment = [...formData.equipment];
-                                                                            newEquipment[idx].endDate = '';
-                                                                            newEquipment[idx].counterEnd = '';
-                                                                            newEquipment[idx].hours = '';
-                                                                            setFormData(prev => ({ ...prev, equipment: newEquipment }));
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    <Check size={16} /> Abgemeldet
-                                                                </button>
-                                                            </div>
-                                                        );
-                                                    } else if (isUnsubscribing) {
-                                                        // EDITING STATE (Unsubscribing process)
-                                                        return (
-                                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
-                                                                    <div style={{ gridColumn: 'span 3' }}>
-                                                                        <label style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Abmelde-Datum</label>
-                                                                        <input
-                                                                            type="date"
-                                                                            className="form-input"
-                                                                            style={{ fontSize: '0.9rem', padding: '0.4rem', width: '100%' }}
-                                                                            value={draft.endDate || ''}
-                                                                            onChange={(e) => setUnsubscribeStates(prev => ({ ...prev, [idx]: { ...prev[idx], endDate: e.target.value } }))}
-                                                                        />
-                                                                    </div>
-                                                                    <div style={{ gridColumn: 'span 2' }}>
-                                                                        <label style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Zähler Ende</label>
-                                                                        <input
-                                                                            type="number"
-                                                                            className="form-input"
-                                                                            placeholder="Endstand"
-                                                                            autoFocus
-                                                                            style={{ fontSize: '0.9rem', padding: '0.4rem' }}
-                                                                            value={draft.counterEnd || ''}
-                                                                            onChange={(e) => setUnsubscribeStates(prev => ({ ...prev, [idx]: { ...prev[idx], counterEnd: e.target.value } }))}
-                                                                        />
-                                                                    </div>
-                                                                    <div>
-                                                                        <label style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Laufzeit/Std.</label>
-                                                                        <input
-                                                                            type="number"
-                                                                            className="form-input"
-                                                                            placeholder="Std."
-                                                                            style={{ fontSize: '0.9rem', padding: '0.4rem' }}
-                                                                            value={draft.hours || ''}
-                                                                            onChange={(e) => setUnsubscribeStates(prev => ({ ...prev, [idx]: { ...prev[idx], hours: e.target.value } }))}
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="btn btn-ghost"
-                                                                        style={{ flex: 1, color: '#94A3B8', border: '1px solid var(--border)' }}
-                                                                        onClick={() => {
-                                                                            // Cancel
-                                                                            const newStates = { ...unsubscribeStates };
-                                                                            delete newStates[idx];
-                                                                            setUnsubscribeStates(newStates);
-                                                                        }}
-                                                                    >
-                                                                        Abbrechen
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="btn btn-primary"
-                                                                        style={{ flex: 1 }}
-                                                                        onClick={() => {
-                                                                            // Commit
-                                                                            const newEquipment = [...formData.equipment];
-                                                                            newEquipment[idx].endDate = draft.endDate;
-                                                                            newEquipment[idx].counterEnd = draft.counterEnd;
-                                                                            newEquipment[idx].hours = draft.hours;
-                                                                            setFormData(prev => ({ ...prev, equipment: newEquipment }));
-
-                                                                            // Clear state
-                                                                            const newStates = { ...unsubscribeStates };
-                                                                            delete newStates[idx];
-                                                                            setUnsubscribeStates(newStates);
-                                                                        }}
-                                                                    >
-                                                                        Speichern
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    } else {
-                                                        // IDLE STATE (Active)
-                                                        return (
-                                                            <div style={{ marginTop: '0.5rem' }}>
-                                                                <button
-                                                                    type="button"
-                                                                    style={{
-                                                                        width: '100%', fontSize: '0.9rem', padding: '0.5rem', fontWeight: 600,
-                                                                        color: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                                                                        border: '1px solid #F59E0B', borderRadius: '4px',
-                                                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', cursor: 'pointer', textTransform: 'uppercase'
-                                                                    }}
-                                                                    onClick={() => {
-                                                                        // Start Unsubscribing
-                                                                        setUnsubscribeStates(prev => ({
-                                                                            ...prev,
-                                                                            [idx]: {
-                                                                                endDate: new Date().toISOString().split('T')[0],
-                                                                                counterEnd: '',
-                                                                                hours: ''
-                                                                            }
-                                                                        }));
-                                                                    }}
-                                                                >
-                                                                    Abmelden
-                                                                </button>
-                                                            </div>
-                                                        );
-                                                    }
-                                                })()}
-                                            </div>
-                                        );
-                                    })}
-                                {formData.equipment.length === 0 && (
-                                    <div style={{ textAlign: 'center', color: '#9CA3AF', fontSize: '0.9rem' }}>Keine Geräte installiert.</div>
-                                )}
                             </div>
+                        )
+                    }
+                    {
+                        showCameraModal && (
+                            <CameraCaptureModal
+                                onClose={() => setShowCameraModal(false)}
+                                onCapture={(file) => {
+                                    if (cameraContext) {
+                                        handleImageUpload([file], cameraContext);
+                                    }
+                                    setShowCameraModal(false);
+                                    setCameraContext(null);
+                                }}
+                            />
+                        )
+                    }
 
+                    <MeasurementModal
+                        isOpen={showMeasurementModal}
+                        onClose={() => {
+                            setShowMeasurementModal(false);
+                            setActiveRoomForMeasurement(null);
+                            setIsNewMeasurement(false);
+                            setIsMeasurementReadOnly(false);
+                        }}
+                        readOnly={isMeasurementReadOnly}
+                        measurementHistory={activeRoomForMeasurement?.measurementHistory || []}
+                        rooms={activeRoomForMeasurement ? [activeRoomForMeasurement] : []}
+                        projectTitle={formData.projectTitle}
+                        initialData={formData.rooms.reduce((acc, r) => {
+                            let mData = r.measurementData;
+                            // If this is the active room AND we are starting a NEW measurement based on old one
+                            if (activeRoomForMeasurement && r.id === activeRoomForMeasurement.id && isNewMeasurement && mData) {
+                                mData = {
+                                    canvasImage: mData.canvasImage, // Keep Sketch
+                                    globalSettings: {
+                                        ...mData.globalSettings,
+                                        date: new Date().toISOString().split('T')[0], // Reset Date to Today
+                                        temp: '',
+                                        humidity: ''
+                                    },
+                                    measurements: mData.measurements.map(m => ({
+                                        id: m.id,
+                                        pointName: m.pointName,
+                                        w_value: '', // Clear values
+                                        b_value: '',
+                                        notes: ''
+                                    }))
+                                };
+                            }
+                            return { ...acc, [r.id]: mData };
+                        }, {})}
+                        onSave={async (data) => {
+                            const { file, measurements, globalSettings, canvasImage } = data;
 
-                        </div>
-                    )
-                }
+                            const uploadPromises = [];
 
-                {/* Spacer to prevent overlap */}
-                {/* Spacer to prevent overlap */}
-                <div style={{ height: '80px', ...(mode === 'desktop' ? { order: 3 } : {}) }} />
+                            // 1. Always upload the file to 'Messprotokolle' category, NOT the room's image list
+                            uploadPromises.push(handleImageUpload([file], {
+                                assignedTo: 'Messprotokolle',
+                                category: 'report'
+                            }));
 
-                {/* Mobile / Technician Fixed Footer - AutoSave Version */}
-                <div style={{
-                    position: 'fixed',
-                    bottom: 0,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: '100%',
-                    maxWidth: '600px',
-                    padding: '0.4rem 0.75rem',
-                    backgroundColor: '#0F172A',
-                    borderTop: '1px solid #334155',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '1rem',
-                    zIndex: 100,
-                    boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.5)'
-                }}>
-                    {/* Status Indicator */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: isSaving ? '#fbbf24' : '#10B981', transition: 'color 0.3s' }}>
-                        {isSaving ? (
-                            <>
-                                <RotateCcw size={12} className="spin" /> Speichert...
-                            </>
-                        ) : (
-                            <>
-                                <CheckCircle size={12} /> Gespeichert
-                            </>
-                        )}
-                    </div>
-
-                    <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={onCancel}
-                        style={{ padding: '0.35rem 1rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', borderRadius: '20px' }}
-                    >
-                        <CheckCircle size={14} />
-                        Fertig
-                    </button>
-                </div>
-                {
-                    editingImage && (
-                        <ImageEditor
-                            image={editingImage}
-                            onSave={(newPreview) => {
+                            // 2. Update room data (Latest & History)
+                            if (activeRoomForMeasurement) {
                                 setFormData(prev => ({
                                     ...prev,
-                                    images: prev.images.map(img => img === editingImage ? { ...img, preview: newPreview } : img)
+                                    rooms: prev.rooms.map(r => {
+                                        if (r.id === activeRoomForMeasurement.id) {
+                                            // History Entry
+                                            const newHistoryEntry = {
+                                                id: `hist_${Date.now()}`,
+                                                date: globalSettings.date || new Date().toISOString(),
+                                                measurements: measurements.map(m => ({ ...m })), // Deep clone
+                                                globalSettings: { ...globalSettings },
+                                                canvasImage: canvasImage
+                                            };
+                                            const history = r.measurementHistory ? [...r.measurementHistory] : [];
+
+                                            return {
+                                                ...r,
+                                                measurementData: { measurements, globalSettings, canvasImage },
+                                                measurementHistory: [...history, newHistoryEntry]
+                                            };
+                                        }
+                                        return r;
+                                    })
                                 }));
-                                setEditingImage(null);
-                            }}
-                            onCancel={() => setEditingImage(null)}
-                        />
-                    )
-                }
+                            }
 
-                {/* New Image Metadata Modal */}
-                {
-                    activeImageMeta && (
-                        <div style={{
-                            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                            backgroundColor: 'rgba(0,0,0,0.75)', zIndex: 10000,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}>
-                            <div style={{
-                                backgroundColor: '#1E293B',
-                                padding: '1rem',
-                                borderRadius: '16px',
-                                width: '95%',
-                                maxWidth: '600px',
-                                maxHeight: '90vh',
-                                overflowY: 'auto',
-                                color: 'white',
-                                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-                            }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                                    {/* Left Column: Fields */}
-                                    <div>
-                                        <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                                            <label style={{ display: 'block', fontSize: '0.9rem', color: '#94A3B8', marginBottom: '0.5rem' }}>Zuständig</label>
-                                            <input
-                                                type="text"
-                                                className="form-input"
-                                                style={{ backgroundColor: '#0F172A', borderColor: '#334155', color: 'white', width: '100%' }}
-                                                value={activeImageMeta.technician || formData.assignedTo || ''}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    setActiveImageMeta(prev => ({ ...prev, technician: val }));
-                                                }}
-                                                placeholder="Name des Techniker"
-                                            />
-                                        </div>
+                            // 3. ADDITIONAL COPY: Saving to "Sonstiges" if PDF (legacy/requested behavior?)
+                            // keeping for safety if it was intentional, but 'Messprotokolle' should suffice.
+                            // If user thinks it's wrong to be in images, maybe they don't want it in 'Sonstiges' either?
+                            // I will limit it to just Messprotokolle as that seems safest based on "that is wrong".
 
-
-
-                                        <div style={{ marginTop: '2rem' }}>
-                                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', userSelect: 'none' }}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={activeImageMeta.includeInReport !== false}
-                                                    onChange={(e) => setActiveImageMeta(prev => ({ ...prev, includeInReport: e.target.checked }))}
-                                                    style={{ width: '1.25rem', height: '1.25rem', accentColor: '#0EA5E9' }}
-                                                />
-                                                <span style={{ fontSize: '1rem', fontWeight: 500 }}>Bericht</span>
-                                            </label>
-                                        </div>
-
-                                        <div style={{ marginTop: '2rem' }}>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    // Save activeImageMeta to formData first
-                                                    setFormData(prev => ({
-                                                        ...prev,
-                                                        images: prev.images.map(img => img.preview === activeImageMeta.preview ? activeImageMeta : img)
-                                                    }));
-                                                    setEditingImage(activeImageMeta);
-                                                    setActiveImageMeta(null);
-                                                }}
-                                                style={{ color: '#0EA5E9', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem' }}
-                                            >
-                                                <Edit3 size={20} />
-                                                Bild bearbeiten (Zeichnen)
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Right Column: Description & Preview */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                                <span style={{ fontSize: '0.9rem', color: '#94A3B8' }}>Beschreibung</span>
-                                                <button
-                                                    type="button"
-                                                    onClick={isRecording === 'modal' ? stopRecording : () => startRecording('modal')}
-                                                    className={`btn ${isRecording === 'modal' ? 'btn-danger' : 'btn-outline'}`}
-                                                    style={{
-                                                        padding: '0.25rem 0.75rem',
-                                                        fontSize: '0.8rem',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '0.5rem',
-                                                        borderColor: isRecording ? '#EF4444' : '#475569',
-                                                        color: isRecording ? 'white' : '#94A3B8',
-                                                        backgroundColor: isRecording ? '#EF4444' : 'transparent',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                >
-                                                    <Mic size={14} className={isRecording === 'modal' ? 'animate-pulse' : ''} />
-                                                    {isRecording === 'modal' ? 'Aufnahme stoppen...' : 'Spracheingabe (KI)'}
-                                                </button>
-                                            </div>
-                                            <textarea
-                                                placeholder="Beschreibung hinzufügen..."
-                                                style={{
-                                                    flex: 1,
-                                                    backgroundColor: '#0F172A',
-                                                    borderColor: isRecording ? '#EF4444' : '#334155',
-                                                    color: 'white',
-                                                    padding: '1rem',
-                                                    borderRadius: '8px',
-                                                    resize: 'none',
-                                                    minHeight: '150px',
-                                                    transition: 'border-color 0.3s'
-                                                }}
-                                                value={activeImageMeta.description || ''}
-                                                onChange={(e) => setActiveImageMeta(prev => ({ ...prev, description: e.target.value }))}
-                                            />
-                                        </div>
-
-                                        <div style={{ height: '200px', backgroundColor: '#000', borderRadius: '8px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <img src={activeImageMeta.preview} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                                    <button
-                                        type="button"
-                                        className="btn btn-ghost"
-                                        onClick={() => setActiveImageMeta(null)}
-                                        style={{ color: '#94A3B8' }}
-                                    >
-                                        Abbrechen
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn btn-primary"
-                                        onClick={() => {
-                                            setFormData(prev => ({
-                                                ...prev,
-                                                images: prev.images.map(img => img.preview === activeImageMeta.preview ? activeImageMeta : img)
-                                            }));
-                                            setActiveImageMeta(null);
-                                        }}
-                                        style={{ padding: '0.75rem 2rem' }}
-                                    >
-                                        <Save size={18} />
-                                        Speichern
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )
-                }
-                {
-                    showCameraModal && (
-                        <CameraCaptureModal
-                            onClose={() => setShowCameraModal(false)}
-                            onCapture={(file) => {
-                                if (cameraContext) {
-                                    handleImageUpload([file], cameraContext);
-                                }
-                                setShowCameraModal(false);
-                                setCameraContext(null);
-                            }}
-                        />
-                    )
-                }
-
-                <MeasurementModal
-                    isOpen={showMeasurementModal}
-                    onClose={() => {
-                        setShowMeasurementModal(false);
-                        setActiveRoomForMeasurement(null);
-                        setIsNewMeasurement(false);
-                        setIsMeasurementReadOnly(false);
-                    }}
-                    readOnly={isMeasurementReadOnly}
-                    measurementHistory={activeRoomForMeasurement?.measurementHistory || []}
-                    rooms={activeRoomForMeasurement ? [activeRoomForMeasurement] : []}
-                    projectTitle={formData.projectTitle}
-                    initialData={formData.rooms.reduce((acc, r) => {
-                        let mData = r.measurementData;
-                        // If this is the active room AND we are starting a NEW measurement based on old one
-                        if (activeRoomForMeasurement && r.id === activeRoomForMeasurement.id && isNewMeasurement && mData) {
-                            mData = {
-                                canvasImage: mData.canvasImage, // Keep Sketch
-                                globalSettings: {
-                                    ...mData.globalSettings,
-                                    date: new Date().toISOString().split('T')[0], // Reset Date to Today
-                                    temp: '',
-                                    humidity: ''
-                                },
-                                measurements: mData.measurements.map(m => ({
-                                    id: m.id,
-                                    pointName: m.pointName,
-                                    w_value: '', // Clear values
-                                    b_value: '',
-                                    notes: ''
-                                }))
-                            };
-                        }
-                        return { ...acc, [r.id]: mData };
-                    }, {})}
-                    onSave={async (data) => {
-                        const { file, measurements, globalSettings, canvasImage } = data;
-
-                        const uploadPromises = [];
-
-                        // 1. Always upload the file to 'Messprotokolle' category, NOT the room's image list
-                        uploadPromises.push(handleImageUpload([file], {
-                            assignedTo: 'Messprotokolle',
-                            category: 'report'
-                        }));
-
-                        // 2. Update room data (Latest & History)
-                        if (activeRoomForMeasurement) {
-                            setFormData(prev => ({
-                                ...prev,
-                                rooms: prev.rooms.map(r => {
-                                    if (r.id === activeRoomForMeasurement.id) {
-                                        // History Entry
-                                        const newHistoryEntry = {
-                                            id: `hist_${Date.now()}`,
-                                            date: globalSettings.date || new Date().toISOString(),
-                                            measurements: measurements.map(m => ({ ...m })), // Deep clone
-                                            globalSettings: { ...globalSettings },
-                                            canvasImage: canvasImage
-                                        };
-                                        const history = r.measurementHistory ? [...r.measurementHistory] : [];
-
-                                        return {
-                                            ...r,
-                                            measurementData: { measurements, globalSettings, canvasImage },
-                                            measurementHistory: [...history, newHistoryEntry]
-                                        };
-                                    }
-                                    return r;
-                                })
-                            }));
-                        }
-
-                        // 3. ADDITIONAL COPY: Saving to "Sonstiges" if PDF (legacy/requested behavior?)
-                        // keeping for safety if it was intentional, but 'Messprotokolle' should suffice.
-                        // If user thinks it's wrong to be in images, maybe they don't want it in 'Sonstiges' either?
-                        // I will limit it to just Messprotokolle as that seems safest based on "that is wrong".
-
-                        await Promise.all(uploadPromises);
-                    }}
-                />
-                {
-                    showEmailImport && (
-                        <EmailImportModal
-                            onClose={() => {
-                                setShowEmailImport(false);
-                                setOpenSettingsDirectly(false);
-                            }}
-                            onImport={handleEmailImport}
-                            audioDevices={audioDevices}
-                            selectedDeviceId={selectedDeviceId}
-                            onSelectDeviceId={setSelectedDeviceId}
-                            initialShowSettings={openSettingsDirectly}
-                        />
-                    )
-                }
-            </div >
+                            await Promise.all(uploadPromises);
+                        }}
+                    />
+                    {
+                        showEmailImport && (
+                            <EmailImportModal
+                                onClose={() => {
+                                    setShowEmailImport(false);
+                                    setOpenSettingsDirectly(false);
+                                }}
+                                onImport={handleEmailImport}
+                                audioDevices={audioDevices}
+                                selectedDeviceId={selectedDeviceId}
+                                onSelectDeviceId={setSelectedDeviceId}
+                                initialShowSettings={openSettingsDirectly}
+                            />
+                        )
+                    }
+                </div>
+            </>
         )
     }
 
@@ -5791,9 +5855,9 @@ END:VCARD`;
                                                         top: '-8px',
                                                         right: '24px',
                                                         background: 'white',
-                                                        border: '1px solid #0EA5E9',
+                                                        border: '1px solid #0F6EA3',
                                                         borderRadius: '50%',
-                                                        color: '#0EA5E9',
+                                                        color: '#0F6EA3',
                                                         width: '24px',
                                                         height: '24px',
                                                         display: 'flex',
@@ -5833,7 +5897,7 @@ END:VCARD`;
                                                     id="chk_img_report"
                                                     checked={formData.damageTypeImageInReport !== false}
                                                     onChange={(e) => setFormData(prev => ({ ...prev, damageTypeImageInReport: e.target.checked }))}
-                                                    style={{ width: '1.25rem', height: '1.25rem', accentColor: '#0EA5E9', cursor: 'pointer' }}
+                                                    style={{ width: '1.25rem', height: '1.25rem', accentColor: '#0F6EA3', cursor: 'pointer' }}
                                                 />
                                                 <label htmlFor="chk_img_report" style={{ fontSize: '0.9rem', color: '#94A3B8', cursor: 'pointer', userSelect: 'none' }}>
                                                     Bild im Bericht anzeigen (oberhalb Text)
@@ -6290,7 +6354,7 @@ END:VCARD`;
                                                     {formData.rooms.map(room => (
                                                         <div key={room.id} style={{
                                                             display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                                            backgroundColor: 'rgba(14, 165, 233, 0.1)', color: '#0EA5E9',
+                                                            backgroundColor: 'rgba(14, 165, 233, 0.1)', color: '#0F6EA3',
                                                             padding: '0.25rem 0.75rem', borderRadius: '20px', fontSize: '0.85rem'
                                                         }}>
                                                             <span>{room.apartment ? `${room.apartment} - ` : ''}{room.name}</span>
@@ -6743,7 +6807,7 @@ END:VCARD`;
                                                                         alert('Nur Bilder können als Schadenursache verwendet werden.');
                                                                     }
                                                                 }}
-                                                                style={{ border: 'none', background: 'transparent', color: '#0EA5E9', cursor: 'pointer', padding: '4px', visibility: ((item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf'))) ? 'hidden' : 'visible' }}
+                                                                style={{ border: 'none', background: 'transparent', color: '#0F6EA3', cursor: 'pointer', padding: '4px', visibility: ((item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf'))) ? 'hidden' : 'visible' }}
                                                                 title="Als Schadenursache verwenden"
                                                             >
                                                                 <Image size={16} />
@@ -6856,7 +6920,7 @@ END:VCARD`;
                                                                         alert('Nur Bilder können als Schadenursache verwendet werden.');
                                                                     }
                                                                 }}
-                                                                style={{ border: 'none', background: 'transparent', color: '#0EA5E9', cursor: 'pointer', padding: '4px', visibility: ((item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf'))) ? 'hidden' : 'visible' }}
+                                                                style={{ border: 'none', background: 'transparent', color: '#0F6EA3', cursor: 'pointer', padding: '4px', visibility: ((item.file && item.file.type === 'application/pdf') || (item.name && item.name.toLowerCase().endsWith('.pdf'))) ? 'hidden' : 'visible' }}
                                                                 title="Als Schadenursache verwenden"
                                                             >
                                                                 <Image size={16} />
@@ -7186,7 +7250,7 @@ END:VCARD`;
                                     type="button"
                                     className="btn btn-outline"
                                     onClick={handlePDFClick}
-                                    style={{ color: '#365E7D', borderColor: '#365E7D' }}
+                                    style={{ color: '#0F6EA3', borderColor: '#0F6EA3' }}
                                 >
                                     <FileText size={18} />
                                     Bericht konfigurieren
@@ -7239,7 +7303,7 @@ END:VCARD`;
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     gap: '0.5rem',
-                                    backgroundColor: '#0EA5E9'
+                                    backgroundColor: '#0F6EA3'
                                 }}
                             >
                                 <Save size={18} />
@@ -7363,7 +7427,7 @@ END:VCARD`;
                                                     group: 'item'
                                                 }}
                                                 onMouseEnter={e => {
-                                                    e.currentTarget.style.borderColor = '#0EA5E9';
+                                                    e.currentTarget.style.borderColor = '#0F6EA3';
                                                     e.currentTarget.style.transform = 'translateY(-2px)';
                                                     e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
                                                 }}
@@ -7447,7 +7511,7 @@ END:VCARD`;
                                                     type="checkbox"
                                                     checked={activeImageMeta.includeInReport !== false}
                                                     onChange={(e) => setActiveImageMeta(prev => ({ ...prev, includeInReport: e.target.checked }))}
-                                                    style={{ width: '1.25rem', height: '1.25rem', accentColor: '#0EA5E9' }}
+                                                    style={{ width: '1.25rem', height: '1.25rem', accentColor: '#0F6EA3' }}
                                                 />
                                                 <span style={{ fontSize: '1rem', fontWeight: 500 }}>Bericht</span>
                                             </label>
@@ -7495,7 +7559,7 @@ END:VCARD`;
                                                     // Simplify: Just open editor.
                                                     setActiveImageMeta(null);
                                                 }}
-                                                style={{ color: '#0EA5E9', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem' }}
+                                                style={{ color: '#0F6EA3', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem' }}
                                             >
                                                 <Edit3 size={20} />
                                                 Bild bearbeiten (Zeichnen)
@@ -7593,7 +7657,7 @@ END:VCARD`;
                                             setActiveImageMeta(null);
                                         }}
                                         className="btn btn-primary"
-                                        style={{ backgroundColor: '#0EA5E9', border: 'none' }}
+                                        style={{ backgroundColor: '#0F6EA3', border: 'none' }}
                                     >
                                         <Save size={18} style={{ marginRight: '0.5rem' }} />
                                         Speichern
@@ -7685,7 +7749,7 @@ END:VCARD`;
                         setIsNewMeasurement(false); // Close modal state
                     }}
                 />
-            </div >
+            </div>
 
             {/* Report Configuration Modal (Enhanced with Image Selection) */}
             {
@@ -7710,7 +7774,7 @@ END:VCARD`;
                                 <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
                                     {/* 1. General Info */}
                                     <div className="form-group" style={{ marginBottom: '2rem' }}>
-                                        <label className="form-label" style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'block', fontSize: '1.1rem', color: '#0EA5E9' }}>
+                                        <label className="form-label" style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'block', fontSize: '1.1rem', color: '#0F6EA3' }}>
                                             Schadenursache
                                         </label>
                                         <textarea
@@ -7750,8 +7814,7 @@ END:VCARD`;
                             </div>
                         }
                     </div>
-                )
-            }
+                )}
 
             {/* Print Report Template - Only render when generating to save performance */}
             {
@@ -7778,7 +7841,7 @@ END:VCARD`;
                             justifyContent: 'space-between',
                             alignItems: 'center',
                             marginBottom: '2rem',
-                            borderBottom: '4px solid #0EA5E9',
+                            borderBottom: '4px solid #0F6EA3',
                             paddingBottom: '1.5rem'
                         }}>
                             <div>
@@ -7802,21 +7865,38 @@ END:VCARD`;
 
                         <div className="pdf-section" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '2rem', marginBottom: '2.5rem' }}>
                             <div style={{ backgroundColor: '#F8FAFC', padding: '1.5rem', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                                <h3 style={{ color: '#0EA5E9', marginBottom: '1rem', fontSize: '12pt', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>Projektdaten</h3>
+                                <h3 style={{ color: '#0F6EA3', marginBottom: '1rem', fontSize: '12pt', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>Projektdaten</h3>
                                 <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: '0.75rem', fontSize: '10pt', color: '#334155' }}>
                                     {formData.projectTitle && (
                                         <>
                                             <strong style={{ color: '#64748B' }}>Projekt:</strong> <span style={{ fontWeight: 600, color: '#0F172A' }}>{formData.projectTitle}</span>
                                         </>
                                     )}
+                                    {formData.projectNumber && (
+                                        <>
+                                            <strong style={{ color: '#64748B' }}>Projektnummer:</strong> <span style={{ fontWeight: 600, color: '#0F172A' }}>{formData.projectNumber}</span>
+                                        </>
+                                    )}
+                                    {formData.orderNumber && (
+                                        <>
+                                            <strong style={{ color: '#64748B' }}>Auftragsnummer:</strong> <span style={{ fontWeight: 600, color: '#0F172A' }}>{formData.orderNumber}</span>
+                                        </>
+                                    )}
+                                    {(formData.projectNumber || formData.orderNumber) && <div style={{ height: '15px', gridColumn: 'span 2' }}></div>}
+
+                                    <strong style={{ color: '#64748B' }}>Strasse:</strong> <span style={{ fontWeight: 600, color: '#0F172A' }}>{formData.street}</span>
+                                    <strong style={{ color: '#64748B' }}>Ort:</strong> <span style={{ fontWeight: 600, color: '#0F172A' }}>{formData.zip} {formData.city}</span>
+
+                                    <div style={{ height: '10px', gridColumn: 'span 2' }}></div>
+
                                     <strong style={{ color: '#64748B' }}>Auftraggeber:</strong> <span style={{ fontWeight: 600, color: '#0F172A' }}>{formData.client}</span>
                                     <strong style={{ color: '#64748B' }}>Zuständig:</strong> <span style={{ fontWeight: 600, color: '#0F172A' }}>{formData.assignedTo}</span>
-                                    <strong style={{ color: '#64748B' }}>Ort:</strong> <span style={{ fontWeight: 600, color: '#0F172A' }}>{formData.street}, {formData.zip} {formData.city}</span>
+                                    <strong style={{ color: '#64748B' }}>Schadenart:</strong> <span style={{ fontWeight: 600, color: '#0F172A' }}>{formData.damageType}</span>
                                 </div>
                             </div>
 
                             <div style={{ backgroundColor: '#F8FAFC', padding: '1.5rem', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                                <h3 style={{ color: '#0EA5E9', marginBottom: '1rem', fontSize: '12pt', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>Schaden</h3>
+                                <h3 style={{ color: '#0F6EA3', marginBottom: '1rem', fontSize: '12pt', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>Schaden</h3>
                                 <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr', gap: '0.75rem', fontSize: '10pt', color: '#334155' }}>
                                     <strong style={{ color: '#64748B' }}>Art:</strong> <span style={{ fontWeight: 600, color: '#0F172A' }}>{formData.damageType}</span>
                                 </div>
@@ -7825,7 +7905,7 @@ END:VCARD`;
 
                         {formData.description && (
                             <div className="pdf-section" style={{ marginBottom: '2.5rem' }}>
-                                <h3 style={{ borderLeft: '4px solid #0EA5E9', paddingLeft: '1rem', marginBottom: '1rem', fontSize: '14pt', color: '#0F172A', fontWeight: 'bold' }}>Beschreibung / Feststellungen</h3>
+                                <h3 style={{ borderLeft: '4px solid #0F6EA3', paddingLeft: '1rem', marginBottom: '1rem', fontSize: '14pt', color: '#0F172A', fontWeight: 'bold' }}>Beschreibung / Feststellungen</h3>
                                 <div style={{ whiteSpace: 'pre-wrap', fontSize: '11pt', fontFamily: 'Arial, sans-serif', lineHeight: 1.5, color: '#000000', backgroundColor: 'white' }}>
                                     {formData.description}
                                 </div>
@@ -7835,7 +7915,7 @@ END:VCARD`;
                         {/* Cause Section */}
                         {reportCause && (
                             <div className="pdf-section" style={{ marginBottom: '2.5rem', breakInside: 'avoid' }}>
-                                <h3 style={{ borderLeft: '4px solid #0EA5E9', paddingLeft: '1rem', marginBottom: '1rem', fontSize: '14pt', color: '#0F172A', fontWeight: 'bold' }}>Schadenursache</h3>
+                                <h3 style={{ borderLeft: '4px solid #0F6EA3', paddingLeft: '1rem', marginBottom: '1rem', fontSize: '14pt', color: '#0F172A', fontWeight: 'bold' }}>Schadenursache</h3>
                                 <div style={{ whiteSpace: 'pre-wrap', fontSize: '11pt', lineHeight: 1.6, color: '#334155', backgroundColor: '#F1F5F9', padding: '1.5rem', borderRadius: '8px', borderLeft: '4px solid #CBD5E1' }}>
                                     {reportCause}
                                 </div>
@@ -7845,7 +7925,7 @@ END:VCARD`;
                         {/* Equipment Section for Print/PDF */}
                         {formData.equipment && formData.equipment.length > 0 && (
                             <div className="pdf-section" style={{ marginBottom: '2.5rem', breakInside: 'avoid' }}>
-                                <h3 style={{ borderLeft: '4px solid #0EA5E9', paddingLeft: '1rem', marginBottom: '1rem', fontSize: '14pt', color: '#0F172A', fontWeight: 'bold' }}>Trocknungsgeräte</h3>
+                                <h3 style={{ borderLeft: '4px solid #0F6EA3', paddingLeft: '1rem', marginBottom: '1rem', fontSize: '14pt', color: '#0F172A', fontWeight: 'bold' }}>Trocknungsgeräte</h3>
                                 <div style={{ border: '1px solid #E2E8F0', borderRadius: '8px', overflow: 'hidden' }}>
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt' }}>
                                         <thead>
@@ -7909,7 +7989,7 @@ END:VCARD`;
                                     <div key={room.id} style={{ marginBottom: '2rem' }}>
                                         <h4 className="pdf-section" style={{
                                             fontSize: '13pt',
-                                            color: '#0EA5E9',
+                                            color: '#0F6EA3',
                                             fontWeight: 'bold',
                                             marginBottom: '1rem',
                                             paddingBottom: '0.5rem',
@@ -7918,7 +7998,7 @@ END:VCARD`;
                                             alignItems: 'center',
                                             gap: '0.5rem'
                                         }}>
-                                            <span style={{ display: 'inline-block', width: '8px', height: '8px', backgroundColor: '#0EA5E9', borderRadius: '50%' }}></span>
+                                            <span style={{ display: 'inline-block', width: '8px', height: '8px', backgroundColor: '#0F6EA3', borderRadius: '50%' }}></span>
                                             {room.apartment ? `${room.apartment} - ` : ''}{room.name}
                                         </h4>
                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
@@ -7960,8 +8040,6 @@ END:VCARD`;
                     </div>
                 )
             }
-
-
         </>
-    )
+    );
 }

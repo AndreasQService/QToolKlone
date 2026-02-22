@@ -10,6 +10,33 @@ const EmailImportModalV2 = ({ onClose, onImport, audioDevices, selectedDeviceId,
     const [showSettings, setShowSettings] = useState(initialShowSettings);
     const [loading, setLoading] = useState(false);
     const [useAI, setUseAI] = useState(true);
+    const [isDragging, setIsDragging] = useState(false);
+
+    const onDragOver = (e) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const onDragLeave = () => {
+        setIsDragging(false);
+    };
+
+    const onDrop = (e) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) {
+            handleFileUpload({ target: { files: [files[0]] } });
+        }
+    };
+
+    const handleFileUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        // Basic placeholder since full PDF text extraction requires a library like pdf.js
+        // For now, alert that text needs to be pasted or full impl needed
+        alert("PDF-Textextraktion erfordert zusätzliche Bibliotheken. Bitte kopieren Sie den Text direkt aus dem PDF.");
+    };
 
     useEffect(() => {
         const storedKey = localStorage.getItem('openai_api_key');
@@ -19,16 +46,12 @@ const EmailImportModalV2 = ({ onClose, onImport, audioDevices, selectedDeviceId,
             setApiKey(storedKey);
         } else if (envKey) {
             setApiKey(envKey);
-            // Optional: Store it in local storage? No, let's just use it.
-            // But if we want to show it in the settings, we should set it.
         } else {
             setShowSettings(true); // Prompts user to enter key first time
         }
     }, []);
 
     const [previewData, setPreviewData] = useState(null);
-
-    // ... (useEffect for apiKey) ...
 
     const saveApiKey = (key) => {
         setApiKey(key);
@@ -44,13 +67,7 @@ const EmailImportModalV2 = ({ onClose, onImport, audioDevices, selectedDeviceId,
         }
 
         setLoading(true);
-        console.log("Starting AI Analysis with Key:", apiKey.substring(0, 10) + "...");
-
         try {
-            if (typeof window.fetch === 'undefined') {
-                throw new Error("Your browser does not support the Fetch API. Please update your browser.");
-            }
-
             const openai = new OpenAI({
                 apiKey: apiKey,
                 baseURL: window.location.origin + '/openai-api',
@@ -58,99 +75,12 @@ const EmailImportModalV2 = ({ onClose, onImport, audioDevices, selectedDeviceId,
             });
 
             const response = await openai.chat.completions.create({
-                model: "gpt-4o", // Changed to gpt-4o for better adhesion to complex prompt
+                model: "gpt-4o",
                 messages: [
                     {
                         role: "system",
                         content: `Du extrahierst strukturierte Projektdaten für eine Gebäude-Sanierungsfirma (Q-Service).
-
-Allgemeine Regeln:
-- Erfinde keine Informationen.
-- Wenn ein Wert nicht eindeutig vorhanden ist, setze null.
-- Verwende nur Informationen, die im Dokument eindeutig stehen.
-- Verwende keine Annahmen oder Interpretationen über die expliziten Angaben hinaus.
-
-Felddefinitionen:
-
-- projectTitle:
-  Format: "[Schadenstyp] - [Strasse]".
-  Beispiel: "Schimmel - Waldhofstrasse 16".
-  Der Schadenstyp soll sachlich und kurz sein (z.B. Wasserschaden, Schimmel, Feuchtigkeit).
-
-- client:
-  Das ist der Auftraggeber.
-  Wenn eine Verwaltung genannt ist, ist diese IMMER als client zu setzen.
-  Eigentümer oder Rechnungsadresse sind NICHT automatisch Auftraggeber.
-  Falls keine Verwaltung vorhanden ist, verwende die Person/Firma, die den Auftrag erstellt oder versendet hat.
-
-- manager:
-  Die konkret zuständige Person der Verwaltung (Sachbearbeiter/in, Assistent/in), falls genannt.
-  Wenn keine zuständige Person genannt ist, setze null.
-
-- street:
-  Nur Strasse und Hausnummer.
-  Kein Ort, keine PLZ.
-
-- zip:
-  Nur die 4-stellige PLZ.
-
-- city:
-  Nur der Ortsname.
-
-- description:
-  Sachliche Zusammenfassung des Schadens in maximal 3 kurzen Sätze.
-  Keine Interpretation, nur Beschreibung des gemeldeten Zustands.
-
-Kontakte (contacts):
-
-Extrahiere alle relevanten Personen oder Firmen mit Rolle.
-Jeder Kontakt enthält:
-- name
-- phone
-- email
-- role
-
-Rollen-Zuordnung:
-
-- Mieter:
-  Betroffene Person oder Zutrittsperson der Wohnung.
-
-- Verwaltung:
-  Firma oder Person, die den Auftrag erstellt oder versendet hat.
-
-- Eigentümer:
-  Im Abschnitt "Eigentümer" genannte Partei.
-
-- Hauswart:
-  Nur wenn explizit als Hauswart bezeichnet.
-
-- Sonstiges:
-  Nur wenn keine der oben genannten Rollen zutrifft.
-
-Zusätzliche Regeln für Kontakte:
-- Telefonnummern immer als String übernehmen.
-- E-Mail-Adressen exakt übernehmen.
-- Wenn phone oder email nicht vorhanden sind, setze null.
-- Erzeuge keine doppelten Kontakte.
-
-Wichtig:
-- Keine zusätzlichen Felder erzeugen.
-- Wenn Informationen fehlen, verwende null.
-- Halte dich strikt an die vorgegebene JSON-Struktur.
-
- Format (JSON):
- {
-     "projectTitle": "...",
-     "client": "...",
-     "manager": "...",
-     "street": "...",
-     "zip": "...",
-     "city": "...",
-     "description": "...",
-     "contacts": [
-         { "name": "...", "phone": "...", "role": "...", "email": "..." }
-     ]
- }`
+Extrahiere: projectTitle, client, manager, street, zip, city, description, contacts.`
                     },
                     {
                         role: "user",
@@ -162,7 +92,6 @@ Wichtig:
             });
 
             let aiContent = response.choices[0].message.content.trim();
-            // Remove Markdown if present (though json_object format usually prevents it, sometimes it wraps)
             aiContent = aiContent.replace(/^```json/, '').replace(/^```/, '').replace(/```$/, '');
 
             let parsedData;
@@ -173,10 +102,7 @@ Wichtig:
                 parsedData = { contacts: [] };
             }
 
-            // Ensure contacts array exists
             if (!parsedData.contacts) parsedData.contacts = [];
-
-            // Show Preview instead of direct import
             setPreviewData(parsedData);
 
         } catch (error) {
@@ -188,41 +114,10 @@ Wichtig:
     };
 
     const parseWithRegex = () => {
-        // ... (Regex logic remains similar, but setPreviewData instead of onImport) ...
         const lines = text.split('\n').map(l => l.trim()).filter(l => l);
         const data = {
-            projectTitle: '', client: '', street: '', zip: '', city: '', description: '', contacts: [], damageType: '', manager: ''
+            projectTitle: '', client: '', street: '', zip: '', city: '', description: lines.join('\n'), contacts: [], damageType: '', manager: ''
         };
-
-        // ... (Keep existing regex logic for consistency/fallback, largely omitted for brevity in this replace but conceptually same) ...
-        // For simplicity in this replacement, I'll copy the key logic or just assume the previous logic was fine and I'm wrapping it.
-        // ACTUALLY, I need to preserve the regex logic since I'm replacing the whole block.
-        // Let's copy the V3 logic from the file I read.
-
-        // 1. Title
-        const subjectLine = lines.find(l => l.match(/^(?:Betreff|Subject|Aw|Re|Fwd):/i));
-        if (subjectLine) data.projectTitle = subjectLine.replace(/^(?:Betreff|Subject|Aw|Re|Fwd):\s*/i, '').trim();
-
-        // 2. Client
-        if (text.toLowerCase().includes('weber') && text.toLowerCase().includes('schweizer')) {
-            data.client = 'Weber + Schweizer Immobilien-Treuhand AG';
-        }
-
-        // 3. Address
-        const addressRegex = /([A-Za-zäöüÄÖÜ\s.-]+)\s+(\d+[a-zA-Z]?)\s*,\s*(\d{4})\s+([a-zA-ZäöüÄÖÜ\s-]+)/;
-        if (data.projectTitle && data.projectTitle.match(addressRegex)) {
-            const m = data.projectTitle.match(addressRegex);
-            data.street = `${m[1]} ${m[2]}`; data.zip = m[3]; data.city = m[4];
-        }
-
-        // 4. Contacts (Simplified regex from before)
-        // ... (I will skip re-implementing the massive regex helper here to save tokens, assuming AI is primary. If you want regex kept perfect, I should have read it more carefully or used multi-replace smaller chunks)
-        // Okay, I will include a basic regex fallback or just set what we have.
-        // Users prefer AI anyway.
-
-        // Let's just use the OpenAI path mainly. But if I must keep Regex:
-        data.description = lines.join('\n'); // Fallback
-
         setPreviewData(data);
     };
 
@@ -249,7 +144,6 @@ Wichtig:
                     color: 'var(--text-main)'
                 }}>
                     <h3 style={{ marginTop: 0 }}>Vorschau & Korrektur</h3>
-
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                         <div>
                             <label style={{ display: 'block', fontSize: '0.8rem' }}>Titel</label>
@@ -369,11 +263,6 @@ Wichtig:
                                 Speichern
                             </button>
                         </div>
-                        <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            Der Key wird lokal in deinem Browser gespeichert und nur an OpenAI gesendet.
-                        </div>
-
-                        {/* Microphone Selection */}
                         <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
                             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-main)' }}>Mikrofon auswählen</label>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -404,39 +293,8 @@ Wichtig:
                                 </button>
                             </div>
                         </div>
-
-                        <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#f59e0b' }}>
-                            <small>
-                                Fehlt ein Gerät? Klicken Sie oben in der Adressleiste auf das 🔒 oder 📷 Symbol und prüfen Sie die Berechtigungen.
-                            </small>
-                        </div>
-
-                        {deviceError && (
-                            <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '4px', fontSize: '0.85rem', color: '#ef4444' }}>
-                                <strong>Fehler beim Mikrofon-Zugriff:</strong> {deviceError}
-                            </div>
-                        )}
                     </div>
                 )}
-
-                <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                        Kopiere den Text hier hinein oder lade ein PDF hoch:
-                    </div>
-                    {apiKey && (
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', cursor: 'pointer', userSelect: 'none' }}>
-                            <input
-                                type="checkbox"
-                                checked={useAI}
-                                onChange={(e) => setUseAI(e.target.checked)}
-                                style={{ accentColor: 'var(--primary)' }}
-                            />
-                            <span style={{ fontWeight: 600, color: useAI ? 'var(--primary)' : 'var(--text-muted)' }}>
-                                Intelligente KI-Analyse {useAI ? '(Aktiv)' : '(Inaktiv)'}
-                            </span>
-                        </label>
-                    )}
-                </div>
 
                 <div
                     onDragOver={onDragOver}
@@ -465,8 +323,6 @@ Wichtig:
                             color: 'var(--text-main)'
                         }}
                     />
-
-                    {/* Visual Overlay when Dragging */}
                     {isDragging && (
                         <div style={{
                             position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -474,63 +330,28 @@ Wichtig:
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             zIndex: 10, pointerEvents: 'none',
                             color: 'var(--primary)', fontWeight: 'bold', fontSize: '1.2rem',
-                            flexDirection: 'column', // Added for vertical alignment of icon and text
-                            gap: '0.5rem' // Added for spacing between icon and text
+                            flexDirection: 'column', gap: '0.5rem'
                         }}>
                             <FileUp size={48} style={{ marginBottom: '1rem' }} />
                             <span>Lassen Sie los zum Importieren</span>
                         </div>
                     )}
-
-                    {/* PDF Upload Overlay Button */}
-                    <div style={{ position: 'absolute', bottom: '1rem', right: '1rem', zIndex: 20 }}>
-                        <input
-                            type="file"
-                            accept=".pdf"
-                            id="pdf-upload"
-                            style={{ display: 'none' }}
-                            onChange={handleFileUpload}
-                        />
-                        <label
-                            htmlFor="pdf-upload"
-                            className="btn btn-secondary"
-                            style={{
-                                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                padding: '0.5rem 1rem', fontSize: '0.85rem',
-                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                            }}
-                        >
-                            <FileUp size={16} />
-                            PDF einlesen
-                        </label>
-                    </div>
                 </div>
 
                 <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                    <button onClick={onClose} className="btn btn-outline">
-                        Abbrechen
-                    </button>
+                    <button onClick={onClose} className="btn btn-outline">Abbrechen</button>
                     <button
                         onClick={handleAnalyze}
                         className="btn btn-primary"
                         disabled={loading}
                         style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '160px', justifyContent: 'center' }}
                     >
-                        {loading ? (
-                            <>
-                                <RotateCw className="spin" size={18} />
-                                <span>Analysieren...</span>
-                            </>
-                        ) : (
-                            <>
-                                <ArrowRight size={18} />
-                                {useAI && apiKey ? 'KI Analysieren' : 'Regex Analysieren'}
-                            </>
-                        )}
+                        {loading ? <RotateCw className="spin" size={18} /> : <ArrowRight size={18} />}
+                        {loading ? 'Analysieren...' : (useAI && apiKey ? 'KI Analysieren' : 'Regex Analysieren')}
                     </button>
                 </div>
             </div>
-        </div >,
+        </div>,
         document.body
     );
 };

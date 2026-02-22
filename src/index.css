@@ -1,26 +1,22 @@
 :root {
-  --primary: #38BDF8;
-  /* Sky 400 */
-  --primary-hover: #0EA5E9;
-  /* Sky 500 */
-  --secondary: #2DD4BF;
-  /* Teal 400 */
-  --accent: #FBBF24;
-  /* Amber 400 */
+  /* Q-Service Brand Colors */
+  --q-primary: #0F6EA3;
+  --q-accent: #1E6F9E;
+  --q-light: #89BEC3;
+  --q-muted: #5E7F96;
+  --q-bg: #E9E9E9;
+
+  --primary: var(--q-primary);
+  --primary-hover: var(--q-accent);
+  --secondary: var(--q-light);
+  --accent: var(--q-accent);
   --success: #34D399;
-  /* Emerald 400 */
   --danger: #F87171;
-  /* Red 400 */
   --background: #0F172A;
-  /* Slate 900 */
   --surface: #1E293B;
-  /* Slate 800 */
   --text-main: #F1F5F9;
-  /* Slate 100 */
-  --text-muted: #94A3B8;
-  /* Slate 400 */
+  --text-muted: var(--q-muted);
   --border: #334155;
-  /* Slate 700 */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
@@ -269,7 +265,7 @@ input:-webkit-autofill:active {
   }
 
   /* Hide everything else */
-  body > *:not(.print-wrapper) {
+  body>*:not(.print-wrapper) {
     display: none !important;
   }
 
