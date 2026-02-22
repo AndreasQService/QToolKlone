@@ -12,6 +12,15 @@ const styles = StyleSheet.create({
         color: '#000000',
         lineHeight: 1.5,
     },
+    watermark: {
+        position: 'absolute',
+        top: '25%',
+        left: '10%',
+        width: '80%',
+        height: '50%',
+        opacity: 0.06,
+        zIndex: -1,
+    },
     header: {
         marginBottom: 20,
         flexDirection: 'row',
@@ -232,9 +241,14 @@ const DamageReportDocument = ({ data }) => {
     return (
         <Document>
             <Page size="A4" style={styles.page} wrap>
-
-
-
+                {/* Watermark Logo */}
+                {data.logo && (
+                    <Image
+                        src={data.logo}
+                        style={styles.watermark}
+                        fixed
+                    />
+                )}
 
 
                 {/* Header */}
