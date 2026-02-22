@@ -92,8 +92,6 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginTop: 20,
         marginBottom: 5,
-        borderBottomWidth: 0.5,
-        borderBottomColor: '#0F6EA3',
         paddingBottom: 2,
     },
     floorHeader: {
