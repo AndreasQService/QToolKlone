@@ -147,6 +147,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
         damageType: initialData.type || '',
         damageTypeImage: initialData.damageTypeImage || null,
         status: initialData.status || 'Schadenaufnahme',
+        cause: initialData.cause || '',
         description: initialData.description || '',
         findings: initialData.findings || '',
         dryingStarted: initialData.dryingStarted || null,
@@ -181,6 +182,7 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
         damageType: '',
         damageTypeImage: null,
         status: 'Schadenaufnahme',
+        cause: '',
         description: '',
         findings: '',
         dryingStarted: null,
@@ -765,7 +767,6 @@ export default function DamageForm({ onCancel, initialData, onSave, mode = 'desk
     const [openSettingsDirectly, setOpenSettingsDirectly] = useState(false);
     const [showCameraModal, setShowCameraModal] = useState(false);
     const [cameraContext, setCameraContext] = useState(null);
-    const [reportCause, setReportCause] = useState(initialData && initialData.cause ? initialData.cause : '');
 
     // AUTO-SAVE: Save formData 1 second after last change
     // AND save on unmount/unfocus to prevent data loss
@@ -1698,6 +1699,11 @@ END:VCARD`;
 
 
 
+    // Calculate drying summary
+    const finishedDrying = formData.equipment.filter(d => d.endDate && d.counterEnd);
+    const totalDryingHours = finishedDrying.reduce((acc, curr) => acc + (parseFloat(curr.hours) || 0), 0);
+    const totalDryingKwh = finishedDrying.reduce((acc, curr) => acc + ((parseFloat(curr.counterEnd) || 0) - (parseFloat(curr.counterStart) || 0)), 0);
+
     if (mode === 'technician' || mode === 'desktop') {
         return (
             <>
@@ -2552,8 +2558,8 @@ END:VCARD`;
                                             <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'block' }}>Schadenursache</label>
                                             <textarea
                                                 className="form-input"
-                                                value={formData.causeDescription || ''}
-                                                onChange={(e) => setFormData(prev => ({ ...prev, causeDescription: e.target.value }))}
+                                                value={formData.cause || ''}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, cause: e.target.value }))}
                                                 placeholder="Beschreibung der Ursache..."
                                                 style={{ width: '100%', minHeight: '80px', fontFamily: 'inherit' }}
                                             />
@@ -2579,46 +2585,81 @@ END:VCARD`;
                                                 multiple
                                                 accept="image/*"
                                                 style={{ display: 'none' }}
-                                                onChange={(e) => {
-                                                    if (e.target.files && e.target.files.length > 0) {
-                                                        const files = Array.from(e.target.files).map(file => ({
-                                                            file,
-                                                            preview: URL.createObjectURL(file),
-                                                            name: file.name,
-                                                            type: 'image'
-                                                        }));
-                                                        setFormData(prev => ({ ...prev, causeImages: [...(prev.causeImages || []), ...files] }));
-                                                    }
-                                                }}
+                                                onChange={(e) => handleCategorySelect(e, 'Schadenfotos')}
                                             />
 
-                                            {(!formData.causeImages || formData.causeImages.length === 0) ? (
+                                            {formData.images.filter(img => img.assignedTo === 'Schadenfotos').length === 0 ? (
                                                 <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
                                                     Keine Schadenfotos vorhanden.
                                                 </div>
                                             ) : (
-                                                <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
-                                                    {formData.causeImages.map((img, idx) => (
-                                                        <div key={idx} style={{ position: 'relative', width: '70px', height: '70px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--border)' }}>
-                                                            <img src={img.preview || img.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.5rem', minHeight: '80px' }}>
+                                                    {formData.images.filter(img => img.assignedTo === 'Schadenfotos').map((img, idx) => (
+                                                        <div key={idx} style={{
+                                                            position: 'relative',
+                                                            width: '80px',
+                                                            height: '80px',
+                                                            borderRadius: '4px',
+                                                            overflow: 'hidden',
+                                                            flexShrink: 0,
+                                                            border: formData.damageTypeImage === img.preview ? '2px solid #10B981' : '1px solid var(--border)'
+                                                        }}>
+                                                            <img src={img.preview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onClick={() => setActiveImageMeta(img)} />
+
+                                                            {/* Selection Checkbox for Damage Type Image */}
+                                                            <div
+                                                                style={{
+                                                                    position: 'absolute',
+                                                                    top: '2px',
+                                                                    left: '2px',
+                                                                    backgroundColor: 'rgba(0,0,0,0.5)',
+                                                                    borderRadius: '2px',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    padding: '2px',
+                                                                    zIndex: 5
+                                                                }}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        damageTypeImage: prev.damageTypeImage === img.preview ? null : img.preview,
+                                                                        damageTypeImageInReport: true
+                                                                    }));
+                                                                }}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={formData.damageTypeImage === img.preview}
+                                                                    onChange={() => { }}
+                                                                    style={{ width: '14px', height: '14px', cursor: 'pointer' }}
+                                                                />
+                                                            </div>
+
                                                             <button
                                                                 type="button"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    const newImages = [...formData.causeImages];
-                                                                    newImages.splice(idx, 1);
-                                                                    setFormData(prev => ({ ...prev, causeImages: newImages }));
+                                                                    if (window.confirm('Bild wirklich löschen?')) {
+                                                                        setFormData(prev => ({
+                                                                            ...prev,
+                                                                            images: prev.images.filter(i => i !== img),
+                                                                            damageTypeImage: prev.damageTypeImage === img.preview ? null : prev.damageTypeImage
+                                                                        }));
+                                                                    }
                                                                 }}
-                                                                style={{
-                                                                    position: 'absolute', top: 0, right: 0,
-                                                                    background: 'rgba(0,0,0,0.6)', color: 'white',
-                                                                    border: 'none', cursor: 'pointer', padding: '2px'
-                                                                }}
+                                                                style={{ position: 'absolute', top: '2px', right: '2px', backgroundColor: 'rgba(239, 68, 68, 0.8)', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, zIndex: 5 }}
                                                             >
                                                                 <X size={12} />
                                                             </button>
                                                         </div>
                                                     ))}
+                                                    {formData.images.filter(img => img.assignedTo === 'Schadenfotos').length === 0 && (
+                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '80px', color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                                                            Keine Ursachenfotos
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -4723,10 +4764,6 @@ END:VCARD`;
         )
     }
 
-    // Calculate drying summary
-    const finishedDrying = formData.equipment.filter(d => d.endDate && d.counterEnd);
-    const totalDryingHours = finishedDrying.reduce((acc, curr) => acc + (parseFloat(curr.hours) || 0), 0);
-    const totalDryingKwh = finishedDrying.reduce((acc, curr) => acc + ((parseFloat(curr.counterEnd) || 0) - (parseFloat(curr.counterStart) || 0)), 0);
 
     return (
         <>
@@ -7918,11 +7955,11 @@ END:VCARD`;
                         )}
 
                         {/* Cause Section */}
-                        {reportCause && (
+                        {formData.cause && (
                             <div className="pdf-section" style={{ marginBottom: '2.5rem', breakInside: 'avoid' }}>
                                 <h3 style={{ borderLeft: '4px solid #0F6EA3', paddingLeft: '1rem', marginBottom: '1rem', fontSize: '14pt', color: '#0F172A', fontWeight: 'bold' }}>Schadenursache</h3>
                                 <div style={{ whiteSpace: 'pre-wrap', fontSize: '11pt', lineHeight: 1.6, color: '#334155', backgroundColor: '#F1F5F9', padding: '1.5rem', borderRadius: '8px', borderLeft: '4px solid #CBD5E1' }}>
-                                    {reportCause}
+                                    {formData.cause}
                                 </div>
                             </div>
                         )}
@@ -7986,6 +8023,57 @@ END:VCARD`;
                             }}>
                                 Dokumentation & Bilder
                             </h3>
+
+                            {/* Section for Schadenfotos */}
+                            {formData.images.some(img => img.assignedTo === 'Schadenfotos' && img.includeInReport !== false) && (
+                                <div style={{ marginBottom: '2.5rem' }}>
+                                    <h4 className="pdf-section" style={{
+                                        fontSize: '13pt',
+                                        color: '#0F6EA3',
+                                        fontWeight: 'bold',
+                                        marginBottom: '1rem',
+                                        paddingBottom: '0.5rem',
+                                        borderBottom: '1px solid #E2E8F0',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem'
+                                    }}>
+                                        <span style={{ display: 'inline-block', width: '8px', height: '8px', backgroundColor: '#0F6EA3', borderRadius: '50%' }}></span>
+                                        Schadenfotos
+                                    </h4>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                                        {formData.images
+                                            .filter(img => img.assignedTo === 'Schadenfotos' && img.includeInReport !== false)
+                                            .map((img, idx) => (
+                                                <div key={idx} className="pdf-section" style={{
+                                                    breakInside: 'avoid',
+                                                    backgroundColor: '#fff',
+                                                    borderRadius: '8px',
+                                                    overflow: 'hidden',
+                                                    boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
+                                                    border: '1px solid #E2E8F0'
+                                                }}>
+                                                    <div style={{
+                                                        height: '350px',
+                                                        overflow: 'hidden',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        backgroundColor: '#F8FAFC',
+                                                        borderBottom: '1px solid #E2E8F0'
+                                                    }}>
+                                                        <img src={img.preview} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                                                    </div>
+                                                    {img.description && (
+                                                        <div style={{ fontSize: '10pt', padding: '0.25rem', fontStyle: 'italic', color: '#555' }}>
+                                                            {img.description}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Loop through rooms */}
                             {formData.rooms
