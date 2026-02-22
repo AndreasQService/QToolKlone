@@ -18,7 +18,7 @@ const styles = StyleSheet.create({
         left: '10%',
         width: '80%',
         height: '50%',
-        opacity: 0.06,
+        opacity: 0.12,
         zIndex: -1,
     },
     header: {
