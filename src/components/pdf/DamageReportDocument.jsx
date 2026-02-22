@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
         fontSize: 10,
     },
     divider: {
-        height: 0.2,
+        height: 0.7,
         backgroundColor: '#0F6EA3',
         marginVertical: 10,
     },
