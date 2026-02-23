@@ -435,8 +435,16 @@ const DamageReportDocument = ({ data }) => {
                                 {isNewApt && (room.apartment || room.stockwerk) && (
                                     <View style={{ marginTop: 0 }}>
                                         <Text style={styles.apartmentHeader}>
-                                            {room.stockwerk ? `${room.stockwerk}${room.apartment ? ', ' : ''}` : ''}
-                                            {room.apartment ? `Wohnung: ${room.apartment}` : ''}
+                                            {(() => {
+                                                const apt = room.apartment || '';
+                                                const hasKeyword = apt.toLowerCase().includes('wohnung') || apt.toLowerCase().includes('whg');
+                                                const displayApt = (apt && !hasKeyword) ? `Whg. ${apt}` : apt;
+
+                                                if (room.stockwerk && displayApt && displayApt.toLowerCase().includes(room.stockwerk.toLowerCase())) {
+                                                    return displayApt;
+                                                }
+                                                return [room.stockwerk, displayApt].filter(Boolean).join(', ');
+                                            })()}
                                         </Text>
                                     </View>
                                 )}

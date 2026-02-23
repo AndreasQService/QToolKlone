@@ -2760,7 +2760,7 @@ END:VCARD`;
                                                     className="form-input"
 
 
-                                                    value={newRoom.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().includes(newRoom.apartment) ? 'Sonstiges' : newRoom.apartment}
+                                                    value={newRoom.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? (c.name.toLowerCase().includes('whg') || c.name.toLowerCase().includes('wohnung') ? c.name.trim().split(/\s+/).pop() : 'Whg. ' + c.name.trim().split(/\s+/).pop()) : '').filter(Boolean)])].sort().includes(newRoom.apartment) ? 'Sonstiges' : newRoom.apartment}
                                                     onChange={(e) => {
                                                         const val = e.target.value;
                                                         if (val === 'Sonstiges') {
@@ -2782,14 +2782,14 @@ END:VCARD`;
                                                     style={{ padding: '0.5rem', fontSize: '0.9rem' }}
                                                 >
                                                     <option value="">Wohnung wählen... (Pflicht)</option>
-                                                    {[...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().map(apt => (
+                                                    {[...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? (c.name.toLowerCase().includes('whg') || c.name.toLowerCase().includes('wohnung') ? c.name.trim().split(/\s+/).pop() : 'Whg. ' + c.name.trim().split(/\s+/).pop()) : '').filter(Boolean)])].sort().map(apt => (
                                                         <option key={apt} value={apt}>{apt}</option>
                                                     ))}
                                                     <option value="Sonstiges">Neue Wohnung eingeben...</option>
                                                 </select>
 
                                                 {/* Custom Apartment Input */}
-                                                {(!newRoom.apartment || (newRoom.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().includes(newRoom.apartment))) && (
+                                                {(!newRoom.apartment || (newRoom.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? (c.name.toLowerCase().includes('whg') || c.name.toLowerCase().includes('wohnung') ? c.name.trim().split(/\s+/).pop() : 'Whg. ' + c.name.trim().split(/\s+/).pop()) : '').filter(Boolean)])].sort().includes(newRoom.apartment))) && (
                                                     <input
                                                         type="text"
                                                         placeholder="Wohnung eingeben"
@@ -2954,115 +2954,6 @@ END:VCARD`;
                             </div>
                         )}
 
-                        {mode === 'desktop' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
-                                <button
-                                    type="button"
-                                    className={`btn ${showAddRoomForm ? 'btn-ghost' : 'btn-primary'}`}
-                                    onClick={() => setShowAddRoomForm(!showAddRoomForm)}
-                                    style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', color: showAddRoomForm ? '#EF4444' : undefined, borderColor: showAddRoomForm ? '#EF4444' : undefined }}
-                                >
-                                    {showAddRoomForm ? <X size={16} /> : <Plus size={16} />}
-                                    {showAddRoomForm ? " Abbrechen" : " Raum hinzufügen"}
-                                </button>
-
-                                {showAddRoomForm && (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                            <select
-                                                className="form-input"
-                                                value={newRoom.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().includes(newRoom.apartment) ? 'Sonstiges' : newRoom.apartment}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    if (val === 'Sonstiges') {
-                                                        setNewRoom(prev => ({ ...prev, apartment: '' }));
-                                                    } else {
-                                                        let relatedStockwerk = '';
-                                                        const matchingContact = (formData.contacts || []).find(c => c.name && c.name.trim().split(/\s+/).pop() === val);
-                                                        if (matchingContact) {
-                                                            relatedStockwerk = matchingContact.floor || matchingContact.apartment || '';
-                                                        } else {
-                                                            const existingRoom = formData.rooms.find(r => r.apartment === val);
-                                                            if (existingRoom) {
-                                                                relatedStockwerk = existingRoom.stockwerk || '';
-                                                            }
-                                                        }
-                                                        setNewRoom(prev => ({ ...prev, apartment: val, stockwerk: relatedStockwerk || prev.stockwerk }));
-                                                    }
-                                                }}
-                                                style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                            >
-                                                <option value="">Wohnung wählen... (Pflicht)</option>
-                                                {[...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().map(apt => (
-                                                    <option key={apt} value={apt}>{apt}</option>
-                                                ))}
-                                                <option value="Sonstiges">Neue Wohnung eingeben...</option>
-                                            </select>
-
-                                            {/* Custom Apartment Input */}
-                                            {(!newRoom.apartment || (newRoom.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? c.name.trim().split(/\s+/).pop() : '').filter(Boolean)])].sort().includes(newRoom.apartment))) && (
-                                                <input
-                                                    type="text"
-                                                    placeholder="Wohnung eingeben"
-                                                    value={newRoom.apartment}
-                                                    onChange={(e) => setNewRoom(prev => ({ ...prev, apartment: e.target.value }))}
-                                                    className="form-input"
-                                                    style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                                />
-                                            )}
-                                        </div>
-
-                                        <input
-                                            type="text"
-                                            placeholder="Stockwerk"
-                                            value={newRoom.stockwerk}
-                                            onChange={(e) => setNewRoom(prev => ({ ...prev, stockwerk: e.target.value }))}
-                                            className="form-input"
-                                            style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                        />
-
-                                        <select
-                                            value={newRoom.name}
-                                            onChange={(e) => setNewRoom(prev => ({ ...prev, name: e.target.value }))}
-                                            className="form-input"
-                                            style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                        >
-                                            <option value="">Raum wählen...</option>
-                                            {ROOM_OPTIONS.map(opt => (
-                                                <option key={opt} value={opt}>{opt}</option>
-                                            ))}
-                                            <option value="Sonstiges">Sonstiges / Eigener Name</option>
-                                        </select>
-
-                                        {/* Custom Room Input if 'Sonstiges' or not in list */}
-                                        {((newRoom.name === 'Sonstiges') || (newRoom.name === 'Sonstiges / Eigener Name') || (newRoom.name && !ROOM_OPTIONS.includes(newRoom.name))) && (
-                                            <input
-                                                type="text"
-                                                placeholder="Raum-Name eingeben"
-                                                value={newRoom.name === 'Sonstiges' || newRoom.name === 'Sonstiges / Eigener Name' ? '' : newRoom.name}
-                                                onChange={(e) => setNewRoom(prev => ({ ...prev, name: e.target.value }))}
-                                                className="form-input"
-                                                style={{ padding: '0.5rem', fontSize: '0.9rem' }}
-                                                autoFocus
-                                            />
-                                        )}
-
-                                        <button
-                                            type="button"
-                                            className="btn btn-primary"
-                                            onClick={() => {
-                                                handleAddRoom();
-                                                setShowAddRoomForm(false); // Auto-close after add
-                                            }}
-                                            disabled={!newRoom.name || newRoom.name === 'Sonstiges' || !newRoom.apartment}
-                                            style={{ marginTop: '0.5rem' }}
-                                        >
-                                            <Check size={16} /> Speichern
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
 
                         {(
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -3419,6 +3310,119 @@ END:VCARD`;
                             </div>
                         )
                         }
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem', marginBottom: '2rem' }}>
+                        <button
+                            type="button"
+                            className={`btn ${showAddRoomForm ? 'btn-ghost' : 'btn-primary'}`}
+                            onClick={() => setShowAddRoomForm(!showAddRoomForm)}
+                            style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', color: showAddRoomForm ? '#EF4444' : undefined, borderColor: showAddRoomForm ? '#EF4444' : undefined }}
+                        >
+                            {showAddRoomForm ? <X size={16} /> : <Plus size={16} />}
+                            {showAddRoomForm ? " Abbrechen" : " Raum hinzufügen"}
+                        </button>
+
+                        {showAddRoomForm && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.5rem', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                    <select
+                                        className="form-input"
+                                        value={newRoom.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? (c.name.toLowerCase().includes('whg') || c.name.toLowerCase().includes('wohnung') ? c.name.trim().split(/\s+/).pop() : 'Whg. ' + c.name.trim().split(/\s+/).pop()) : '').filter(Boolean)])].sort().includes(newRoom.apartment) ? 'Sonstiges' : newRoom.apartment}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (val === 'Sonstiges') {
+                                                setNewRoom(prev => ({ ...prev, apartment: '' }));
+                                            } else {
+                                                let relatedStockwerk = '';
+                                                const matchingContact = (formData.contacts || []).find(c => {
+                                                    if (!c.name) return false;
+                                                    const lastName = c.name.trim().split(/\s+/).pop();
+                                                    const withWhg = `Whg. ${lastName}`;
+                                                    return lastName === val || withWhg === val;
+                                                });
+                                                if (matchingContact) {
+                                                    relatedStockwerk = matchingContact.floor || matchingContact.apartment || '';
+                                                } else {
+                                                    const existingRoom = formData.rooms.find(r => r.apartment === val);
+                                                    if (existingRoom) {
+                                                        relatedStockwerk = existingRoom.stockwerk || '';
+                                                    }
+                                                }
+                                                setNewRoom(prev => ({ ...prev, apartment: val, stockwerk: relatedStockwerk || prev.stockwerk }));
+                                            }
+                                        }}
+                                        style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                    >
+                                        <option value="">Wohnung wählen... (Optional)</option>
+                                        {[...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? (c.name.toLowerCase().includes('whg') || c.name.toLowerCase().includes('wohnung') ? c.name.trim().split(/\s+/).pop() : 'Whg. ' + c.name.trim().split(/\s+/).pop()) : '').filter(Boolean)])].sort().map(apt => (
+                                            <option key={apt} value={apt}>{apt}</option>
+                                        ))}
+                                        <option value="Sonstiges">Neue Wohnung eingeben...</option>
+                                    </select>
+
+                                    {/* Custom Apartment Input */}
+                                    {(!newRoom.apartment || (newRoom.apartment && ![...new Set([...formData.rooms.map(r => r.apartment).filter(Boolean), ...(formData.contacts || []).map(c => c.name ? (c.name.toLowerCase().includes('whg') || c.name.toLowerCase().includes('wohnung') ? c.name.trim().split(/\s+/).pop() : 'Whg. ' + c.name.trim().split(/\s+/).pop()) : '').filter(Boolean)])].sort().includes(newRoom.apartment))) && (
+                                        <input
+                                            type="text"
+                                            placeholder="Wohnung eingeben"
+                                            value={newRoom.apartment}
+                                            onChange={(e) => setNewRoom(prev => ({ ...prev, apartment: e.target.value }))}
+                                            className="form-input"
+                                            style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                        />
+                                    )}
+                                </div>
+
+                                <input
+                                    type="text"
+                                    placeholder="Stockwerk"
+                                    value={newRoom.stockwerk}
+                                    onChange={(e) => setNewRoom(prev => ({ ...prev, stockwerk: e.target.value }))}
+                                    className="form-input"
+                                    style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                />
+
+                                <select
+                                    value={newRoom.name}
+                                    onChange={(e) => setNewRoom(prev => ({ ...prev, name: e.target.value }))}
+                                    className="form-input"
+                                    style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                >
+                                    <option value="">Raum wählen...</option>
+                                    {ROOM_OPTIONS.map(opt => (
+                                        <option key={opt} value={opt}>{opt}</option>
+                                    ))}
+                                    <option value="Sonstiges">Sonstiges / Eigener Name</option>
+                                </select>
+
+                                {/* Custom Room Input if 'Sonstiges' or not in list */}
+                                {((newRoom.name === 'Sonstiges') || (newRoom.name === 'Sonstiges / Eigener Name') || (newRoom.name && !ROOM_OPTIONS.includes(newRoom.name))) && (
+                                    <input
+                                        type="text"
+                                        placeholder="Raum-Name eingeben"
+                                        value={newRoom.name === 'Sonstiges' || newRoom.name === 'Sonstiges / Eigener Name' ? '' : newRoom.name}
+                                        onChange={(e) => setNewRoom(prev => ({ ...prev, name: e.target.value }))}
+                                        className="form-input"
+                                        style={{ padding: '0.5rem', fontSize: '0.9rem' }}
+                                        autoFocus
+                                    />
+                                )}
+
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    onClick={() => {
+                                        handleAddRoom();
+                                        setShowAddRoomForm(false); // Auto-close after add
+                                    }}
+                                    disabled={!newRoom.name || newRoom.name === 'Sonstiges'}
+                                    style={{ marginTop: '0.5rem' }}
+                                >
+                                    <Check size={16} /> Speichern
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Massnahmen & Feststellungen */}
