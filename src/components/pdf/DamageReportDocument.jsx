@@ -127,7 +127,6 @@ const styles = StyleSheet.create({
         width: '100%',
         height: 150,
         objectFit: 'contain',
-        // backgroundColor: '#f1f5f9',
         borderRadius: 2,
     },
     imageDescription: {
@@ -212,18 +211,28 @@ const DamageReportDocument = ({ data }) => {
 
     const validRooms = React.useMemo(() => {
         if (!data.rooms || !data.images) return [];
+        console.log("PDF Document: Checking rooms for content...");
         const roomsWithContent = data.rooms.filter(room => {
-            // Check if room has images assigned and included in report
-            const hasImages = data.images.some(img =>
-                (img.roomId === room.id || img.assignedTo === room.name) &&
-                img.includeInReport !== false
-            );
-            // Also check for measurements? Previous logic focused on images mostly for this filtering
-            // But if room has only measurements, it should likely appear too?
-            // Line 1489 in DamageForm.jsx only checked IMAGES. 
-            // "dataToUse.images.some(img => ...)"
-            // I will match that logic strictly for now.
-            return hasImages;
+            const hasImages = (data.images || []).some(img => {
+                const assignedTo = String(img.assignedTo || '').trim().toLowerCase();
+                const roomName = String(room.name || '').trim().toLowerCase();
+                const imgRoomId = img.roomId ? String(img.roomId) : null;
+                const roomId = room.id ? String(room.id) : null;
+
+                return img.includeInReport !== false && (
+                    (imgRoomId && roomId && imgRoomId === roomId) ||
+                    (assignedTo === roomName)
+                );
+            });
+
+            // Relaxed filter: Show room if it has images OR measurement data OR description
+            const hasMeasurements = room.measurementData?.measurements?.length > 0 || room.measurementData?.locations?.length > 0;
+            const hasOtherContent = room.description || room.color || room.floor || room.notizen;
+
+            const isValid = hasImages || hasMeasurements || hasOtherContent;
+
+            if (isValid) console.log(`PDF Document: Room '${room.name}' mapped (Images: ${hasImages}, Measurements: ${hasMeasurements}).`);
+            return isValid;
         });
         return sortRooms(roomsWithContent);
     }, [data.rooms, data.images]);
@@ -341,6 +350,15 @@ const DamageReportDocument = ({ data }) => {
                         <Text style={styles.metaValue}>{data.damageType || '-'}</Text>
                     </View>
                 </View>
+
+                {/* Hero / Exterior Photo */}
+                {data.exteriorPhoto && (
+                    <View style={{ marginBottom: 20, alignItems: 'center' }} wrap={false}>
+                        <Image src={data.exteriorPhoto} style={{ width: '100%', height: 250, objectFit: 'contain', borderRadius: 4 }} />
+                        <Text style={[styles.imageDescription, { textAlign: 'center', marginTop: 5 }]}>Außenansicht / Übersicht</Text>
+                    </View>
+                )}
+
                 <View style={styles.divider} />
 
                 {/* Description */}
@@ -380,47 +398,6 @@ const DamageReportDocument = ({ data }) => {
                     </View>
                 )}
 
-                {/* Equipment Section */}
-                {data.equipment && data.equipment.length > 0 && (
-                    <View style={{ marginBottom: 20 }} wrap={false}>
-                        <View style={styles.divider} />
-                        <Text style={styles.sectionTitle}>TROCKNUNGSGERÄTE</Text>
-                        <View style={styles.table}>
-                            <View style={styles.tableHeaderRow}>
-                                <View style={{ width: '25%' }}><Text style={styles.tableHeader}>Gerät</Text></View>
-                                <View style={{ width: '35%' }}><Text style={styles.tableHeader}>Raum / Bereich</Text></View>
-                                <View style={{ width: '15%' }}><Text style={styles.tableHeader}>Nr.</Text></View>
-                                <View style={{ width: '12.5%' }}><Text style={styles.tableHeader}>Start</Text></View>
-                                <View style={{ width: '12.5%' }}><Text style={styles.tableHeader}>Ende</Text></View>
-                            </View>
-                            {data.equipment.map((item, idx) => (
-                                <View key={idx} style={[styles.tableRow, { borderBottomWidth: idx === data.equipment.length - 1 ? 0 : 1 }]}>
-                                    <View style={{ width: '25%' }}>
-                                        <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>{item.type || 'Trockner'}</Text>
-                                    </View>
-                                    <View style={{ width: '35%' }}>
-                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                                            <Text style={styles.tableCell}>{item.room || ''}</Text>
-                                            {item.apartment && <Text style={[styles.tableCell, { color: '#94A3B8', fontSize: 7 }]}>({item.apartment})</Text>}
-                                        </View>
-                                    </View>
-                                    <View style={{ width: '15%' }}>
-                                        <Text style={styles.tableCell}>#{item.deviceNumber || (idx + 1)}</Text>
-                                    </View>
-                                    <View style={{ width: '12.5%' }}>
-                                        <Text style={styles.tableCell}>{item.startDate ? new Date(item.startDate).toLocaleDateString('de-DE') : '-'}</Text>
-                                    </View>
-                                    <View style={{ width: '12.5%' }}>
-                                        <Text style={[styles.tableCell, { color: item.endDate ? '#334155' : '#10B981' }]}>
-                                            {item.endDate ? new Date(item.endDate).toLocaleDateString('de-DE') : 'Laufend'}
-                                        </Text>
-                                    </View>
-                                </View>
-                            ))}
-                        </View>
-                        <View style={styles.divider} />
-                    </View>
-                )}
 
                 {/* Raumdokumentation Section */}
                 {validRooms.map((room, index) => {
@@ -432,10 +409,14 @@ const DamageReportDocument = ({ data }) => {
                         currentFloor = room.stockwerk;
                     }
 
-                    const roomImages = data.images.filter(img =>
-                        (img.roomId === room.id || img.assignedTo === room.name) &&
-                        img.includeInReport !== false
-                    );
+                    const roomImages = data.images.filter(img => {
+                        const assignedTo = String(img.assignedTo || '').trim().toLowerCase();
+                        const roomName = String(room.name || '').trim().toLowerCase();
+                        return img.includeInReport !== false && (
+                            (img.roomId && String(img.roomId) === String(room.id)) ||
+                            (assignedTo === roomName)
+                        );
+                    });
 
                     const firstImage = roomImages[0];
                     const restImages = roomImages.slice(1);
@@ -482,7 +463,13 @@ const DamageReportDocument = ({ data }) => {
                                 {firstImage && (
                                     <View style={[styles.imageGrid, { marginBottom: 10 }]}>
                                         <View style={styles.imageContainer}>
-                                            <Image src={firstImage.preview} style={styles.image} />
+                                            {firstImage.preview ? (
+                                                <Image src={firstImage.preview} style={styles.image} />
+                                            ) : (
+                                                <View style={[styles.image, { alignItems: 'center', justifyContent: 'center' }]}>
+                                                    <Text style={{ fontSize: 8, color: '#ef4444' }}>[ BILD NICHT VERFÜGBAR ]</Text>
+                                                </View>
+                                            )}
                                             {firstImage.description && (
                                                 <Text style={styles.imageDescription}>{firstImage.description}</Text>
                                             )}
@@ -496,7 +483,13 @@ const DamageReportDocument = ({ data }) => {
                                 <View style={styles.imageGrid}>
                                     {restImages.map((img, i) => (
                                         <View key={i} style={styles.imageContainer} wrap={false}>
-                                            <Image src={img.preview} style={styles.image} />
+                                            {img.preview ? (
+                                                <Image src={img.preview} style={styles.image} />
+                                            ) : (
+                                                <View style={[styles.image, { alignItems: 'center', justifyContent: 'center' }]}>
+                                                    <Text style={{ fontSize: 8, color: '#ef4444' }}>[ BILD NICHT VERFÜGBAR ]</Text>
+                                                </View>
+                                            )}
                                             {img.description && (
                                                 <Text style={styles.imageDescription}>{img.description}</Text>
                                             )}
@@ -525,6 +518,44 @@ const DamageReportDocument = ({ data }) => {
                         <View style={styles.divider} />
                     </View>
                 )}
+
+                {/* Unassigned / Other Images - Ensuring NO images are lost */}
+                {(() => {
+                    const assignedToKnownSection = (img) => {
+                        if (img.assignedTo === 'Schadenfotos' || img.assignedTo === 'Pläne') return true;
+                        return data.rooms?.some(r => {
+                            const assignedTo = String(img.assignedTo || '').trim().toLowerCase();
+                            const roomName = String(r.name || '').trim().toLowerCase();
+                            return (img.roomId && String(img.roomId) === String(r.id)) || (assignedTo === roomName);
+                        });
+                    };
+                    const otherImages = data.images?.filter(img =>
+                        img.includeInReport !== false &&
+                        !assignedToKnownSection(img) &&
+                        !['Schadensbericht', 'Arbeitsrapporte', 'Messprotokolle'].includes(img.assignedTo)
+                    );
+
+                    if (otherImages && otherImages.length > 0) {
+                        console.log(`PDF Document: Rendering ${otherImages.length} unassigned images in 'Weitere Dokumentation'`);
+                        return (
+                            <View style={{ marginBottom: 20 }} wrap={false}>
+                                <View style={styles.divider} />
+                                <Text style={styles.sectionTitle}>WEITERE DOKUMENTATION</Text>
+                                <View style={styles.imageGrid}>
+                                    {otherImages.map((img, i) => (
+                                        <View key={i} style={styles.imageContainer}>
+                                            <Image src={img.preview} style={styles.image} />
+                                            {img.description && <Text style={styles.imageDescription}>{img.description}</Text>}
+                                            {!img.description && img.assignedTo && <Text style={styles.imageDescription}>Kategorie: {img.assignedTo}</Text>}
+                                        </View>
+                                    ))}
+                                </View>
+                                <View style={styles.divider} />
+                            </View>
+                        );
+                    }
+                    return null;
+                })()}
 
                 {/* Findings */}
                 {data.findings && (

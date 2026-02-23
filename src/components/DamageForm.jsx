@@ -1,5 +1,14 @@
 import UploadPanel from "./UploadPanel";
 import AiSuggestionsPanel from "./AiSuggestionsPanel";
+import { Buffer } from 'buffer';
+
+// Unified Polyfill for @react-pdf and other Node-dependencies in Browser/Vite
+if (typeof window !== 'undefined') {
+    window.Buffer = Buffer;
+    if (typeof window.global === 'undefined') {
+        window.global = window;
+    }
+}
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -73,7 +82,7 @@ const getDaysDiff = (start, end) => {
 
 const addAnnotationToImage = (imgSrc, type = 'circle') => {
     return new Promise((resolve) => {
-        const img = new Image();
+        const img = new window.Image();
         img.crossOrigin = 'Anonymous';
         img.onload = () => {
             const canvas = document.createElement('canvas');
@@ -1326,15 +1335,75 @@ END:VCARD`;
         const dataToUse = customFormData || formData;
         setIsGeneratingPDF(true);
 
-        const urlToDataUrl = async (url) => {
-            console.log("Processing Image URL:", url);
+        const urlToDataUrl = async (url, imgObj = null) => {
             if (!url) return null;
 
-            // Strategy: Use Canvas for Blobs (to ensure JPEG conversion and fix grey box), 
-            // but use standard Fetch for static assets like /logo.png (to ensure reliability).
-            if (url.startsWith('blob:')) {
+            const resizeImage = async (dataUrl) => {
+                if (!dataUrl) return null;
                 return new Promise((resolve) => {
-                    const img = new Image();
+                    const img = new window.Image();
+                    img.crossOrigin = "anonymous";
+                    img.onload = () => {
+                        const MAX_SIZE = 800; // Even more conservative
+                        let width = img.width;
+                        let height = img.height;
+                        if (width > height) {
+                            if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+                        } else {
+                            if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.6));
+                    };
+                    img.onerror = () => resolve(dataUrl.startsWith('data:') ? dataUrl : null);
+                    img.src = dataUrl;
+                });
+            };
+
+            // Force resize even for data URLs to prevent memory issues
+            if (url.startsWith('data:')) return await resizeImage(url);
+
+            // Method A: Supabase
+            if (supabase && (url.includes('supabase.co') || imgObj?.storagePath)) {
+                try {
+                    let path = imgObj?.storagePath || (url.includes('damage-images/') ? url.split('damage-images/')[1]?.split('?')[0] : null);
+                    if (path) {
+                        const { data, error } = await supabase.storage.from('damage-images').download(path);
+                        if (data && !error) {
+                            const raw = await new Promise((resolve) => {
+                                const reader = new FileReader();
+                                reader.onloadend = () => resolve(reader.result);
+                                reader.readAsDataURL(data);
+                            });
+                            return await resizeImage(raw);
+                        }
+                    }
+                } catch (e) { console.warn("PDF GEN: Supabase error", e); }
+            }
+
+            // Method B: Fetch (Standard)
+            try {
+                const response = await fetch(url, { cache: 'no-cache' });
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const raw = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(blob);
+                    });
+                    return await resizeImage(raw);
+                }
+            } catch (err) { /* silent fail, try next */ }
+
+            // Method C: Canvas Backup (CORS fallback)
+            try {
+                const raw = await new Promise((resolve) => {
+                    const img = new window.Image();
+                    img.crossOrigin = "anonymous";
                     img.onload = () => {
                         try {
                             const canvas = document.createElement('canvas');
@@ -1342,66 +1411,79 @@ END:VCARD`;
                             canvas.height = img.height;
                             const ctx = canvas.getContext('2d');
                             ctx.drawImage(img, 0, 0);
-                            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-                            resolve(dataUrl);
-                        } catch (err) {
-                            console.warn("Canvas conversion failed", err);
-                            resolve(null);
-                        }
+                            resolve(canvas.toDataURL('image/jpeg', 0.9));
+                        } catch (e) { resolve(null); }
                     };
-                    img.onerror = (e) => {
-                        console.warn("Image load error", e);
-                        resolve(null);
-                    };
+                    img.onerror = () => resolve(null);
                     img.src = url;
                 });
-            } else {
-                // Standard Fetch for local/remote assets
-                try {
-                    const response = await fetch(url);
-                    const blob = await response.blob();
-                    return new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
-                        reader.onerror = reject;
-                        reader.readAsDataURL(blob);
-                    });
-                } catch (e) {
-                    console.error("Failed to fetch image:", url, e);
-                    return null;
-                }
-            }
+                if (raw) return await resizeImage(raw);
+            } catch (err) { }
+            return await resizeImage(url);
         };
 
         try {
-            // Load Logo
-            // Load Logo
+            // Load Logo - High Quality Original
             let logoData = null;
             try {
-                const logoUrl = window.location.origin + '/logo.png';
-                console.log("Fetching Logo from:", logoUrl);
-                logoData = await urlToDataUrl(logoUrl);
-                console.log("Logo Data Length:", logoData ? logoData.length : 0);
-            } catch (e) { console.error("Logo load error:", e); }
+                const logoResp = await fetch(window.location.origin + '/logo.png');
+                if (logoResp.ok) {
+                    const blob = await logoResp.blob();
+                    logoData = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(blob);
+                    });
+                }
+            } catch (e) { console.error("Logo load error", e); }
 
-            // Pre-process images to Base64 (DataURL) for reliable PDF rendering
-            // This fixes issues where Blob URLs fail to load in the PDF context
-            const processedImages = await Promise.all(
+            // Pre-process images - Filter out PDFs and non-renderable documents
+            console.log("PDF GEN: Starting image processing...");
+            const tempProcessedImages = await Promise.all(
                 (dataToUse.images || []).map(async (img) => {
-                    if (img.includeInReport === false) return img;
+                    const category = String(img.assignedTo || '').trim().toLowerCase();
+                    const isDocCategory = ['schadensbericht', 'arbeitsrapporte', 'messprotokolle'].includes(category);
+                    const isProbablyPDF = img.preview?.toLowerCase().includes('.pdf') || img.type?.includes('pdf');
+
+                    if (img.includeInReport === false || isDocCategory || isProbablyPDF) {
+                        return { ...img, isRenderable: false };
+                    }
+
                     try {
-                        const base64 = await urlToDataUrl(img.preview);
-                        return { ...img, preview: base64 || img.preview };
+                        const base64 = await urlToDataUrl(img.preview, img);
+                        if (base64) {
+                            return { ...img, preview: base64, isRenderable: true };
+                        } else {
+                            return { ...img, isRenderable: false };
+                        }
                     } catch (e) {
-                        console.warn("Failed to convert image for PDF:", img.id, e);
-                        return img;
+                        return { ...img, isRenderable: false };
                     }
                 })
             );
 
+            // Final list for the PDF Document (only images)
+            const processedImages = tempProcessedImages.filter(img => img.isRenderable);
+
+            console.log("PDF GEN: Image processing phase complete.");
+            console.table(processedImages.map(img => ({
+                id: img.id,
+                category: img.assignedTo,
+                dataLength: img.preview?.startsWith('data:') ? img.preview.length : 'URL'
+            })));
+
             // Process Hero Images (Cause Photos marked for report)
             const causePhotos = processedImages.filter(img => img.assignedTo === 'Schadenfotos' && img.includeInReport !== false);
             const processedHeroImages = causePhotos.map(img => img.preview);
+
+            // Process Exterior Photo
+            let processedExteriorPhoto = dataToUse.exteriorPhoto;
+            if (processedExteriorPhoto) {
+                try {
+                    const base64Exterior = await urlToDataUrl(processedExteriorPhoto);
+                    if (base64Exterior) processedExteriorPhoto = base64Exterior;
+                } catch (e) { console.warn("Failed to convert exterior photo:", e); }
+            }
 
             // Prepare Data for Document Component
             const docData = {
@@ -1410,6 +1492,7 @@ END:VCARD`;
                 images: processedImages,
                 damageTypeImages: processedHeroImages, // All selected cause photos
                 damageTypeImage: processedHeroImages[0] || null, // Primary one for fallback
+                exteriorPhoto: processedExteriorPhoto,
                 logo: logoData,
             };
 
