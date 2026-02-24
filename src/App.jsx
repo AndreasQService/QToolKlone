@@ -311,106 +311,116 @@ function App() {
 
       <header className="app-header">
         <div className="container header-content" style={{ position: 'relative' }}>
-          <div className="logo-area">
+          <div className="logo-area" style={{ flexShrink: 0 }}>
             <div className="logo-img-container">
-              <img src="/logo.png" alt="QService" style={{ height: '40px', width: 'auto' }} onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
-              <div style={{ display: 'none', width: 40, height: 40, backgroundColor: 'var(--primary)', borderRadius: '50%', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>Q</div>
+              <img
+                src="/logo.png"
+                alt="QService"
+                style={{ height: '40px', width: 'auto' }}
+                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+              />
+              <div style={{ display: 'none', width: 40, height: 40, backgroundColor: 'var(--q-primary)', borderRadius: '50%', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '1.2rem' }}>Q</div>
             </div>
-            <span>Q-Service AG</span>
+            <span style={{ fontSize: '1.1rem', fontWeight: 700, letterSpacing: '-0.02em' }}>Q-Service AG</span>
           </div>
 
           {/* User Info & Logout (Centered) */}
-          <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ textAlign: 'center', fontSize: '0.8rem', lineHeight: 1.2 }}>
-              <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{currentUser.name}</div>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>{currentUser.role.toUpperCase()}</div>
+          <div style={{
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            background: 'rgba(255, 255, 255, 0.03)',
+            padding: '4px 12px',
+            borderRadius: '9999px',
+            border: '1px solid var(--border)'
+          }}>
+            <div style={{ textAlign: 'right', fontSize: '0.75rem', lineHeight: 1.2 }}>
+              <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{currentUser.name}</div>
+              <div style={{ color: 'var(--q-primary)', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>{currentUser.role}</div>
             </div>
+            <div style={{ width: '1px', height: '20px', background: 'var(--border)' }}></div>
             <button
               onClick={handleLogout}
               className="btn btn-ghost"
               title="Abmelden"
-              style={{ padding: '0.5rem', color: '#EF4444' }}
+              style={{ padding: '0.4rem', color: '#F87171', borderRadius: '50%' }}
             >
-              <LogOut size={18} />
+              <LogOut size={16} />
             </button>
           </div>
-          <nav>
-            {/* User Info & Logout (Always visible when logged in) */}
-            {/* User Info removed from here */}
 
+          <nav style={{ flexGrow: 1, display: 'flex', justifyContent: 'flex-end' }}>
             {view !== 'dashboard' && (
-              <button className="btn btn-outline" onClick={handleCancelEntry}>
+              <button className="btn btn-outline" onClick={handleCancelEntry} style={{ padding: '0.5rem 1rem' }}>
                 <LayoutDashboard size={18} />
-                {i18n.t('dashboard')}
+                <span className="hide-mobile">Dashboard</span>
               </button>
             )}
+
             {view === 'dashboard' && (
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-
-                {/* View Toggle */}
                 {userRole === 'admin' && (
                   <button
                     className={`btn ${isTechnicianMode ? 'btn-primary' : 'btn-outline'}`}
                     onClick={() => setIsTechnicianMode(!isTechnicianMode)}
-                    title={i18n.t('toggleTechnicianView')}
+                    style={{ padding: '0.5rem 1rem' }}
                   >
-                    {isTechnicianMode ? i18n.t('technicianView') : i18n.t('desktopView')}
+                    {isTechnicianMode ? 'Techniker' : 'Desktop'}
                   </button>
                 )}
 
                 {!isTechnicianMode && (
-                  <button className="btn btn-primary" onClick={() => { setSelectedReport(null); setView('new-report'); }}>
-                    <Plus size={18} />
-                    {i18n.t('newOrder')}
-                  </button>
-                )}
+                  <>
+                    <button className="btn btn-primary" onClick={() => { setSelectedReport(null); setView('new-report'); }}>
+                      <Plus size={18} />
+                      {i18n.t('newOrder')}
+                    </button>
 
-                {!isTechnicianMode && (
-                  <button
-                    className="btn btn-outline"
-                    onClick={() => setShowEmailImport(true)}
-                    title="Datenübernahme"
-                  >
-                    <Database size={18} />
-                    Datenübernahme
-                  </button>
+                    <button className="btn btn-outline" onClick={() => setShowEmailImport(true)}>
+                      <Database size={18} />
+                      <span className="hide-mobile">Import</span>
+                    </button>
+                  </>
                 )}
 
                 {/* Admin Tools Group */}
                 {userRole === 'admin' && !isTechnicianMode && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderLeft: '1px solid var(--border)', paddingLeft: '1rem', marginLeft: '0.5rem' }}>
-
-                    {/* Trocknungsgeräte */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    padding: '3px',
+                    borderRadius: '9999px',
+                    border: '1px solid var(--border)',
+                    marginLeft: '0.5rem'
+                  }}>
                     <button
-                      className="btn btn-outline"
+                      className="btn btn-ghost"
                       onClick={() => setView('devices')}
-                      title="Trocknungsgeräte verwalten"
-                      style={{ display: 'flex', gap: '0.5rem', padding: '0.5rem 0.75rem' }}
+                      title="Geräteverwaltung"
+                      style={{ padding: '0.5rem', color: view === 'devices' ? 'var(--q-primary)' : 'inherit' }}
                     >
                       <Settings size={18} />
-                      <span className="hide-mobile">Trockner</span>
                     </button>
-
-                    {/* Messgeräte */}
                     <button
-                      className="btn btn-outline"
+                      className="btn btn-ghost"
                       onClick={() => setShowMeasurementManager(true)}
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem' }}
-                      title="Messgeräte verwalten"
+                      title="Messgeräte"
+                      style={{ padding: '0.5rem' }}
                     >
                       <Thermometer size={18} />
-                      <span className="hide-mobile">Messgeräte</span>
                     </button>
-
-                    {/* Benutzer */}
                     <button
-                      className="btn btn-outline"
+                      className="btn btn-ghost"
                       onClick={() => setShowUserModal(true)}
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem' }}
-                      title="Benutzer & Rechte"
+                      title="Benutzer"
+                      style={{ padding: '0.5rem' }}
                     >
                       <Users size={18} />
-                      <span className="hide-mobile">Benutzer</span>
                     </button>
                   </div>
                 )}

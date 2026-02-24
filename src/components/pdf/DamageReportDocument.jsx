@@ -213,25 +213,32 @@ const DamageReportDocument = ({ data }) => {
         if (!data.rooms || !data.images) return [];
         console.log("PDF Document: Checking rooms for content...");
         const roomsWithContent = data.rooms.filter(room => {
+            // Check for visible images belonging to this room
             const hasImages = (data.images || []).some(img => {
                 const assignedTo = String(img.assignedTo || '').trim().toLowerCase();
                 const roomName = String(room.name || '').trim().toLowerCase();
                 const imgRoomId = img.roomId ? String(img.roomId) : null;
                 const roomId = room.id ? String(room.id) : null;
 
+                // data.images is already pre-filtered for includeInReport in DamageForm.jsx,
+                // but we double check here for safety.
                 return img.includeInReport !== false && (
                     (imgRoomId && roomId && imgRoomId === roomId) ||
                     (assignedTo === roomName)
                 );
             });
 
-            // Relaxed filter: Show room if it has images OR measurement data OR description
-            const hasMeasurements = room.measurementData?.measurements?.length > 0 || room.measurementData?.locations?.length > 0;
-            const hasOtherContent = room.description || room.color || room.floor || room.notizen;
+            // Check for textual content (Description or Notes)
+            const hasTextContent =
+                (room.description && String(room.description).trim() !== '') ||
+                (room.notizen && String(room.notizen).trim() !== '');
 
-            const isValid = hasImages || hasMeasurements || hasOtherContent;
+            // Room is valid if it has images OR relevant text
+            const isValid = hasImages || hasTextContent;
 
-            if (isValid) console.log(`PDF Document: Room '${room.name}' mapped (Images: ${hasImages}, Measurements: ${hasMeasurements}).`);
+            if (isValid) {
+                console.log(`PDF Document: Room '${room.name}' mapped (Images: ${hasImages}, Text: ${hasTextContent}).`);
+            }
             return isValid;
         });
         return sortRooms(roomsWithContent);

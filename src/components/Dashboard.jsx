@@ -333,20 +333,20 @@ export default function Dashboard({ reports, onSelectReport, onDeleteReport, mod
                                 }}
                             >
                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
-                                        <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {report.projectTitle || report.id}
-                                        </span>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.15rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-main)', fontSize: '1rem', fontWeight: 700, minWidth: 0 }}>
+                                            <MapPin size={14} style={{ flexShrink: 0, color: 'var(--primary)' }} />
+                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {report.street ? `${report.street}, ${report.city}` : (report.address ? report.address.split(',')[0] : 'Keine Adresse')}
+                                            </span>
+                                        </div>
                                         <span className={`status-badge ${statusColors[report.status] || 'bg-gray-100'}`} style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', whiteSpace: 'nowrap', marginLeft: '0.5rem', flexShrink: 0 }}>
                                             {report.status}
                                         </span>
                                     </div>
 
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '0' }}>
-                                        <MapPin size={12} style={{ flexShrink: 0 }} />
-                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {report.street ? `${report.street}, ${report.city}` : (report.address ? report.address.split(',')[0] : 'Keine Adresse')}
-                                        </span>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginLeft: '1.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {report.projectTitle || report.id}
                                     </div>
                                 </div>
                                 <ArrowRight size={18} style={{ color: 'var(--primary)', marginLeft: '0.5rem', flexShrink: 0 }} />

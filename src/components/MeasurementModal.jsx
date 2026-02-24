@@ -473,11 +473,84 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
                                 </button>
                             ) : (
                                 <>
-                                    <button onClick={() => { setIsScrollMode(false); setColor('#000000'); setLineWidth(2); }} style={{ padding: '0.5rem', borderRadius: '4px', background: (!isScrollMode && color === '#000000') ? 'rgba(255,255,255,0.1)' : 'transparent', border: '1px solid var(--border)' }} title="Stift Schwarz"><Pen size={16} color="var(--text-main)" /></button>
-                                    <button onClick={() => { setIsScrollMode(false); setColor('#ef4444'); setLineWidth(2); }} style={{ padding: '0.5rem', borderRadius: '4px', background: (!isScrollMode && color === '#ef4444') ? 'rgba(255,255,255,0.1)' : 'transparent', border: '1px solid var(--border)' }} title="Stift Rot"><Pen size={16} color="#ef4444" /></button>
-                                    <button onClick={() => { setIsScrollMode(false); setColor('#3b82f6'); setLineWidth(2); }} style={{ padding: '0.5rem', borderRadius: '4px', background: (!isScrollMode && color === '#3b82f6') ? 'rgba(255,255,255,0.1)' : 'transparent', border: '1px solid var(--border)' }} title="Stift Blau"><Pen size={16} color="#3b82f6" /></button>
-                                    <button onClick={() => { setIsScrollMode(false); setColor('#ffffff'); setLineWidth(15); }} style={{ padding: '0.5rem', borderRadius: '4px', background: (!isScrollMode && color === '#ffffff') ? 'rgba(255,255,255,0.1)' : 'transparent', border: '1px solid var(--border)' }} title="Radiergummi"><Eraser size={16} color="var(--text-main)" /></button>
-                                    <button onClick={() => setIsSketchLocked(true)} style={{ padding: '0.5rem', borderRadius: '4px', background: 'var(--success)', border: '1px solid var(--success)', color: 'white', marginLeft: '0.5rem' }} title="Skizze sperren (Fertig)"><Check size={16} /></button>
+                                    <button
+                                        onClick={() => { setIsScrollMode(false); setColor('#000000'); setLineWidth(2); }}
+                                        style={{
+                                            padding: '0.5rem 0.75rem',
+                                            borderRadius: '6px',
+                                            background: (!isScrollMode && color === '#000000') ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                                            border: (!isScrollMode && color === '#000000') ? '1px solid var(--primary)' : '1px solid var(--border)',
+                                            color: (!isScrollMode && color === '#000000') ? 'white' : 'var(--text-main)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.4rem'
+                                        }}
+                                        title="Stift Schwarz"
+                                    >
+                                        <Pen size={16} />
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Stift</span>
+                                    </button>
+                                    <button
+                                        onClick={() => { setIsScrollMode(false); setColor('#ef4444'); setLineWidth(2); }}
+                                        style={{
+                                            padding: '0.5rem',
+                                            borderRadius: '6px',
+                                            background: (!isScrollMode && color === '#ef4444') ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.05)',
+                                            border: (!isScrollMode && color === '#ef4444') ? '1px solid #ef4444' : '1px solid var(--border)',
+                                            color: '#ef4444'
+                                        }}
+                                        title="Stift Rot"
+                                    >
+                                        <Pen size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => { setIsScrollMode(false); setColor('#3b82f6'); setLineWidth(2); }}
+                                        style={{
+                                            padding: '0.5rem',
+                                            borderRadius: '6px',
+                                            background: (!isScrollMode && color === '#3b82f6') ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.05)',
+                                            border: (!isScrollMode && color === '#3b82f6') ? '1px solid #3b82f6' : '1px solid var(--border)',
+                                            color: '#3b82f6'
+                                        }}
+                                        title="Stift Blau"
+                                    >
+                                        <Pen size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => { setIsScrollMode(false); setColor('#ffffff'); setLineWidth(15); }}
+                                        style={{
+                                            padding: '0.5rem 0.75rem',
+                                            borderRadius: '6px',
+                                            background: (!isScrollMode && color === '#ffffff') ? '#f1f5f9' : 'rgba(255,255,255,0.05)',
+                                            border: (!isScrollMode && color === '#ffffff') ? '1px solid #cbd5e1' : '1px solid var(--border)',
+                                            color: '#475569',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.4rem'
+                                        }}
+                                        title="Radiergummi"
+                                    >
+                                        <Eraser size={16} />
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Radierer</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setIsSketchLocked(true)}
+                                        style={{
+                                            padding: '0.5rem 0.75rem',
+                                            borderRadius: '6px',
+                                            background: 'rgba(16, 185, 129, 0.15)',
+                                            border: '1px solid #10B981',
+                                            color: '#10B981',
+                                            marginLeft: '0.5rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.4rem'
+                                        }}
+                                        title="Skizze sperren"
+                                    >
+                                        <Check size={16} />
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Fertig</span>
+                                    </button>
                                 </>
                             )}
 
@@ -499,7 +572,23 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
                                 {stylusOnlyMode && <span style={{ marginLeft: '4px', fontSize: '0.75rem' }}>Nur Stift</span>}
                             </button>
 
-                            <button onClick={() => setIsScrollMode(!isScrollMode)} style={{ padding: '0.5rem', borderRadius: '4px', background: isScrollMode ? 'var(--primary)' : 'transparent', border: '1px solid var(--border)', color: isScrollMode ? 'white' : 'var(--text-main)' }} title={isScrollMode ? "Scrollen aktiv (Zeichnen deaktiviert)" : "Zeichnen aktiv"}><Hand size={16} /></button>
+                            <button
+                                onClick={() => setIsScrollMode(!isScrollMode)}
+                                style={{
+                                    padding: '0.5rem 0.75rem',
+                                    borderRadius: '6px',
+                                    background: isScrollMode ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                                    border: isScrollMode ? '1px solid var(--primary)' : '1px solid var(--border)',
+                                    color: isScrollMode ? 'white' : 'var(--text-main)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.4rem'
+                                }}
+                                title={isScrollMode ? "Scrollen aktiv (Zeichnen deaktiviert)" : "Zeichnen aktiv"}
+                            >
+                                <Hand size={16} />
+                                <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Scrollen</span>
+                            </button>
 
                             <div style={{ width: '1px', height: '24px', background: 'var(--border)', margin: '0 0.5rem' }}></div>
 
@@ -608,71 +697,9 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
 
                     {/* Measurements Table */}
                     <div style={{ padding: '1rem' }}>
-                        <h4 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '0.5rem', color: 'var(--text-main)' }}>
-                            {readOnly ? 'Messverlauf' : 'Messwerte'}
-                        </h4>
-
-                        {readOnly ? (
-                            <div style={{ overflowX: 'auto' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-                                    <thead>
-                                        <tr style={{ background: 'var(--background)', borderBottom: '2px solid var(--border)' }}>
-                                            <th style={{ padding: '0.5rem', textAlign: 'left', color: 'var(--text-muted)', minWidth: '100px' }}>Datum</th>
-                                            {historyColumns.map(col => (
-                                                <th key={col} style={{ padding: '0.5rem', textAlign: 'center', color: 'var(--text-muted)', minWidth: '120px' }}>
-                                                    {col}<br />
-                                                    <span style={{ fontSize: '0.7em', fontWeight: 'normal' }}>(W / B)</span>
-                                                </th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {historyRows.length > 0 ? (
-                                            historyRows.map(row => (
-                                                <tr key={row.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                                                    <td style={{ padding: '0.5rem', color: 'var(--text-muted)' }}>
-                                                        {row.date ? new Date(row.date).toLocaleDateString('de-CH') : '-'}
-                                                    </td>
-                                                    {historyColumns.map(col => {
-                                                        const cell = row.points[col];
-                                                        return (
-                                                            <td key={col} style={{ padding: '0.5rem', textAlign: 'center' }}>
-                                                                {cell ? (
-                                                                    <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                                                                        <span style={{
-                                                                            color: cell.w_color,
-                                                                            fontWeight: cell.w_color !== 'inherit' ? 'bold' : 'normal',
-                                                                            minWidth: '30px',
-                                                                            textAlign: 'right'
-                                                                        }}>
-                                                                            {cell.w_value || '-'}
-                                                                        </span>
-                                                                        <span style={{ color: 'var(--text-muted)' }}>/</span>
-                                                                        <span style={{
-                                                                            color: cell.b_color,
-                                                                            fontWeight: cell.b_color !== 'inherit' ? 'bold' : 'normal',
-                                                                            minWidth: '30px',
-                                                                            textAlign: 'left'
-                                                                        }}>
-                                                                            {cell.b_value || '-'}
-                                                                        </span>
-                                                                    </div>
-                                                                ) : (
-                                                                    <span style={{ color: 'var(--text-muted)' }}>-</span>
-                                                                )}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr><td colSpan={historyColumns.length + 1} style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)' }}>Keine historischen Daten vorhanden.</td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <>
+                        {/* Current Measurements Table (Only if not readOnly) */}
+                        {!readOnly && (
+                            <div style={{ marginBottom: '2rem' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                                     <thead>
                                         <tr style={{ background: 'var(--background)', borderBottom: '2px solid var(--border)' }}>
@@ -715,7 +742,7 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
                                                         value={row.b_value}
                                                         onChange={(e) => updateMeasurement(idx, 'b_value', e.target.value)}
                                                         className="form-input no-spinner"
-                                                        style={{ width: '100%', padding: '0.75rem', fontSize: '1rem', minHeight: '44px', touchAction: 'manipulation', userSelect: 'text', WebkitUserSelect: 'text' }}
+                                                        style={{ width: '100', padding: '0.75rem', fontSize: '1rem', minHeight: '44px', touchAction: 'manipulation', userSelect: 'text', WebkitUserSelect: 'text' }}
                                                         placeholder="Wert..."
                                                         autoComplete="off"
                                                     />
@@ -765,7 +792,77 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
                                 >
                                     <Plus size={16} /> weiteren Messpunkt hinzufügen
                                 </button>
-                            </>
+                            </div>
+                        )}
+
+                        {/* History Comparison Table */}
+                        {historyRows.length > 0 && (
+                            <div style={{ marginTop: (!readOnly ? '2rem' : '0') }}>
+                                <h4 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '0.5rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <RotateCcw size={16} /> Bisherige Messverläufe
+                                </h4>
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                        <thead>
+                                            <tr style={{ background: 'var(--background)', borderBottom: '2px solid var(--border)' }}>
+                                                <th style={{ padding: '0.5rem', textAlign: 'left', color: 'var(--text-muted)', minWidth: '100px' }}>Datum</th>
+                                                {historyColumns.map(col => (
+                                                    <th key={col} style={{ padding: '0.5rem', textAlign: 'center', color: 'var(--text-muted)', minWidth: '100px' }}>
+                                                        {col}<br />
+                                                        <span style={{ fontSize: '0.7em', fontWeight: 'normal' }}>(W / B)</span>
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {historyRows.map(row => (
+                                                <tr key={row.id} style={{ borderBottom: '1px solid var(--border)', backgroundColor: row.id === 'current' ? 'rgba(59, 130, 246, 0.05)' : 'transparent' }}>
+                                                    <td style={{ padding: '0.5rem', color: 'var(--text-muted)' }}>
+                                                        {row.date ? new Date(row.date).toLocaleDateString('de-CH') : '-'}
+                                                    </td>
+                                                    {historyColumns.map(col => {
+                                                        const cell = row.points[col];
+                                                        return (
+                                                            <td key={col} style={{ padding: '0.5rem', textAlign: 'center' }}>
+                                                                {cell ? (
+                                                                    <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
+                                                                        <span style={{
+                                                                            color: cell.w_color,
+                                                                            fontWeight: cell.w_color !== 'inherit' && cell.w_color !== 'var(--text-main)' ? 'bold' : 'normal',
+                                                                            minWidth: '25px',
+                                                                            textAlign: 'right'
+                                                                        }}>
+                                                                            {cell.w_value || '-'}
+                                                                        </span>
+                                                                        <span style={{ color: 'var(--text-muted)', opacity: 0.5 }}>/</span>
+                                                                        <span style={{
+                                                                            color: cell.b_color,
+                                                                            fontWeight: cell.b_color !== 'inherit' && cell.b_color !== 'var(--text-main)' ? 'bold' : 'normal',
+                                                                            minWidth: '25px',
+                                                                            textAlign: 'left'
+                                                                        }}>
+                                                                            {cell.b_value || '-'}
+                                                                        </span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span style={{ color: 'var(--text-muted)' }}>-</span>
+                                                                )}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {historyRows.length === 0 && readOnly && (
+                            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                <RotateCcw size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
+                                <p>Keine historischen Daten vorhanden.</p>
+                            </div>
                         )}
                     </div>
                 </div>

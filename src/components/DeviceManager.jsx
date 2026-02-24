@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash, Edit, X, Search, Monitor, Fan, Wind, Thermometer, Wrench, Download, Loader2, LogOut, ExternalLink } from 'lucide-react';
+import {
+    Plus, Trash, Edit, X, Search, Monitor, Fan, Wind,
+    Thermometer, Wrench, Download, Loader2, LogOut,
+    ExternalLink, CheckCircle2, AlertCircle, Package,
+    Zap, Hash, Activity, MapPin
+} from 'lucide-react';
 import generatedDevices from '../data/imported_devices.json';
 import { supabase } from '../supabaseClient';
 
@@ -17,20 +22,19 @@ const DEVICE_TYPES = [
     'Messgeräte'
 ];
 
-// Simple icons mapping
 const DEVICE_ICONS = {
-    'Kondenstrockner': <Monitor size={20} />,
-    'Adsorptionstrockner': <Monitor size={20} />,
-    'Seitenkanalverdichter': <Wind size={20} />,
-    'HEPA-Filter': <Wind size={20} />,
-    'Ventilator': <Fan size={20} />,
-    'Infrarotplatte': <Thermometer size={20} />,
-    'Estrich-Dämmschichttrocknung': <Wrench size={20} />,
-    'Messgeräte': <Thermometer size={20} />,
-    'Sonstiges': <Wrench size={20} />, // Keep legacy mapping just in case
-    'Bautrockner': <Monitor size={20} />,
-    'Turbinen': <Wind size={20} />,
-    'Wasserabscheider': <Wrench size={20} />
+    'Kondenstrockner': <Monitor size={18} />,
+    'Adsorptionstrockner': <Activity size={18} />,
+    'Seitenkanalverdichter': <Wind size={18} />,
+    'HEPA-Filter': <Wind size={18} />,
+    'Ventilator': <Fan size={18} />,
+    'Infrarotplatte': <Zap size={18} />,
+    'Estrich-Dämmschichttrocknung': <Wrench size={18} />,
+    'Messgeräte': <Thermometer size={18} />,
+    'Bautrockner': <Monitor size={18} />,
+    'Turbinen': <Wind size={18} />,
+    'Wasserabscheider': <Package size={18} />,
+    'Sonstiges': <Wrench size={18} />
 };
 
 export default function DeviceManager({ onBack, onNavigateToReport, reports = [] }) {
@@ -41,14 +45,13 @@ export default function DeviceManager({ onBack, onNavigateToReport, reports = []
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // Initial load from Supabase
     useEffect(() => {
         fetchDevices();
     }, []);
 
     const fetchDevices = async () => {
         if (!supabase) {
-            setError("Supabase ist nicht konfiguriert. Bitte prüfen Sie Ihre .env Datei.");
+            setError("Supabase ist nicht konfiguriert.");
             return;
         }
         setIsLoading(true);
@@ -57,7 +60,7 @@ export default function DeviceManager({ onBack, onNavigateToReport, reports = []
             const { data, error } = await supabase
                 .from('devices')
                 .select('*')
-                .order('number', { ascending: true }); // Numeric string sort might be tricky, but ok for now
+                .order('number', { ascending: true });
 
             if (error) throw error;
             setDevices(data || []);
@@ -74,7 +77,6 @@ export default function DeviceManager({ onBack, onNavigateToReport, reports = []
         setIsLoading(true);
         try {
             if (currentDevice.id) {
-                // Update
                 const { error } = await supabase
                     .from('devices')
                     .update({
@@ -87,7 +89,6 @@ export default function DeviceManager({ onBack, onNavigateToReport, reports = []
                     .eq('id', currentDevice.id);
                 if (error) throw error;
             } else {
-                // Create
                 const { error } = await supabase
                     .from('devices')
                     .insert([{
@@ -99,7 +100,6 @@ export default function DeviceManager({ onBack, onNavigateToReport, reports = []
                     }]);
                 if (error) throw error;
             }
-            // Refresh list
             await fetchDevices();
             setIsEditing(false);
             setCurrentDevice(null);
@@ -122,18 +122,18 @@ export default function DeviceManager({ onBack, onNavigateToReport, reports = []
                 await fetchDevices();
             } catch (e) {
                 setError("Fehler beim Löschen: " + e.message);
-                setIsLoading(false); // Only set false here because fetchDevices handles it otherwise
+                setIsLoading(false);
             }
         }
     };
 
     const handleReleaseDevice = async (id, projectName) => {
-        if (window.confirm(`Möchten Sie das Gerät wirklich aus dem Projekt "${projectName}" freigeben?\n\nHinweis: Dies setzt nur den Status zurück. Bitte prüfen Sie den Bericht separat, falls nötig.`)) {
+        if (window.confirm(`Möchten Sie das Gerät wirklich aus dem Projekt "${projectName}" freigeben ? `)) {
             setIsLoading(true);
             try {
                 const { error } = await supabase
                     .from('devices')
-                    .update({ current_project: null })
+                    .update({ current_project: null, current_report_id: null })
                     .eq('id', id);
 
                 if (error) throw error;
@@ -146,12 +146,9 @@ export default function DeviceManager({ onBack, onNavigateToReport, reports = []
     };
 
     const handleImportStandard = async () => {
-        if (window.confirm('Möchten Sie die Standard-Geräteliste importieren? Bestehende Daten werden ergänzt.')) {
+        if (window.confirm('Möchten Sie die Standard-Geräteliste importieren?')) {
             setIsLoading(true);
             try {
-                // Get existing numbers to avoid duplicates if possible, 
-                // but for now let's just insert checking for duplicates might be complex client-side
-                // easier to just fetch all numbers first.
                 const { data: existingData } = await supabase.from('devices').select('number');
                 const existingNumbers = new Set(existingData?.map(d => d.number));
 
@@ -165,7 +162,7 @@ export default function DeviceManager({ onBack, onNavigateToReport, reports = []
                     }));
 
                 if (devicesToImport.length === 0) {
-                    alert('Keine neuen Geräte zum Importieren gefunden (basierend auf Inventar-Nr).');
+                    alert('Keine neuen Geräte zum Importieren gefunden.');
                 } else {
                     const { error } = await supabase.from('devices').insert(devicesToImport);
                     if (error) throw error;
@@ -180,7 +177,6 @@ export default function DeviceManager({ onBack, onNavigateToReport, reports = []
         }
     };
 
-    // Safe filter
     const filteredDevices = devices.filter(d => {
         if (!d) return false;
         const num = d.number ? String(d.number).toLowerCase() : '';
@@ -191,188 +187,264 @@ export default function DeviceManager({ onBack, onNavigateToReport, reports = []
     });
 
     return (
-        <div className="container" style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <h1 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--primary)' }}>Geräteverwaltung</h1>
-                <button onClick={onBack} className="btn btn-outline">Zurück zum Dashboard</button>
+        <div className="container" style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '2.5rem',
+                background: 'rgba(255, 255, 255, 0.03)',
+                padding: '1.5rem',
+                borderRadius: 'var(--radius)',
+                border: '1px solid var(--border)',
+                backdropFilter: 'blur(10px)'
+            }}>
+                <div>
+                    <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--primary)', letterSpacing: '-0.02em', margin: 0 }}>
+                        Geräteverwaltung
+                    </h1>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
+                        Zentrale Übersicht und Statuskontrolle des Inventars
+                    </p>
+                </div>
+                <button onClick={onBack} className="btn btn-outline" style={{ borderRadius: '9999px', padding: '0.6rem 1.5rem' }}>
+                    Dashboard
+                </button>
             </div>
 
-            <div className="card" style={{ marginBottom: '2rem' }}>
-                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div className="card" style={{
+                border: '1px solid var(--border)',
+                background: 'rgba(30, 41, 59, 0.5)',
+                backdropFilter: 'blur(20px)',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+            }}>
+                <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
                     <div style={{ position: 'relative', flex: 1 }}>
-                        <Search size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <Search size={18} style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                         <input
                             type="text"
                             className="form-input"
-                            style={{ paddingLeft: '3rem' }}
-                            placeholder="Suche nach Nummer, Modell oder Typ..."
+                            style={{
+                                paddingLeft: '3.5rem',
+                                borderRadius: '9999px',
+                                background: 'rgba(15, 23, 42, 0.5)',
+                                border: '1px solid var(--border)'
+                            }}
+                            placeholder="Inventar-Nr., Modell oder Typ durchsuchen..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <button
-                        className="btn btn-outline"
-                        onClick={handleImportStandard}
-                        title="Standard-Liste importieren"
-                        disabled={isLoading}
-                    >
-                        <Download size={20} style={{ marginRight: '0.5rem' }} />
-                        Import
-                    </button>
-                    <button
-                        className="btn btn-primary"
-                        onClick={() => {
-                            setCurrentDevice({ number: '', type: 'Kondenstrockner', model: '', status: 'Aktiv', energy_consumption: '' });
-                            setIsEditing(true);
-                        }}
-                        disabled={isLoading}
-                    >
-                        <Plus size={20} style={{ marginRight: '0.5rem' }} />
-                        Neues Gerät
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        <button
+                            className="btn btn-outline"
+                            onClick={handleImportStandard}
+                            style={{ borderRadius: '9999px', fontSize: '0.9rem' }}
+                            disabled={isLoading}
+                        >
+                            <Download size={18} />
+                            Import
+                        </button>
+                        <button
+                            className="btn btn-primary"
+                            onClick={() => {
+                                setCurrentDevice({ number: '', type: 'Kondenstrockner', model: '', status: 'Aktiv', energy_consumption: '' });
+                                setIsEditing(true);
+                            }}
+                            style={{ borderRadius: '9999px', fontSize: '0.9rem', boxShadow: '0 4px 12px rgba(15, 110, 163, 0.3)' }}
+                            disabled={isLoading}
+                        >
+                            <Plus size={18} />
+                            Gerät hinzufügen
+                        </button>
+                    </div>
                 </div>
 
                 {error && (
-                    <div style={{ padding: '1rem', backgroundColor: '#FEE2E2', color: '#B91C1C', borderRadius: '0.5rem', marginBottom: '1rem' }}>
+                    <div style={{
+                        padding: '1rem',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        color: '#FCA5A5',
+                        borderRadius: 'var(--radius)',
+                        marginBottom: '1.5rem',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem'
+                    }}>
+                        <AlertCircle size={20} />
                         {error}
                     </div>
                 )}
 
-                <div className="table-container">
+                <div className="table-container" style={{ border: 'none', background: 'transparent' }}>
                     {isLoading ? (
-                        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            <Loader2 className="animate-spin" size={32} style={{ margin: '0 auto 1rem' }} />
-                            <p>Lade Daten...</p>
+                        <div style={{ padding: '5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            <Loader2 className="animate-spin" size={40} style={{ margin: '0 auto 1rem', color: 'var(--primary)' }} />
+                            <p style={{ fontWeight: 500 }}>Aktualisiere Inventarliste...</p>
                         </div>
                     ) : (
-                        <table className="data-table" style={{ width: '100%' }}>
+                        <table className="data-table">
                             <thead>
                                 <tr>
-                                    <th style={{ textAlign: 'left' }}>Nr.</th>
-                                    <th style={{ textAlign: 'left' }}>Typ</th>
-                                    <th style={{ textAlign: 'left' }}>Modell</th>
-                                    <th style={{ textAlign: 'right' }}>kW</th>
-                                    <th style={{ textAlign: 'center' }}>Status</th>
-                                    <th style={{ textAlign: 'left' }}>Einsatzort</th>
-                                    <th style={{ textAlign: 'left' }}>Auftraggeber</th>
-                                    <th style={{ textAlign: 'left' }}>Bewirtschafter</th>
-                                    <th style={{ textAlign: 'right' }}>Aktionen</th>
+                                    <th style={{ background: 'transparent', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Nr.</th>
+                                    <th style={{ background: 'transparent', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Typ</th>
+                                    <th style={{ background: 'transparent', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Modell / kW</th>
+                                    <th style={{ background: 'transparent', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'center' }}>Status</th>
+                                    <th style={{ background: 'transparent', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Aktueller Einsatz</th>
+                                    <th style={{ background: 'transparent', textAlign: 'right' }}></th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredDevices.map(device => (
-                                    <tr key={device.id}>
-                                        <td style={{ fontWeight: 'bold' }}>#{device.number}</td>
-                                        <td>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                {DEVICE_ICONS[device.type] || <Wrench size={20} />}
-                                                {device.type}
-                                            </div>
-                                        </td>
-                                        <td>{device.model || '-'}</td>
-                                        <td style={{ textAlign: 'right', fontWeight: 500, color: 'var(--text-muted)' }}>{device.energy_consumption ? `${device.energy_consumption} kW` : '-'}</td>
-                                        <td style={{ textAlign: 'center' }}>
-                                            <span style={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                padding: '0.25rem 0.75rem',
-                                                borderRadius: '6px',
-                                                backgroundColor: device.current_project ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                                                color: device.current_project ? '#FCA5A5' : '#86EFAC',
-                                                border: device.current_project ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)',
-                                                fontSize: '0.75rem',
-                                                fontWeight: 500,
-                                                whiteSpace: 'nowrap',
-                                                minWidth: '80px'
-                                            }}>
-                                                {device.current_project ? 'Im Einsatz' : 'Lager'}
-                                            </span>
-                                        </td>
-                                        <td style={{ fontSize: '0.9rem' }}>
-                                            {device.current_project ? (
-                                                <button
-                                                    onClick={() => onNavigateToReport && onNavigateToReport(device.current_project)}
-                                                    className="btn-ghost"
-                                                    style={{
-                                                        color: 'var(--primary)',
-                                                        fontWeight: 500,
+                                {filteredDevices.map(device => {
+                                    const report = device.current_project ? reports.find(r => r.id === device.current_project || r.projectTitle === device.current_project) : null;
+
+                                    return (
+                                        <tr key={device.id} style={{ transition: 'background 0.2s' }} className="report-row">
+                                            <td style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '1rem' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                    <Hash size={14} style={{ opacity: 0.5 }} />
+                                                    {device.number}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                    <div style={{
+                                                        width: '32px',
+                                                        height: '32px',
+                                                        borderRadius: '8px',
+                                                        background: 'rgba(255,255,255,0.05)',
                                                         display: 'flex',
                                                         alignItems: 'center',
-                                                        gap: '0.5rem',
-                                                        padding: '0.25rem 0.5rem',
-                                                        borderRadius: '4px',
-                                                        cursor: 'pointer',
-                                                        textAlign: 'left',
-                                                        width: '100%',
-                                                        background: 'transparent',
-                                                        border: 'none',
-                                                        fontSize: 'inherit'
-                                                    }}
-                                                    title={`Zum Auftrag "${device.current_project}" springen`}
-                                                >
-                                                    {device.current_project}
-                                                    <ExternalLink size={14} />
-                                                </button>
-                                            ) : (
-                                                <span style={{ color: 'var(--text-muted)' }}>-</span>
-                                            )}
-                                        </td>
-                                        <td>
-                                            {(() => {
-                                                const report = device.current_project ? reports.find(r => r.id === device.current_project || r.projectTitle === device.current_project) : null;
-                                                return <span style={{ fontSize: '0.9rem' }}>{report?.client || '-'}</span>
-                                            })()}
-                                        </td>
-                                        <td>
-                                            {(() => {
-                                                const report = device.current_project ? reports.find(r => r.id === device.current_project || r.projectTitle === device.current_project) : null;
-                                                return <span style={{ fontSize: '0.9rem' }}>{report?.assignedTo || '-'}</span>
-                                            })()}
-                                        </td>
-                                        <td style={{ textAlign: 'right' }}>
-                                            {device.current_project && (
-                                                <button
-                                                    className="btn btn-ghost"
-                                                    style={{ color: '#F59E0B', padding: '0.5rem' }}
-                                                    onClick={() => handleReleaseDevice(device.id, device.current_project)}
-                                                    title={`Gerät aus "${device.current_project}" abmelden (Status zurücksetzen)`}
-                                                >
-                                                    <LogOut size={18} />
-                                                </button>
-                                            )}
-                                            <button
-                                                className="btn btn-ghost"
-                                                style={{ color: 'var(--primary)', padding: '0.5rem' }}
-                                                onClick={() => {
-                                                    setCurrentDevice(device);
-                                                    setIsEditing(true);
-                                                }}
-                                            >
-                                                <Edit size={18} />
-                                            </button>
-                                            <button
-                                                className="btn btn-ghost"
-                                                style={{ color: '#EF4444', padding: '0.5rem' }}
-                                                onClick={() => handleDelete(device.id)}
-                                            >
-                                                <Trash size={18} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                                        justifyContent: 'center',
+                                                        color: 'var(--primary)'
+                                                    }}>
+                                                        {DEVICE_ICONS[device.type] || <Package size={18} />}
+                                                    </div>
+                                                    <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{device.type}</div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{device.model || '-'}</div>
+                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                                    <Zap size={12} /> {device.energy_consumption || '0.0'} kW
+                                                </div>
+                                            </td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <span style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    padding: '0.35rem 1rem',
+                                                    borderRadius: '9999px',
+                                                    background: device.current_project ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                                                    color: device.current_project ? '#FCA5A5' : '#10B981',
+                                                    border: `1px solid ${device.current_project ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'} `,
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 600,
+                                                    letterSpacing: '0.02em'
+                                                }}>
+                                                    <div style={{
+                                                        width: '6px',
+                                                        height: '6px',
+                                                        borderRadius: '50%',
+                                                        background: 'currentColor',
+                                                        marginRight: '0.5rem',
+                                                        boxShadow: '0 0 8px currentColor'
+                                                    }}></div>
+                                                    {device.current_project ? 'IM EINSATZ' : 'VERFÜGBAR'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {device.current_project ? (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                                        <button
+                                                            onClick={() => onNavigateToReport && onNavigateToReport(device.current_project)}
+                                                            style={{
+                                                                color: 'var(--text-main)',
+                                                                fontWeight: 700,
+                                                                fontSize: '0.85rem',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.5rem',
+                                                                padding: 0,
+                                                                background: 'transparent',
+                                                                border: 'none',
+                                                                cursor: 'pointer',
+                                                                textAlign: 'left'
+                                                            }}
+                                                            title="Zum Projekt springen"
+                                                        >
+                                                            {device.current_project}
+                                                            <ExternalLink size={12} style={{ opacity: 0.6 }} />
+                                                        </button>
+                                                        <div style={{
+                                                            fontSize: '0.75rem',
+                                                            color: 'var(--primary)',
+                                                            fontWeight: 600,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.3rem'
+                                                        }}>
+                                                            <MapPin size={10} />
+                                                            {report?.locationDetails || 'Schadenort nicht definiert'}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                                                            {report?.client || 'Kein Kunde'}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', opacity: 0.6 }}>Lager</span>
+                                                )}
+                                            </td>
+                                            <td style={{ textAlign: 'right' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                                    {device.current_project && (
+                                                        <button
+                                                            className="btn btn-ghost"
+                                                            style={{ color: '#F59E0B', padding: '0.5rem', borderRadius: '8px' }}
+                                                            onClick={(e) => { e.stopPropagation(); handleReleaseDevice(device.id, device.current_project); }}
+                                                            title="Freigeben"
+                                                        >
+                                                            <LogOut size={18} />
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        className="btn btn-ghost"
+                                                        style={{ color: 'var(--primary)', padding: '0.5rem', borderRadius: '8px' }}
+                                                        onClick={(e) => { e.stopPropagation(); setCurrentDevice(device); setIsEditing(true); }}
+                                                        title="Bearbeiten"
+                                                    >
+                                                        <Edit size={18} />
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-ghost"
+                                                        style={{ color: 'rgba(239, 68, 68, 0.7)', padding: '0.5rem', borderRadius: '8px' }}
+                                                        onClick={(e) => { e.stopPropagation(); handleDelete(device.id); }}
+                                                        title="Löschen"
+                                                    >
+                                                        <Trash size={18} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                                 {filteredDevices.length === 0 && !isLoading && (
                                     <tr>
-                                        <td colSpan={5} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-                                                <p>Keine Geräte gefunden.</p>
+                                        <td colSpan={6} style={{ textAlign: 'center', padding: '5rem' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem' }}>
+                                                <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '50%' }}>
+                                                    <Package size={48} style={{ color: 'var(--text-muted)', opacity: 0.3 }} />
+                                                </div>
+                                                <div style={{ color: 'var(--text-muted)', fontSize: '1rem', fontWeight: 500 }}>
+                                                    Keine Geräte in diesem Filter gefunden.
+                                                </div>
                                                 <button
                                                     className="btn btn-outline"
                                                     onClick={handleImportStandard}
-                                                    style={{ padding: '0.75rem 1.5rem' }}
+                                                    style={{ borderRadius: '9999px' }}
                                                 >
-                                                    <Download size={20} style={{ marginRight: '0.5rem' }} />
-                                                    Standard-Geräteliste importieren
+                                                    Standardliste importieren
                                                 </button>
                                             </div>
                                         </td>
@@ -388,85 +460,104 @@ export default function DeviceManager({ onBack, onNavigateToReport, reports = []
             {isEditing && (
                 <div style={{
                     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+                    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                    backdropFilter: 'blur(8px)',
+                    display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000,
+                    padding: '1rem'
                 }}>
-                    <div className="card" style={{ width: '100%', maxWidth: '500px', padding: '2rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                            <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>
-                                {currentDevice.id ? 'Gerät bearbeiten' : 'Neues Gerät'}
+                    <div className="card" style={{
+                        width: '100%',
+                        maxWidth: '500px',
+                        padding: '2.5rem',
+                        background: 'var(--surface)',
+                        border: '1px solid var(--border)',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+                        position: 'relative'
+                    }}>
+                        <button
+                            onClick={() => setIsEditing(false)}
+                            style={{
+                                position: 'absolute', top: '1.5rem', right: '1.5rem',
+                                background: 'rgba(255,255,255,0.05)', border: 'none', cursor: 'pointer',
+                                width: '32px', height: '32px', borderRadius: '50%',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: 'var(--text-muted)', transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.color = 'white'}
+                        >
+                            <X size={20} />
+                        </button>
+
+                        <div style={{ marginBottom: '2rem' }}>
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '0.5rem' }}>
+                                {currentDevice.id ? 'Gerätedaten anpassen' : 'Neues Inventar anlegen'}
                             </h2>
-                            <button onClick={() => setIsEditing(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                                <X size={24} />
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                                Erfassen Sie die technischen Details für das Inventarsystem.
+                            </p>
+                        </div>
+
+                        <div style={{ display: 'grid', gap: '1.25rem' }}>
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label className="form-label" style={{ opacity: 0.8 }}>Inventar-Nr.</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    value={currentDevice.number}
+                                    onChange={(e) => setCurrentDevice(prev => ({ ...prev, number: e.target.value }))}
+                                    placeholder="z.B. QS-101"
+                                    style={{ background: 'rgba(15, 23, 42, 0.3)' }}
+                                />
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label className="form-label" style={{ opacity: 0.8 }}>Gerätetyp</label>
+                                <select
+                                    className="form-input"
+                                    value={currentDevice.type}
+                                    onChange={(e) => setCurrentDevice(prev => ({ ...prev, type: e.target.value }))}
+                                    style={{ background: 'rgba(15, 23, 42, 0.3)' }}
+                                >
+                                    {DEVICE_TYPES.map(type => (
+                                        <option key={type} value={type}>{type}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label className="form-label" style={{ opacity: 0.8 }}>Hersteller / Modell</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    value={currentDevice.model}
+                                    onChange={(e) => setCurrentDevice(prev => ({ ...prev, model: e.target.value }))}
+                                    placeholder="z.B. Trotec TTK 100"
+                                    style={{ background: 'rgba(15, 23, 42, 0.3)' }}
+                                />
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label className="form-label" style={{ opacity: 0.8 }}>Anschlusswert (kW)</label>
+                                <select
+                                    className="form-input"
+                                    value={currentDevice.energy_consumption || ''}
+                                    onChange={(e) => setCurrentDevice(prev => ({ ...prev, energy_consumption: e.target.value }))}
+                                    style={{ background: 'rgba(15, 23, 42, 0.3)' }}
+                                >
+                                    <option value="">Nicht definiert</option>
+                                    {[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0].map(kw => (
+                                        <option key={kw} value={kw}>{kw} kW</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '1rem', marginTop: '3rem' }}>
+                            <button className="btn btn-outline" onClick={() => setIsEditing(false)} style={{ flex: 1, borderRadius: '9999px' }}>
+                                Abbrechen
                             </button>
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">Geräte-Nummer (Inventar-Nr.)</label>
-                            <input
-                                type="text"
-                                className="form-input"
-                                value={currentDevice.number}
-                                onChange={(e) => setCurrentDevice(prev => ({ ...prev, number: e.target.value }))}
-                                placeholder="z.B. 101"
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">Typ</label>
-                            <select
-                                className="form-input"
-                                value={currentDevice.type}
-                                onChange={(e) => setCurrentDevice(prev => ({ ...prev, type: e.target.value }))}
-                            >
-                                {DEVICE_TYPES.map(type => (
-                                    <option key={type} value={type}>{type}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">Hersteller / Modell</label>
-                            <input
-                                type="text"
-                                className="form-input"
-                                value={currentDevice.model}
-                                onChange={(e) => setCurrentDevice(prev => ({ ...prev, model: e.target.value }))}
-                                placeholder="z.B. Trotec TTK 100"
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">Energiebedarf (kW)</label>
-                            <select
-                                className="form-input"
-                                value={currentDevice.energy_consumption || ''}
-                                onChange={(e) => setCurrentDevice(prev => ({ ...prev, energy_consumption: e.target.value }))}
-                            >
-                                <option value="">Wählen...</option>
-                                <option value="0.1">0.1 kW</option>
-                                <option value="0.2">0.2 kW</option>
-                                <option value="0.3">0.3 kW</option>
-                                <option value="0.4">0.4 kW</option>
-                                <option value="0.5">0.5 kW</option>
-                                <option value="0.6">0.6 kW</option>
-                                <option value="0.7">0.7 kW</option>
-                                <option value="0.8">0.8 kW</option>
-                                <option value="0.9">0.9 kW</option>
-                                <option value="1.0">1.0 kW</option>
-                                <option value="1.2">1.2 kW</option>
-                                <option value="1.5">1.5 kW</option>
-                                <option value="2.0">2.0 kW</option>
-                                <option value="2.5">2.5 kW</option>
-                                <option value="3.0">3.0 kW</option>
-                            </select>
-                        </div>
-
-
-
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem' }}>
-                            <button className="btn btn-outline" onClick={() => setIsEditing(false)}>Abbrechen</button>
-                            <button className="btn btn-primary" onClick={handleSave} disabled={isLoading}>
-                                {isLoading ? 'Speichert...' : 'Speichern'}
+                            <button className="btn btn-primary" onClick={handleSave} disabled={isLoading} style={{ flex: 2, borderRadius: '9999px', fontWeight: 700 }}>
+                                {isLoading ? <Loader2 className="animate-spin" size={20} /> : (currentDevice.id ? 'Speichern' : 'Hinzufügen')}
                             </button>
                         </div>
                     </div>
