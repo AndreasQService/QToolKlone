@@ -2887,532 +2887,535 @@ END:VCARD`;
                             </h3>
                         )}
                     </div>
+                </div>
 
 
-                    {/* Schadenursache - Cause & Photos (Desktop Only) */}
-                    {mode === 'desktop' && (
-                        <div className="card" style={{ marginBottom: '2rem', border: '1px solid var(--border)', padding: '1.5rem', backgroundColor: 'var(--surface)' }}>
-                            <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem', color: 'var(--text-main)' }}>Schadenursache</h3>
+                {/* Schadenursache - Cause & Photos (Desktop Only) */}
+                {mode === 'desktop' && (
+                    <div className="card" style={{ marginBottom: '2rem', border: '1px solid var(--border)', padding: '1.5rem', backgroundColor: 'var(--surface)' }}>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem', color: 'var(--text-main)' }}>Schadenursache</h3>
 
-                            {/* Cause / Description */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginBottom: '2rem' }}>
-                                <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Schadenursache</span>
-                                    <textarea
-                                        className="form-input"
-                                        rows={3}
-                                        value={formData.cause || ''}
-                                        onChange={e => setFormData({ ...formData, cause: e.target.value })}
-                                        placeholder="Beschreibung der Ursache..."
-                                    />
-                                </label>
+                        {/* Cause / Description */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginBottom: '2rem' }}>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Schadenursache</span>
+                                <textarea
+                                    className="form-input"
+                                    rows={3}
+                                    value={formData.cause || ''}
+                                    onChange={e => setFormData({ ...formData, cause: e.target.value })}
+                                    placeholder="Beschreibung der Ursache..."
+                                />
+                            </label>
+                        </div>
+
+                        {/* Photos (Schadenfotos) */}
+                        <div>
+
+
+                            <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-main)' }}>Fotos zur Ursache</h4>
+
+                            {/* Upload Zone */}
+                            <div
+                                style={{
+                                    border: '2px dashed var(--border)',
+                                    borderRadius: 'var(--radius)',
+                                    padding: '2rem 1rem',
+                                    textAlign: 'center',
+                                    cursor: 'pointer',
+                                    backgroundColor: 'rgba(255,255,255,0.02)',
+                                    transition: 'all 0.2s',
+                                    marginBottom: '1rem',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'var(--text-muted)'
+                                }}
+                                onClick={() => document.getElementById('file-upload-Schadenfotos-desktop').click()}
+                                onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)'; e.currentTarget.style.color = 'var(--primary)'; }}
+                                onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                                onDrop={(e) => handleCategoryDrop(e, 'Schadenfotos')}
+                            >
+                                <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                                <span style={{ fontSize: '0.85rem' }}>Schadenfoto hochladen / Drop</span>
+                                <input id="file-upload-Schadenfotos-desktop" type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={(e) => handleCategorySelect(e, 'Schadenfotos')} />
                             </div>
 
-                            {/* Photos (Schadenfotos) */}
-                            <div>
-
-
-                                <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-main)' }}>Fotos zur Ursache</h4>
-
-                                {/* Upload Zone */}
-                                <div
-                                    style={{
-                                        border: '2px dashed var(--border)',
-                                        borderRadius: 'var(--radius)',
-                                        padding: '2rem 1rem',
-                                        textAlign: 'center',
-                                        cursor: 'pointer',
-                                        backgroundColor: 'rgba(255,255,255,0.02)',
-                                        transition: 'all 0.2s',
-                                        marginBottom: '1rem',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        color: 'var(--text-muted)'
-                                    }}
-                                    onClick={() => document.getElementById('file-upload-Schadenfotos-desktop').click()}
-                                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)'; e.currentTarget.style.color = 'var(--primary)'; }}
-                                    onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
-                                    onDrop={(e) => handleCategoryDrop(e, 'Schadenfotos')}
-                                >
-                                    <Plus size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
-                                    <span style={{ fontSize: '0.85rem' }}>Schadenfoto hochladen / Drop</span>
-                                    <input id="file-upload-Schadenfotos-desktop" type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={(e) => handleCategorySelect(e, 'Schadenfotos')} />
-                                </div>
-
-                                {/* List */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    {formData.images.filter(img => img.assignedTo === 'Schadenfotos').map((item, idx) => (
-                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
-                                            <div style={{ width: '80px', height: '80px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px', border: item.includeInReport !== false ? '2px solid #0F6EA3' : 'none' }}>
-                                                <img src={item.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
-                                            </div>
-
-                                            {/* Unified Toggle */}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0 0.5rem', cursor: 'pointer' }}
-                                                title="In PDF Bericht anzeigen"
-                                                onClick={() => setFormData(prev => ({
-                                                    ...prev,
-                                                    images: prev.images.map(i => i.preview === item.preview ? { ...i, includeInReport: i.includeInReport === false } : i)
-                                                }))}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={item.includeInReport !== false}
-                                                    readOnly
-                                                    style={{ width: '1.25rem', height: '1.25rem', cursor: 'pointer', accentColor: '#0F6EA3' }}
-                                                />
-                                            </div>
-
-                                            <div style={{ flex: 1, fontWeight: 500, color: 'var(--text-main)' }}>
-                                                {item.name}
-                                                {item.includeInReport !== false && (
-                                                    <div style={{ fontSize: '0.8rem', color: '#0F6EA3', fontWeight: 600 }}>In Bericht</div>
-                                                )}
-                                            </div>
-
-                                            <button type="button" className="btn btn-ghost" onClick={() => setFormData(prev => ({ ...prev, images: prev.images.filter(i => i !== item) }))} style={{ color: '#EF4444', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}><Trash size={18} /></button>
+                            {/* List */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                {formData.images.filter(img => img.assignedTo === 'Schadenfotos').map((item, idx) => (
+                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: '#1E293B', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                                        <div style={{ width: '80px', height: '80px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px', border: item.includeInReport !== false ? '2px solid #0F6EA3' : 'none' }}>
+                                            <img src={item.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
                                         </div>
-                                    ))}
-                                    {formData.images.filter(img => img.assignedTo === 'Schadenfotos').length === 0 && (
-                                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Keine Schadenfotos vorhanden.</div>
-                                    )}
-                                </div>
+
+                                        {/* Unified Toggle */}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0 0.5rem', cursor: 'pointer' }}
+                                            title="In PDF Bericht anzeigen"
+                                            onClick={() => setFormData(prev => ({
+                                                ...prev,
+                                                images: prev.images.map(i => i.preview === item.preview ? { ...i, includeInReport: i.includeInReport === false } : i)
+                                            }))}>
+                                            <input
+                                                type="checkbox"
+                                                checked={item.includeInReport !== false}
+                                                readOnly
+                                                style={{ width: '1.25rem', height: '1.25rem', cursor: 'pointer', accentColor: '#0F6EA3' }}
+                                            />
+                                        </div>
+
+                                        <div style={{ flex: 1, fontWeight: 500, color: 'var(--text-main)' }}>
+                                            {item.name}
+                                            {item.includeInReport !== false && (
+                                                <div style={{ fontSize: '0.8rem', color: '#0F6EA3', fontWeight: 600 }}>In Bericht</div>
+                                            )}
+                                        </div>
+
+                                        <button type="button" className="btn btn-ghost" onClick={() => setFormData(prev => ({ ...prev, images: prev.images.filter(i => i !== item) }))} style={{ color: '#EF4444', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}><Trash size={18} /></button>
+                                    </div>
+                                ))}
+                                {formData.images.filter(img => img.assignedTo === 'Schadenfotos').length === 0 && (
+                                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Keine Schadenfotos vorhanden.</div>
+                                )}
                             </div>
                         </div>
-                    )}
+                    </div>
+                )}
 
 
-                    {(
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {formData.rooms.map(room => (
-                                <div key={room.id} style={{ border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--surface)' }}>
-                                    <div style={{ backgroundColor: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-main)' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <span style={{ fontWeight: 700, fontSize: '1.1rem', color: '#0F6EA3' }}>{room.name}</span>
-                                            {room.apartment && <span style={{ fontSize: '0.9rem', color: '#94A3B8', fontWeight: 500 }}>{room.apartment}</span>}
-                                        </div>
-                                        <div style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: mode === 'technician' ? '1fr 1fr' : 'auto',
-                                            gap: '0.4rem',
-                                            alignItems: 'center',
-                                            width: mode === 'technician' ? '100%' : 'auto',
-                                            ...(mode !== 'technician' ? { display: 'flex' } : {})
-                                        }}>
-                                            {room.measurementData ? (
-                                                <>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setActiveRoomForMeasurement(room);
-                                                            setIsNewMeasurement(true);
-                                                            setIsMeasurementReadOnly(false);
-                                                            setShowMeasurementModal(true);
-                                                        }}
-                                                        style={{
-                                                            padding: mode === 'technician' ? '0.75rem 0.5rem' : '0.4rem 0.6rem',
-                                                            borderRadius: '6px',
-                                                            border: '1px solid var(--border)',
-                                                            backgroundColor: 'rgba(255,255,255,0.05)',
-                                                            color: 'var(--text-main)',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            gap: '0.25rem',
-                                                            fontSize: mode === 'technician' ? '0.85rem' : '0.75rem',
-                                                            cursor: 'pointer',
-                                                            flex: 1,
-                                                            fontWeight: 600
-                                                        }}
-                                                    >
-                                                        <Plus size={14} /> Neue Messreihe
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setActiveRoomForMeasurement(room);
-                                                            setIsNewMeasurement(false);
-                                                            setIsMeasurementReadOnly(false);
-                                                            setShowMeasurementModal(true);
-                                                        }}
-                                                        style={{
-                                                            padding: mode === 'technician' ? '0.75rem 0.5rem' : '0.4rem 0.6rem',
-                                                            borderRadius: '6px',
-                                                            border: '1px solid #10B981',
-                                                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                                            color: '#10B981',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            gap: '0.25rem',
-                                                            fontSize: mode === 'technician' ? '0.85rem' : '0.75rem',
-                                                            cursor: 'pointer',
-                                                            flex: 1,
-                                                            fontWeight: 600
-                                                        }}
-                                                    >
-                                                        <FileText size={14} /> Messreihe fortsetzen
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setActiveRoomForMeasurement(room);
-                                                        setIsNewMeasurement(false);
-                                                        setIsMeasurementReadOnly(false);
-                                                        setShowMeasurementModal(true);
-                                                    }}
-
-                                                    style={{
-                                                        padding: mode === 'technician' ? '0.75rem 0.5rem' : '0.4rem 0.6rem',
-                                                        borderRadius: '6px',
-                                                        border: '1px solid #10B981',
-                                                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                                        color: '#10B981',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        gap: '0.25rem',
-                                                        fontSize: mode === 'technician' ? '0.85rem' : '0.75rem',
-                                                        cursor: 'pointer',
-                                                        flex: 1,
-                                                        fontWeight: 600,
-                                                        gridColumn: mode === 'technician' ? 'span 2' : 'auto'
-                                                    }}
-                                                >
-                                                    <Plus size={14} /> Messung starten
-                                                </button>
-                                            )}
-
-                                            {/* History Button */}
-                                            {room.measurementHistory && room.measurementHistory.length > 0 && (
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setActiveRoomForMeasurement(room);
-                                                        setIsNewMeasurement(false);
-                                                        setIsMeasurementReadOnly(true); // View Only
-                                                        setShowMeasurementModal(true);
-                                                    }}
-                                                    style={{
-                                                        padding: mode === 'technician' ? '0.75rem 0.5rem' : '0.4rem 0.6rem',
-                                                        borderRadius: '6px',
-                                                        border: '1px solid #3B82F6',
-                                                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                                        color: '#3B82F6',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        gap: '0.25rem',
-                                                        fontSize: mode === 'technician' ? '0.85rem' : '0.75rem',
-                                                        cursor: 'pointer',
-                                                        flex: 1,
-                                                        fontWeight: 600,
-                                                        gridColumn: mode === 'technician' && !room.measurementData ? 'span 1' : 'auto'
-                                                    }}
-                                                >
-                                                    <RotateCcw size={14} /> Messverlauf
-                                                </button>
-                                            )}
-
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {formData.rooms.map(room => (
+                        <div key={room.id} style={{ border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--surface)' }}>
+                            <div style={{ backgroundColor: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-main)' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, paddingRight: '1rem' }}>
+                                    <span style={{ fontWeight: 800, fontSize: '1.2rem', color: '#0F6EA3', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{room.name}</span>
+                                    {room.apartment && <span style={{ fontSize: '0.95rem', color: '#94A3B8', fontWeight: 600 }}>{room.apartment}</span>}
+                                </div>
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: mode === 'technician' ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(140px, 1fr))',
+                                    gap: '0.5rem',
+                                    alignItems: 'stretch',
+                                    minWidth: mode === 'technician' ? '240px' : 'auto',
+                                    flexShrink: 0
+                                }}>
+                                    {room.measurementData ? (
+                                        <>
                                             <button
                                                 type="button"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    if (window.confirm(`Sind Sie sicher, dass Sie den Raum "${room.name}" löschen möchten? Alle zugehörigen Bilder und Messdaten gehen verloren.`)) {
-                                                        handleRemoveRoom(room.id);
-                                                    }
+                                                    setActiveRoomForMeasurement(room);
+                                                    setIsNewMeasurement(true);
+                                                    setIsMeasurementReadOnly(false);
+                                                    setShowMeasurementModal(true);
                                                 }}
-                                                title="Raum löschen"
                                                 style={{
-                                                    padding: mode === 'technician' ? '0.75rem' : '0.4rem',
-                                                    borderRadius: '6px',
-                                                    border: '1px solid #EF4444',
-                                                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                                    color: '#EF4444',
+                                                    padding: mode === 'technician' ? '0.75rem 0.5rem' : '0.4rem 0.6rem',
+                                                    borderRadius: '8px',
+                                                    border: '1.5px solid #D97706',
+                                                    backgroundColor: 'rgba(217, 119, 6, 0.1)',
+                                                    color: '#F59E0B',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'center',
+                                                    gap: '0.4rem',
+                                                    fontSize: mode === 'technician' ? '0.9rem' : '0.75rem',
                                                     cursor: 'pointer',
-                                                    gridColumn: mode === 'technician' && !(room.measurementHistory && room.measurementHistory.length > 0) ? 'span 2' : 'auto'
+                                                    flex: 1,
+                                                    minHeight: mode === 'technician' ? '44px' : 'auto',
+                                                    fontWeight: 800
                                                 }}
                                             >
-                                                <Trash size={14} />
+                                                <Plus size={16} /> Neue Messung
                                             </button>
-                                        </div>
-                                    </div>
-                                    <div style={{ padding: '0.75rem' }}>
-                                        <>
-                                            {(() => {
-                                                const roomImages = formData.images.filter(img => img.roomId === room.id);
-                                                const shouldCollapse = mode === 'technician' && formData.status === 'Trocknung';
-                                                const isVisible = !shouldCollapse || visibleRoomImages[room.id];
-
-                                                return (
-                                                    <>
-                                                        {shouldCollapse && roomImages.length > 0 && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setVisibleRoomImages(prev => ({ ...prev, [room.id]: !prev[room.id] }))}
-                                                                style={{
-                                                                    width: '100%',
-                                                                    padding: '8px',
-                                                                    marginBottom: '12px',
-                                                                    backgroundColor: '#1E293B',
-                                                                    border: '1px solid var(--border)',
-                                                                    color: 'white',
-                                                                    borderRadius: '6px',
-                                                                    cursor: 'pointer',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    gap: '8px',
-                                                                    fontWeight: 500,
-                                                                    fontSize: '0.9rem'
-                                                                }}
-                                                            >
-                                                                {isVisible ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                                                {isVisible ? 'Bilder verbergen' : `Bilder anzeigen (${roomImages.length})`}
-                                                            </button>
-                                                        )}
-
-                                                        {isVisible && (
-                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
-                                                                {roomImages.map((img, idx) => (
-                                                                    <div key={idx} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', border: '1px solid var(--border)', padding: '0.5rem', borderRadius: '6px', backgroundColor: 'var(--background)' }}>
-                                                                        {/* Thumbnail check */}
-                                                                        <div style={{ flex: '0 0 100px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-                                                                            <div style={{ width: '100px', height: '100px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                                                                                <img src={img.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onClick={() => window.open(img.preview, '_blank')} />
-                                                                            </div>
-                                                                            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '0 2px', alignItems: 'center' }}>
-                                                                                <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', fontSize: '0.75rem', cursor: 'pointer', color: 'var(--text-main)' }}>
-                                                                                    <input
-                                                                                        type="checkbox"
-                                                                                        style={{ width: '20px', height: '20px', accentColor: 'var(--primary)' }}
-                                                                                        checked={img.includeInReport !== false}
-                                                                                        onChange={(e) => {
-                                                                                            const isChecked = e.target.checked;
-                                                                                            setFormData(prev => ({
-                                                                                                ...prev,
-                                                                                                images: prev.images.map(i => i === img ? { ...i, includeInReport: isChecked } : i)
-                                                                                            }));
-                                                                                        }}
-                                                                                    />
-                                                                                    <span style={{ fontWeight: 600 }}>Bericht</span>
-                                                                                </label>
-                                                                                <button
-                                                                                    type="button"
-                                                                                    title="Bearbeiten"
-                                                                                    style={{
-                                                                                        border: '1px solid var(--border)',
-                                                                                        backgroundColor: '#1E293B',
-                                                                                        color: 'white',
-                                                                                        cursor: 'pointer',
-                                                                                        padding: '8px',
-                                                                                        borderRadius: '8px',
-                                                                                        display: 'flex',
-                                                                                        alignItems: 'center',
-                                                                                        justifyContent: 'center',
-                                                                                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                                                                                    }}
-                                                                                    onClick={() => setActiveImageMeta(img)}
-                                                                                >
-                                                                                    <Edit3 size={22} />
-                                                                                </button>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        {/* File Info & Description */}
-                                                                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                                                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-                                                                                <textarea
-                                                                                    placeholder="Beschreibung..."
-                                                                                    className="form-input"
-                                                                                    rows={3}
-                                                                                    style={{
-                                                                                        fontSize: '0.9rem',
-                                                                                        padding: '0.5rem',
-                                                                                        flex: 1,
-                                                                                        width: 'auto',
-                                                                                        resize: 'none',
-                                                                                        backgroundColor: isRecording === img.preview ? '#450a0a' : '#0F172A',
-                                                                                        borderColor: isRecording === img.preview ? '#EF4444' : '#334155',
-                                                                                        color: 'white'
-                                                                                    }}
-                                                                                    value={img.description || ''}
-                                                                                    onChange={(e) => {
-                                                                                        const newDesc = e.target.value;
-                                                                                        setFormData(prev => ({
-                                                                                            ...prev,
-                                                                                            images: prev.images.map(i => i === img ? { ...i, description: newDesc } : i)
-                                                                                        }));
-                                                                                    }}
-                                                                                />
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => isRecording === img.preview ? stopRecording() : startRecording(img.preview)}
-                                                                                    title={isRecording === img.preview ? "Aufnahme stoppen" : "Spracheingabe starten"}
-                                                                                    style={{
-                                                                                        border: isRecording === img.preview ? 'none' : '1px solid var(--border)',
-                                                                                        backgroundColor: isRecording === img.preview ? '#EF4444' : '#1E293B',
-                                                                                        color: isRecording === img.preview ? 'white' : '#94A3B8',
-                                                                                        width: '36px',
-                                                                                        height: '36px',
-                                                                                        borderRadius: '50%',
-                                                                                        cursor: 'pointer',
-                                                                                        display: 'flex',
-                                                                                        alignItems: 'center',
-                                                                                        justifyContent: 'center',
-                                                                                        transition: 'all 0.2s',
-                                                                                        boxShadow: isRecording === img.preview ? '0 0 0 4px rgba(239, 68, 68, 0.2)' : '0 1px 2px rgba(0,0,0,0.1)',
-                                                                                        flexShrink: 0
-                                                                                    }}
-                                                                                >
-                                                                                    <Mic size={20} className={isRecording === img.preview ? 'animate-pulse' : ''} />
-                                                                                </button>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        {/* Actions: Delete */}
-                                                                        <div>
-                                                                            {mode !== 'technician' && (
-                                                                                <button
-                                                                                    type="button"
-                                                                                    className="btn btn-ghost"
-                                                                                    title="Bild löschen" // Added title for clarity
-                                                                                    style={{
-                                                                                        color: '#EF4444',
-                                                                                        padding: '0',
-                                                                                        backgroundColor: '#1E293B',
-                                                                                        border: '1px solid var(--border)',
-                                                                                        borderRadius: '50%',
-                                                                                        width: '36px',
-                                                                                        height: '36px',
-                                                                                        display: 'flex',
-                                                                                        alignItems: 'center',
-                                                                                        justifyContent: 'center',
-                                                                                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                                                                                        cursor: 'pointer'
-                                                                                    }}
-                                                                                    onClick={() => {
-                                                                                        if (window.confirm('Bild wirklich löschen?')) {
-                                                                                            setFormData(prev => ({
-                                                                                                ...prev,
-                                                                                                images: prev.images.filter(i => i !== img)
-                                                                                            }));
-                                                                                        }
-                                                                                    }}
-                                                                                >
-                                                                                    <Trash size={16} />
-                                                                                </button>
-                                                                            )}
-                                                                        </div>
-
-                                                                    </div>
-                                                                ))}
-                                                                {roomImages.length === 0 && (
-                                                                    <div style={{ fontSize: '0.85rem', color: '#9CA3AF', fontStyle: 'italic', marginBottom: '0.5rem' }}>Keine Bilder</div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </>
-                                                );
-                                            })()}
-
-                                            <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
-                                                {/* Camera Button */}
-                                                <label
-                                                    style={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        gap: '0.5rem',
-                                                        flex: 1,
-                                                        padding: '0.75rem',
-                                                        backgroundColor: 'var(--primary)',
-                                                        color: 'white',
-                                                        borderRadius: '8px',
-                                                        cursor: 'pointer',
-                                                        fontWeight: 600,
-                                                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                                                    }}
-                                                    onClick={(e) => {
-                                                        const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-                                                        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
-                                                            (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/.test(navigator.platform));
-
-                                                        if (!isMobile) {
-                                                            e.preventDefault();
-                                                            setCameraContext({ roomId: room.id, assignedTo: room.name });
-                                                            setShowCameraModal(true);
-                                                        }
-                                                    }}
-                                                >
-                                                    <Camera size={20} />
-                                                    Kamera
-                                                    <input
-                                                        type="file"
-                                                        accept="image/*"
-                                                        capture="environment"
-                                                        onChange={(e) => {
-                                                            if (e.target.files && e.target.files.length > 0) {
-                                                                handleImageUpload(Array.from(e.target.files), { roomId: room.id, assignedTo: room.name });
-                                                            }
-                                                        }}
-                                                        style={{ display: 'none' }}
-                                                    />
-                                                </label>
-
-                                                {/* Gallery Button */}
-                                                <label style={{
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setActiveRoomForMeasurement(room);
+                                                    setIsNewMeasurement(false);
+                                                    setIsMeasurementReadOnly(false);
+                                                    setShowMeasurementModal(true);
+                                                }}
+                                                style={{
+                                                    padding: mode === 'technician' ? '0.75rem 0.5rem' : '0.4rem 0.6rem',
+                                                    borderRadius: '8px',
+                                                    border: '1.5px solid #059669',
+                                                    backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                                                    color: '#10B981',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'center',
-                                                    gap: '0.5rem',
-                                                    flex: 1,
-                                                    padding: '0.75rem',
-                                                    backgroundColor: '#1E293B',
-                                                    border: '1px solid var(--border)',
-                                                    color: 'white',
-                                                    borderRadius: '8px',
+                                                    gap: '0.4rem',
+                                                    fontSize: mode === 'technician' ? '0.9rem' : '0.75rem',
                                                     cursor: 'pointer',
-                                                    fontWeight: 600,
-                                                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                                                }}>
-                                                    <Image size={20} />
-                                                    Galerie
-                                                    <input
-                                                        type="file"
-                                                        accept="image/*"
-                                                        multiple
-                                                        onChange={(e) => {
-                                                            if (e.target.files && e.target.files.length > 0) {
-                                                                handleImageUpload(Array.from(e.target.files), { roomId: room.id, assignedTo: room.name });
-                                                            }
-                                                        }}
-                                                        style={{ display: 'none' }}
-                                                    />
-                                                </label>
-                                            </div>
+                                                    flex: 1,
+                                                    minHeight: mode === 'technician' ? '44px' : 'auto',
+                                                    fontWeight: 800,
+                                                    whiteSpace: 'nowrap'
+                                                }}
+                                            >
+                                                <Edit3 size={16} /> Fortsetzen
+                                            </button>
                                         </>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveRoomForMeasurement(room);
+                                                setIsNewMeasurement(false);
+                                                setIsMeasurementReadOnly(false);
+                                                setShowMeasurementModal(true);
+                                            }}
+                                            style={{
+                                                padding: mode === 'technician' ? '0.8rem 0.5rem' : '0.4rem 0.6rem',
+                                                borderRadius: '6px',
+                                                border: '1px solid #059669',
+                                                backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                                                color: '#34d399',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '0.4rem',
+                                                fontSize: mode === 'technician' ? '1rem' : '0.75rem',
+                                                cursor: 'pointer',
+                                                flex: 1,
+                                                minHeight: mode === 'technician' ? '50px' : 'auto',
+                                                fontWeight: 700,
+                                                gridColumn: mode === 'technician' ? 'span 2' : 'auto'
+                                            }}
+                                        >
+                                            <Plus size={18} /> Messung starten
+                                        </button>
+                                    )}
+
+                                    {/* History Button */}
+                                    {room.measurementHistory && room.measurementHistory.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveRoomForMeasurement(room);
+                                                setIsNewMeasurement(false);
+                                                setIsMeasurementReadOnly(true); // View Only
+                                                setShowMeasurementModal(true);
+                                            }}
+                                            style={{
+                                                padding: mode === 'technician' ? '0.6rem 0.5rem' : '0.4rem 0.6rem',
+                                                borderRadius: '6px',
+                                                border: '1px solid #1d4ed8',
+                                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                                color: '#60a5fa',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '0.3rem',
+                                                fontSize: mode === 'technician' ? '0.8rem' : '0.75rem',
+                                                cursor: 'pointer',
+                                                flex: 1,
+                                                minHeight: mode === 'technician' ? '44px' : 'auto',
+                                                fontWeight: 700,
+                                                gridColumn: mode === 'technician' && !room.measurementData ? 'span 1' : 'auto'
+                                            }}
+                                        >
+                                            <RotateCcw size={14} /> Messverlauf
+                                        </button>
+                                    )}
+
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (window.confirm(`Sind Sie sicher, dass Sie den Raum "${room.name}" löschen möchten? Alle zugehörigen Bilder und Messdaten gehen verloren.`)) {
+                                                handleRemoveRoom(room.id);
+                                            }
+                                        }}
+                                        title="Raum löschen"
+                                        style={{
+                                            padding: mode === 'technician' ? '0.6rem' : '0.4rem',
+                                            borderRadius: '6px',
+                                            border: '1px solid #b91c1c',
+                                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                            color: '#f87171',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            cursor: 'pointer',
+                                            minHeight: mode === 'technician' ? '44px' : 'auto',
+                                            gridColumn: mode === 'technician' && !(room.measurementHistory && room.measurementHistory.length > 0) ? 'span 1' : 'auto'
+                                        }}
+                                    >
+                                        <Trash size={14} />
+                                    </button>
+
+                                </div>
+                            </div>
+                            <div style={{ padding: '0.75rem' }}>
+                                <>
+                                    {(() => {
+                                        const roomImages = formData.images.filter(img => img.roomId === room.id);
+                                        const shouldCollapse = mode === 'technician' && formData.status === 'Trocknung';
+                                        const isVisible = !shouldCollapse || visibleRoomImages[room.id];
+
+                                        return (
+                                            <>
+                                                {shouldCollapse && roomImages.length > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setVisibleRoomImages(prev => ({ ...prev, [room.id]: !prev[room.id] }))}
+                                                        style={{
+                                                            width: '100%',
+                                                            padding: '8px',
+                                                            marginBottom: '12px',
+                                                            backgroundColor: '#1E293B',
+                                                            border: '1px solid var(--border)',
+                                                            color: 'white',
+                                                            borderRadius: '6px',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            gap: '8px',
+                                                            fontWeight: 500,
+                                                            fontSize: '0.9rem'
+                                                        }}
+                                                    >
+                                                        {isVisible ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                                        {isVisible ? 'Bilder verbergen' : `Bilder anzeigen (${roomImages.length})`}
+                                                    </button>
+                                                )}
+
+                                                {isVisible && (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+                                                        {roomImages.map((img, idx) => (
+                                                            <div key={idx} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', border: '1px solid var(--border)', padding: '0.5rem', borderRadius: '6px', backgroundColor: 'var(--background)' }}>
+                                                                {/* Thumbnail check */}
+                                                                <div style={{ flex: '0 0 100px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                                                                    <div style={{ width: '100px', height: '100px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                                                                        <img src={img.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onClick={() => window.open(img.preview, '_blank')} />
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '0 2px', alignItems: 'center' }}>
+                                                                        <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', fontSize: '0.75rem', cursor: 'pointer', color: 'var(--text-main)' }}>
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                style={{ width: '20px', height: '20px', accentColor: 'var(--primary)' }}
+                                                                                checked={img.includeInReport !== false}
+                                                                                onChange={(e) => {
+                                                                                    const isChecked = e.target.checked;
+                                                                                    setFormData(prev => ({
+                                                                                        ...prev,
+                                                                                        images: prev.images.map(i => i === img ? { ...i, includeInReport: isChecked } : i)
+                                                                                    }));
+                                                                                }}
+                                                                            />
+                                                                            <span style={{ fontWeight: 600 }}>Bericht</span>
+                                                                        </label>
+                                                                        <button
+                                                                            type="button"
+                                                                            title="Bearbeiten"
+                                                                            style={{
+                                                                                border: '1px solid var(--border)',
+                                                                                backgroundColor: '#1E293B',
+                                                                                color: 'white',
+                                                                                cursor: 'pointer',
+                                                                                padding: '8px',
+                                                                                borderRadius: '8px',
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                justifyContent: 'center',
+                                                                                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                                                            }}
+                                                                            onClick={() => setActiveImageMeta(img)}
+                                                                        >
+                                                                            <Edit3 size={22} />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* File Info & Description */}
+                                                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                                                                        <textarea
+                                                                            placeholder="Beschreibung..."
+                                                                            className="form-input"
+                                                                            rows={3}
+                                                                            style={{
+                                                                                fontSize: '0.9rem',
+                                                                                padding: '0.5rem',
+                                                                                flex: 1,
+                                                                                width: 'auto',
+                                                                                resize: 'none',
+                                                                                backgroundColor: isRecording === img.preview ? '#450a0a' : '#0F172A',
+                                                                                borderColor: isRecording === img.preview ? '#EF4444' : '#334155',
+                                                                                color: 'white'
+                                                                            }}
+                                                                            value={img.description || ''}
+                                                                            onChange={(e) => {
+                                                                                const newDesc = e.target.value;
+                                                                                setFormData(prev => ({
+                                                                                    ...prev,
+                                                                                    images: prev.images.map(i => i === img ? { ...i, description: newDesc } : i)
+                                                                                }));
+                                                                            }}
+                                                                        />
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => isRecording === img.preview ? stopRecording() : startRecording(img.preview)}
+                                                                            title={isRecording === img.preview ? "Aufnahme stoppen" : "Spracheingabe starten"}
+                                                                            style={{
+                                                                                border: isRecording === img.preview ? 'none' : '1px solid var(--border)',
+                                                                                backgroundColor: isRecording === img.preview ? '#EF4444' : '#1E293B',
+                                                                                color: isRecording === img.preview ? 'white' : '#94A3B8',
+                                                                                width: '36px',
+                                                                                height: '36px',
+                                                                                borderRadius: '50%',
+                                                                                cursor: 'pointer',
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                justifyContent: 'center',
+                                                                                transition: 'all 0.2s',
+                                                                                boxShadow: isRecording === img.preview ? '0 0 0 4px rgba(239, 68, 68, 0.2)' : '0 1px 2px rgba(0,0,0,0.1)',
+                                                                                flexShrink: 0
+                                                                            }}
+                                                                        >
+                                                                            <Mic size={20} className={isRecording === img.preview ? 'animate-pulse' : ''} />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Actions: Delete */}
+                                                                <div>
+                                                                    {mode !== 'technician' && (
+                                                                        <button
+                                                                            type="button"
+                                                                            className="btn btn-ghost"
+                                                                            title="Bild löschen" // Added title for clarity
+                                                                            style={{
+                                                                                color: '#EF4444',
+                                                                                padding: '0',
+                                                                                backgroundColor: '#1E293B',
+                                                                                border: '1px solid var(--border)',
+                                                                                borderRadius: '50%',
+                                                                                width: '36px',
+                                                                                height: '36px',
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                justifyContent: 'center',
+                                                                                boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                                                                                cursor: 'pointer'
+                                                                            }}
+                                                                            onClick={() => {
+                                                                                if (window.confirm('Bild wirklich löschen?')) {
+                                                                                    setFormData(prev => ({
+                                                                                        ...prev,
+                                                                                        images: prev.images.filter(i => i !== img)
+                                                                                    }));
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <Trash size={16} />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+
+                                                            </div>
+                                                        ))}
+                                                        {roomImages.length === 0 && (
+                                                            <div style={{ fontSize: '0.85rem', color: '#9CA3AF', fontStyle: 'italic', marginBottom: '0.5rem' }}>Keine Bilder</div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
+
+                                    <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                                        {/* Camera Button */}
+                                        <label
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '0.5rem',
+                                                flex: 1,
+                                                padding: '0.75rem',
+                                                backgroundColor: 'var(--primary)',
+                                                color: 'white',
+                                                borderRadius: '8px',
+                                                cursor: 'pointer',
+                                                fontWeight: 600,
+                                                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                            }}
+                                            onClick={(e) => {
+                                                const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+                                                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
+                                                    (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/.test(navigator.platform));
+
+                                                if (!isMobile) {
+                                                    e.preventDefault();
+                                                    setCameraContext({ roomId: room.id, assignedTo: room.name });
+                                                    setShowCameraModal(true);
+                                                }
+                                            }}
+                                        >
+                                            <Camera size={20} />
+                                            Kamera
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                capture="environment"
+                                                onChange={(e) => {
+                                                    if (e.target.files && e.target.files.length > 0) {
+                                                        handleImageUpload(Array.from(e.target.files), { roomId: room.id, assignedTo: room.name });
+                                                    }
+                                                }}
+                                                style={{ display: 'none' }}
+                                            />
+                                        </label>
+
+                                        {/* Gallery Button */}
+                                        <label style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '0.5rem',
+                                            flex: 1,
+                                            padding: '0.75rem',
+                                            backgroundColor: '#1E293B',
+                                            border: '1px solid var(--border)',
+                                            color: 'white',
+                                            borderRadius: '8px',
+                                            cursor: 'pointer',
+                                            fontWeight: 600,
+                                            boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                        }}>
+                                            <Image size={20} />
+                                            Galerie
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                multiple
+                                                onChange={(e) => {
+                                                    if (e.target.files && e.target.files.length > 0) {
+                                                        handleImageUpload(Array.from(e.target.files), { roomId: room.id, assignedTo: room.name });
+                                                    }
+                                                }}
+                                                style={{ display: 'none' }}
+                                            />
+                                        </label>
                                     </div>
-                                </div>
-                            ))}
-                            {formData.rooms.length === 0 && (
-                                <div style={{ padding: '2rem', textAlign: 'center', color: '#9CA3AF', border: '2px dashed #E5E7EB', borderRadius: '8px' }}>
-                                    Noch keine Räume angelegt.
-                                </div>
-                            )}
+                                </>
+                            </div>
                         </div>
-                    )
-                    }
+                    ))}
+                    {formData.rooms.length === 0 && (
+                        <div style={{ padding: '2rem', textAlign: 'center', color: '#9CA3AF', border: '2px dashed #E5E7EB', borderRadius: '8px' }}>
+                            Noch keine Räume angelegt.
+                        </div>
+                    )}
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem', marginBottom: '2rem' }}>

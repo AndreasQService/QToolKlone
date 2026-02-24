@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
         height: 30,
         // backgroundColor: '#eeeeee', // Debug color removed
         borderTopWidth: 0.5,
-        borderTopColor: '#0F6EA3',
+        borderTopColor: '#0369a1',
         paddingTop: 10,
 
     },

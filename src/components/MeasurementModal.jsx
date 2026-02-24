@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Save, Eraser, Pen, Undo, Trash2, FileText, Loader, Check, Hand, ChevronUp, ChevronDown, Plus, Edit3, RotateCcw, PenOff, Camera, Image } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import CameraCaptureModal from './CameraCaptureModal';
 
 const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initialData, readOnly, measurementHistory }) => {
 
@@ -27,6 +28,7 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
     const [isSaving, setIsSaving] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [stylusOnlyMode, setStylusOnlyMode] = useState(false); // New state for Palm Rejection
+    const [showCamera, setShowCamera] = useState(false);
 
     // Sync locked state with readOnly prop on open
     // Also update history if needed
@@ -148,7 +150,7 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
 
                 // Restore canvas
                 if (roomData.canvasImage) {
-                    const img = new Image();
+                    const img = new window.Image();
                     img.onload = () => {
                         const canvas = canvasRef.current;
                         if (canvas) {
@@ -325,6 +327,25 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
         saveParamsToHistory(canvas);
     };
 
+    const handleCameraCapture = (file) => {
+        setShowCamera(false);
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new window.Image();
+            img.onload = () => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+                const x = (canvas.width / 2) - (img.width / 2) * scale;
+                const y = (canvas.height / 2) - (img.height / 2) * scale;
+                ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+                saveParamsToHistory(canvas);
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handleSave = async () => {
         if (!containerRef.current || isSaving) return;
 
@@ -398,10 +419,9 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
     };
 
     const addMeasurement = () => {
-        const newId = measurements.length > 0 ? Math.max(...measurements.map(m => parseInt(m.id.substring(1)) || 0)) + 1 : 1;
-        // Or simply maintain a logical counter if IDs need to be stable
+        // Use Date.now() for unique IDs
         const newPoint = {
-            id: `p${Date.now()}`, // Unique ID
+            id: `p${Date.now()}`,
             pointName: `Messpunkt ${measurements.length + 1}`,
             w_value: '',
             b_value: '',
@@ -571,6 +591,24 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
                                             <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Radierer</span>
                                         </button>
                                         <button
+                                            onClick={() => setShowCamera(true)}
+                                            style={{
+                                                padding: '0.5rem',
+                                                borderRadius: '6px',
+                                                background: 'rgba(255,255,255,0.05)',
+                                                border: '1px solid var(--border)',
+                                                color: 'var(--text-main)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.4rem'
+                                            }}
+                                            title="Kamera starten"
+                                        >
+                                            <Camera size={16} />
+                                            <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Foto</span>
+                                        </button>
+
+                                        <button
                                             onClick={() => document.getElementById('sketch-photo-upload').click()}
                                             style={{
                                                 padding: '0.5rem',
@@ -582,18 +620,21 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
                                                 alignItems: 'center',
                                                 gap: '0.4rem'
                                             }}
-                                            title="Foto als Hintergrund laden"
+                                            title="Bild aus Galerie laden"
                                         >
-                                            <Camera size={16} />
-                                            <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Foto</span>
+                                            <Image size={16} />
+                                            <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Galerie</span>
                                         </button>
+
                                         <input
                                             id="sketch-photo-upload"
                                             type="file"
                                             accept="image/*"
-                                            capture="environment"
                                             style={{ display: 'none' }}
-                                            onChange={handlePhotoUpload}
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) handleCameraCapture(file);
+                                            }}
                                         />
 
                                         <button
@@ -1013,13 +1054,14 @@ const MeasurementModal = ({ isOpen, onClose, onSave, rooms, projectTitle, initia
                         )}
                     </div>
                 </div>
-
-                {/* Footer / Copyright in capture */}
-                <div style={{ padding: '0.5rem', textAlign: 'center', fontSize: '0.7rem', color: '#999', borderTop: '1px solid #eee' }}>
-                    Erstellt mit Q-Tool | {new Date().toLocaleDateString('de-CH')}
-                </div>
             </div>
-        </div >
+            {showCamera && (
+                <CameraCaptureModal
+                    onClose={() => setShowCamera(false)}
+                    onCapture={handleCameraCapture}
+                />
+            )}
+        </div>
         , document.body);
 };
 
