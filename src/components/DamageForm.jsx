@@ -4621,34 +4621,6 @@ END:VCARD`;
                                     <span>Energieprotokoll (PDF)</span>
                                 </button>
 
-                                {/* Moved PDF Button HERE */}
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        // console.log("Setting showReportModal to true"); // Debug log only
-                                        setShowReportModal(true);
-                                    }}
-                                    style={{
-                                        backgroundColor: 'transparent',
-                                        border: '1px solid #EF4444',
-                                        color: '#EF4444',
-                                        padding: '8px 16px',
-                                        borderRadius: '6px',
-                                        fontSize: '14px',
-                                        fontWeight: '600',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px',
-                                        marginLeft: '1rem' // Space between buttons
-                                    }}
-                                    title="Schadensbericht erstellen (PDF)"
-                                >
-                                    <FileText size={16} />
-                                    PDF Erstellen
-                                </button>
                             </div>
                         )}
 
