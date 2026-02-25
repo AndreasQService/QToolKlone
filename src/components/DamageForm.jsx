@@ -4593,34 +4593,20 @@ END:VCARD`;
                             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem', position: 'relative', zIndex: 10, ...(mode === 'desktop' ? { order: 2 } : {}) }}>
                                 <button
                                     type="button"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        try {
-                                            generateEnergyReport();
-                                        } catch (err) {
-                                            alert("Fehler: " + err.message);
-                                        }
-                                    }}
+                                    onClick={generateEnergyReport}
+                                    className="btn btn-outline"
                                     style={{
-                                        backgroundColor: 'transparent',
-                                        border: '1px solid #10B981',
-                                        color: '#10B981',
-                                        padding: '8px 16px',
-                                        borderRadius: '6px',
-                                        fontSize: '14px',
-                                        fontWeight: '600',
-                                        cursor: 'pointer',
+                                        borderColor: 'var(--success)',
+                                        color: 'var(--success)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '6px'
                                     }}
                                     title="Energieprotokoll erstellen"
                                 >
-                                    <FileText size={18} />
+                                    <PdfIcon size={18} />
                                     <span>Energieprotokoll (PDF)</span>
                                 </button>
-
                             </div>
                         )}
 
