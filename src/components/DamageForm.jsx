@@ -25,6 +25,7 @@ import ImageEditor from './ImageEditor';
 import EmailImportModal from './EmailImportModalV2';
 import OpenAI from "openai";
 import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import CameraCaptureModal from './CameraCaptureModal';
 import MeasurementModal from './MeasurementModal';
 import { generateMeasurementExcel } from '../utils/MeasurementExcelExporter';
